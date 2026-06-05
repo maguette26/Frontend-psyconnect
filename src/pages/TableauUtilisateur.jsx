@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/commun/Layout';
 import SuiviHumeur from '../components/utilisateur/SuiviHumeur';
 import Consultations from '../components/utilisateur/MesConsultations';
-
+import { getCurrentUserInfo } from '../services/serviceAuth';
 import FormulaireProfil from '../components/utilisateur/FormulaireProfil';
 import MesReservations from '../components/utilisateur/MesReservations';
 import { getProfil  } from '../services/serviceUtilisateur';
@@ -36,26 +36,14 @@ const TableauUtilisateur = () => {
   }, [darkMode]);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const user = await getProfil();
-        if (user?.id && user.role === 'USER') {
-          setCurrentUser(user);
-          setGlobalError(null);
-        } else {
-          setCurrentUser(null);
-          setGlobalError("Accès refusé.");
-        }
-      } catch {
-        setGlobalError("Erreur de connexion.");
-        setCurrentUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchUserData();
-  }, []);
-
+  const user = getCurrentUserInfo();
+  if (user?.id && user.role === 'USER') {
+    setCurrentUser(user);
+  } else {
+    setGlobalError("Accès refusé.");
+  }
+  setLoading(false);
+}, []);
   const fetchConsultations = useCallback(async () => {
     if (!currentUser?.id) return;
     try {

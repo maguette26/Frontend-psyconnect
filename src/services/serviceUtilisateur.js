@@ -25,25 +25,9 @@ export const supprimerHumeur = async (id) => {
 
 // --- Profil utilisateur ---
 export const getProfil = async () => {
-    try {
-        const authMeResponse = await api.get('/auth/me');
-        const authMeData = authMeResponse.data;
-        const storedUserInfo = getCurrentUserInfo();
-
-        const fullProfil = {
-            ...storedUserInfo,
-            ...authMeData
-        };
-
-        if (fullProfil.authenticated && !fullProfil.id) {
-            console.warn("getProfil: User ID is missing in profile data.");
-        }
-
-        return fullProfil;
-    } catch (error) {
-        console.error("Erreur profil:", error.response ? error.response.data : error.message);
-        return getCurrentUserInfo();
-    }
+    // ✅ Plus d'appel réseau — on lit directement le localStorage
+    const storedUserInfo = getCurrentUserInfo();
+    return storedUserInfo;
 };
 
 export const modifierProfil = async (profilData) => {
