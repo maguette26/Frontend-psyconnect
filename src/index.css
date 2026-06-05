@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Le reste de ton CSS */
+body {
+  font-family: 'Nunito', sans-serif;
+   scroll-padding-top: 70px;
+}
+html {
+  scroll-behavior: smooth;
+}
+ 
+/* Style global clair par défaut */
+:root {
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color: #111111;
+  background-color: #ffffff;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #1a73e8;
+  text-decoration: none;
+}
+a:hover {
+  color: #1558b0;
+  text-decoration: underline;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 320px;
+  min-height: 100vh;
+  background-color: #ffffff;
+  color: #111111;
+}
+
+h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 1rem;
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a73e8;
+  color: #ffffff;
+  cursor: pointer;
+  transition: background-color 0.25s, border-color 0.25s;
+}
+button:hover {
+  background-color: #1558b0;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+/* Diagonal effect */
+.clip-diagonal {
+  clip-path: polygon(30% 0%, 100% 0%, 100% 100%, 0% 100%);
+}
+
+/* Neon glow animation */
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 10px rgba(0,255,255,0.4);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(0,255,255,0.8);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(0,255,255,0.4);
+  }
+}
+
+.animate-glow {
+  animation: glow 3s infinite;
+}
