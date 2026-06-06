@@ -117,12 +117,12 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
 
                     <div className="flex space-x-3 overflow-x-auto px-3 pb-2">
                       {sousCreneaux.map((heure, i) => {
-                        const resvAPayer = reservationsActives.find(
-                          (resv) =>
-                            resv.statut === 'EN_ATTENTE_PAIEMENT' &&
-                            resv.statutValidation === 'VALIDE' &&
-                            resv.heureConsultation === heure
-                        );
+                        const resvAPayer = reservationsActives.find((resv) => {
+  console.log('compare:', resv.heureConsultation, '===', heure, resv.statut, resv.statutValidation);
+  return resv.statut === 'EN_ATTENTE_PAIEMENT' &&
+         resv.statutValidation === 'VALIDE' &&
+         resv.heureConsultation === heure;
+});
                         const estReserve = reservationsActives.some(
                           (resv) =>
                             (resv.statut === 'PAYEE' || resv.statut === 'EN_ATTENTE') &&
