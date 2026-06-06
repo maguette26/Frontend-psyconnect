@@ -21,7 +21,7 @@ const MesConsultations = () => {
   useEffect(() => {
     const fetchConsultations = async () => {
       try {
-       await api.get('/consultations/mes-consultations');
+        const response = await api.get('/consultations/mes-consultations'); // ✅ fix
         setConsultations(response.data);
       } catch (err) {
         setError(err.message);
@@ -88,7 +88,7 @@ const MesConsultations = () => {
           <AnimatePresence>
             {filteredConsultations.map((c) => (
               <motion.li
-                key={c.id}
+                key={c.idConsultation}
                 className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-5"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -100,20 +100,19 @@ const MesConsultations = () => {
                     <User size={18} /> Docteur : {c.professionnelPrenom} {c.professionnelNom || '—'}
                   </p>
                   <p className="text-gray-700 flex items-center gap-2">
-                    <CalendarCheck size={16} /> Date : {new Date(c.date).toLocaleDateString()}
+                    <CalendarCheck size={16} /> Date : {new Date(c.dateConsultation).toLocaleDateString('fr-FR')}
                   </p>
                   <p className="text-gray-700 flex items-center gap-2">
                     <Clock size={16} /> Heure : {c.heure?.substring(0, 5) || '—'}
                   </p>
                   <div className="flex items-center gap-2">
-                    <Info size={16} className="text-gray-500" />Statut:
+                    <Info size={16} className="text-gray-500" /> Statut :
                     {getBadge(c.statut)}
                   </div>
                   <p className="text-gray-800 font-medium flex items-center gap-1">Prix :
                     <Euro size={14} /> {c.prix?.toFixed(2) || '—'}
                   </p>
 
-                  {/* Notes uniquement si consultation terminée */}
                   {c.statut === 'TERMINEE' && (
                     <>
                       {c.notesUtilisateur && (
@@ -121,7 +120,6 @@ const MesConsultations = () => {
                           <strong>Votre note :</strong> {c.notesUtilisateur}
                         </p>
                       )}
-
                       {c.notesProfessionnel && (
                         <p className="text-gray-700 italic text-sm mt-1">
                           <strong>Note du professionnel :</strong> {c.notesProfessionnel}
@@ -136,7 +134,7 @@ const MesConsultations = () => {
                   whileTap={{ scale: 0.95 }}
                   onClick={() =>
                     toast.info(
-                      `Consultation avec ${c.professionnelPrenom} ${c.professionnelNom} le ${new Date(c.date).toLocaleDateString()}`
+                      `Consultation avec ${c.professionnelPrenom} ${c.professionnelNom} le ${new Date(c.dateConsultation).toLocaleDateString('fr-FR')}`
                     )
                   }
                   className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium"

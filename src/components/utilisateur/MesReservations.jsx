@@ -13,7 +13,7 @@ const MesReservations = () => {
   useEffect(() => {
     const fetchReservations = async () => {
       try {
-       await api.get('/reservations/mes-reservations');
+        const response = await api.get('/reservations/mes-reservations'); // ✅ fix
         setReservations(response.data);
       } catch (err) {
         setError(err.message);
@@ -24,7 +24,7 @@ const MesReservations = () => {
 
   const handleDownloadTicket = async (id) => {
     try {
-     await api.get(`/reservations/telecharger-recu/${id}`, { responseType: 'blob' });
+      const response = await api.get(`/reservations/telecharger-recu/${id}`, { responseType: 'blob' }); // ✅ fix
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -47,14 +47,12 @@ const MesReservations = () => {
     }
   };
 
-const filteredReservations = reservations.filter((res) => {
-  if (!statut) {
-    // Sans filtre : ne pas afficher les réservations annulées
-    return res.statut !== 'ANNULEE';
-  }
-  // Avec filtre : afficher celles qui correspondent exactement
-  return res.statut === statut;
-});
+  const filteredReservations = reservations.filter((res) => {
+    if (!statut) {
+      return res.statut !== 'ANNULEE';
+    }
+    return res.statut === statut;
+  });
 
   return (
     <div className="max-w-5xl mx-auto p-6">
@@ -86,70 +84,75 @@ const filteredReservations = reservations.filter((res) => {
         </div>
       </div>
 
-      {/* Liste des réservations */}
-      <ul className="space-y-6">
-        <AnimatePresence>
-          {filteredReservations.map((res) => (
-            <motion.li
-              key={res.id}
-              className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-5"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
-            >
-              <div className="space-y-2 text-sm md:text-base">
-                <p className="text-indigo-900 font-semibold flex items-center gap-2">
-                  <User size={18} /> Docteur : {res.professionnelNom}
-                </p>
-                <p className="text-gray-700 flex items-center gap-2">
-                  <CalendarCheck size={16} /> Date de reservation : {res.dateReservation}
-                </p>
-                <p className="text-gray-700 flex items-center gap-2">
-                  <Clock size={16} /> Heure réservation : {res.heureReservation || '—'}
-                </p>
-                <p className="text-gray-700 flex items-center gap-2">
-                  <Clock size={16} /> Consultation : {res.jourConsultation || '—'} à {res.heureConsultation || '—'}
-                </p>
-                <p className="text-gray-800 font-medium">
-                  Statut : <span className={
-                    res.statut === 'ANNULEE' ? 'text-red-600' :
-                    res.statut === 'PAYEE' ? 'text-green-600' :
-                    res.statut === 'EN_ATTENTE_PAIEMENT' ? 'text-yellow-600' : 'text-indigo-500'
-                  }>{res.statut}</span>
-                </p>
-                <p className="text-gray-800 font-medium flex items-center gap-1">Prix:
-                  <Euro size={14} /> {res.prix}
-                </p>
-              </div>
+      {error && <p className="text-red-600 text-center mb-6">{error}</p>}
 
-              <div className="flex flex-col gap-2">
-                {res.statut === 'PAYEE' && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleDownloadTicket(res.id)}
-                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2"
-                  >
-                    <TicketCheck size={18} /> Télécharger le ticket
-                  </motion.button>
-                )}
+      {filteredReservations.length === 0 ? (
+        <p className="text-gray-500 text-center text-lg">Aucune réservation trouvée.</p>
+      ) : (
+        <ul className="space-y-6">
+          <AnimatePresence>
+            {filteredReservations.map((res) => (
+              <motion.li
+                key={res.id}
+                className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-5"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.3 }}
+              >
+                <div className="space-y-2 text-sm md:text-base">
+                  <p className="text-indigo-900 font-semibold flex items-center gap-2">
+                    <User size={18} /> Docteur : {res.professionnelNom}
+                  </p>
+                  <p className="text-gray-700 flex items-center gap-2">
+                    <CalendarCheck size={16} /> Date de reservation : {res.dateReservation}
+                  </p>
+                  <p className="text-gray-700 flex items-center gap-2">
+                    <Clock size={16} /> Heure réservation : {res.heureReservation || '—'}
+                  </p>
+                  <p className="text-gray-700 flex items-center gap-2">
+                    <Clock size={16} /> Consultation : {res.jourConsultation || '—'} à {res.heureConsultation || '—'}
+                  </p>
+                  <p className="text-gray-800 font-medium">
+                    Statut : <span className={
+                      res.statut === 'ANNULEE' ? 'text-red-600' :
+                      res.statut === 'PAYEE' ? 'text-green-600' :
+                      res.statut === 'EN_ATTENTE_PAIEMENT' ? 'text-yellow-600' : 'text-indigo-500'
+                    }>{res.statut}</span>
+                  </p>
+                  <p className="text-gray-800 font-medium flex items-center gap-1">Prix:
+                    <Euro size={14} /> {res.prix}
+                  </p>
+                </div>
 
-                {(res.statut === 'EN_ATTENTE' || res.statut === 'EN_ATTENTE_PAIEMENT') && (
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleAnnulerReservation(res)}
-                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium flex items-center gap-2"
-                  >
-                    <XCircle size={18} /> Annuler la réservation
-                  </motion.button>
-                )}
-              </div>
-            </motion.li>
-          ))}
-        </AnimatePresence>
-      </ul>
+                <div className="flex flex-col gap-2">
+                  {res.statut === 'PAYEE' && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleDownloadTicket(res.id)}
+                      className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium flex items-center gap-2"
+                    >
+                      <TicketCheck size={18} /> Télécharger le ticket
+                    </motion.button>
+                  )}
+
+                  {(res.statut === 'EN_ATTENTE' || res.statut === 'EN_ATTENTE_PAIEMENT') && (
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      onClick={() => handleAnnulerReservation(res)}
+                      className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white font-medium flex items-center gap-2"
+                    >
+                      <XCircle size={18} /> Annuler la réservation
+                    </motion.button>
+                  )}
+                </div>
+              </motion.li>
+            ))}
+          </AnimatePresence>
+        </ul>
+      )}
     </div>
   );
 };
