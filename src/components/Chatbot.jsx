@@ -55,48 +55,61 @@ const Chatbot = () => {
   }, [messages, isTyping]);
 
   // 🚀 send message
-  const sendMessage = async () => {
-    if (!input.trim()) return;
+ const sendMessage = async () => {
+  if (!input.trim()) return;
 
-    const userMsg = {
-      sender: "user",
-      text: input,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    setInput("");
-    resetTranscript();
-
-    setIsTyping(true);
-
-    try {
-      const res = await fetch(`${import.meta.env.VITE_PSYBOT_URL}/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: userMsg.text, userId: userId || "guest" }),
-      });
-
-      const data = await res.json();
-
-      setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          {
-            sender: "bot",
-            text: data.reply,
-            time: new Date().toLocaleTimeString([], {
-              hour: "2-digit",
-              minute: "2-digit",
-            }),
-          },
-        ]);
-        setIsTyping(false);
-      }, 600);
-    } catch {
-      setIsTyping(false);
-    }
+  const userMsg = {
+    sender: "user",
+    text: input,
+    time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
   };
+
+  setMessages((prev) => [...prev, userMsg]);
+  setInput("");
+  resetTranscript();
+  setIsTyping(true);
+
+  const url = `${import.meta.env.VITE_PSYBOT_URL}/chat`;
+  console.log("URL appelée:", url);
+  console.log("VITE_PSYBOT_URL:", import.meta.env.VITE_PSYBOT_URL);
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: userMsg.text, userId: userId || "guest" }),
+    });
+
+    console.log("Status réponse:", res.status);
+    const data = await res.json();
+    console.log("Réponse data:", data);
+
+    setTimeout(() => {
+      setMessages((prev) => [
+        ...prev,
+        {
+          sender: "bot",
+          text: data.reply,
+          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        },
+      ]);
+      setIsTyping(false);
+    }, 600);
+
+  } catch (err) {
+    console.error("Erreur fetch:", err);
+    setIsTyping(false);
+    // Afficher l'erreur dans le chat pour voir
+    setMessages((prev) => [
+      ...prev,
+      {
+        sender: "bot",
+        text: `Erreur: ${err.message}`,
+        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      },
+    ]);
+  }
+};
 
   // 🎤 push-to-talk
   const startMic = () => {
