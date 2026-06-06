@@ -79,6 +79,6 @@ Tu dois aider la personne à comprendre ses émotions et proposer des actions co
   }
 });
 
-app.listen(5000, () =>
+app.listen(process.env.PORT || 5000, () =>
   console.log("PsyBot backend running 🚀")
 );
