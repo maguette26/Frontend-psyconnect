@@ -360,65 +360,74 @@ export default function Chatbot() {
             </div>
           )}
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: "8px 10px", transition: "border-color 0.2s, box-shadow 0.2s" }}
-            onFocusCapture={e => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(165,180,252,0.15)"; }}
-            onBlurCapture={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}>
+          {/* ── INPUT BAR ── */}
+<div style={{ padding: "10px 16px 18px", background: "#fff", borderTop: "1px solid #f1f5f9" }}>
+  <div style={{ maxWidth: 740, margin: "0 auto", display: "flex", gap: 10, alignItems: "center" }}>
 
-            <textarea
-              ref={textareaRef}
-              value={input}
-              placeholder={isRecording ? "Parlez maintenant…" : "Écrivez votre message… (Entrée pour envoyer)"}
-              onChange={e => { setInput(e.target.value); autoResize(); }}
-              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-              rows={1}
-              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }}
-            />
+    {/* MIC BUTTON */}
+    <button
+      onClick={handleMicClick}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: "50%",
+        border: "1px solid #e2e8f0",
+        background: isRecording ? "#ef4444" : "#fff",
+        color: isRecording ? "#fff" : "#111",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: "pointer"
+      }}
+    >
+      <IconMic />
+    </button>
 
-            <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
+    {/* TEXT INPUT */}
+    <textarea
+      ref={textareaRef}
+      value={input}
+      placeholder="Écrire un message..."
+      onChange={(e) => setInput(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          sendMessage();
+        }
+      }}
+      style={{
+        flex: 1,
+        border: "1px solid #e2e8f0",
+        borderRadius: 20,
+        padding: "10px 14px",
+        fontSize: 14,
+        outline: "none",
+        resize: "none"
+      }}
+    />
 
-              {/* ── MIC BUTTON ── */}
-              {micSupported && (
-                <button
-                  onClick={handleMicClick}
-                  title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
-                  style={{
-                    width: 38, height: 38, borderRadius: "50%",
-                    border: isRecording ? "none" : "1.5px solid #e2e8f0",
-                    background: isRecording ? "#ef4444" : "#fff",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    color: isRecording ? "#fff" : "#64748b",
-                    animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
-                    transition: "background 0.2s, border 0.2s, color 0.2s",
-                    flexShrink: 0,
-                    boxShadow: isRecording ? "0 2px 10px rgba(239,68,68,0.4)" : "none",
-                  }}>
-                  {isRecording ? <IconMicOff /> : <IconMic />}
-                </button>
-              )}
+    {/* SEND BUTTON */}
+    <button
+      onClick={() => sendMessage()}
+      disabled={!input.trim()}
+      style={{
+        width: 44,
+        height: 44,
+        borderRadius: "50%",
+        border: "none",
+        background: input.trim() ? "#4f46e5" : "#e2e8f0",
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        cursor: input.trim() ? "pointer" : "not-allowed"
+      }}
+    >
+      <IconSend />
+    </button>
 
-              {/* ── SEND BUTTON ── */}
-              <button
-                onClick={() => sendMessage()}
-                disabled={!input.trim()}
-                title="Envoyer"
-                style={{
-                  width: 38, height: 38, borderRadius: "50%",
-                  border: "none",
-                  background: input.trim() ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "#e2e8f0",
-                  cursor: input.trim() ? "pointer" : "not-allowed",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: input.trim() ? "#fff" : "#94a3b8",
-                  transition: "all 0.2s",
-                  flexShrink: 0,
-                  boxShadow: input.trim() ? "0 2px 10px rgba(99,102,241,0.4)" : "none",
-                }}
-                onMouseEnter={e => { if (input.trim()) e.currentTarget.style.transform = "scale(1.08)"; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                <IconSend />
-              </button>
-            </div>
-          </div>
+  </div>
+</div>
 
           <p style={{ textAlign: "center", fontSize: 11, color: "#cbd5e1", marginTop: 7, marginBottom: 0 }}>
             PsyBot peut faire des erreurs. Consultez un professionnel pour un suivi médical.
