@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import PropTypes from 'prop-types';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import api from '../services/api';  
+import api from '../services/api'; // ✅ FIX : utilise api.js au lieu d'axios direct
 
 const stripePromise = loadStripe("pk_test_51RXngePPIpwqHP0R7oDQfgGLbnkvgjGj1j8FnWSxa8G92FeO4XXXmDfflJC8vjCiYgfb3xtzGSuSlDipQzf4jlDH00KASAjcYd");
 
