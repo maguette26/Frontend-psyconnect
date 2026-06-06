@@ -43,13 +43,9 @@ const IconMic = () => (
   </svg>
 );
 
-const IconMicOff = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="1" y1="1" x2="23" y2="23" />
-    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
-    <path d="M17 16.95A7 7 0 0 1 5 10v-1m14 0v1a7 7 0 0 1-.11 1.23" />
-    <line x1="12" y1="19" x2="12" y2="22" />
-    <line x1="8" y1="22" x2="16" y2="22" />
+const IconStop = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <rect x="4" y="4" width="16" height="16" rx="2" />
   </svg>
 );
 
@@ -140,17 +136,15 @@ function useSpeech(onResult) {
   const [supported, setSupported] = useState(false);
 
   useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
     setSupported(true);
-    const rec = new SpeechRecognition();
+    const rec = new SR();
     rec.lang = "fr-FR";
     rec.continuous = true;
     rec.interimResults = true;
     rec.onresult = (e) => {
-      const transcript = Array.from(e.results)
-        .map(r => r[0].transcript)
-        .join("");
+      const transcript = Array.from(e.results).map(r => r[0].transcript).join("");
       onResult(transcript);
     };
     rec.onend = () => setIsRecording(false);
@@ -184,7 +178,6 @@ export default function Chatbot() {
   const { isRecording, supported: micSupported, start: startMic, stop: stopMic } =
     useSpeech((text) => setInput(text));
 
-  /* storage */
   useEffect(() => {
     const sync = () => setUserId(localStorage.getItem("userId"));
     sync();
@@ -207,7 +200,6 @@ export default function Chatbot() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
 
-  /* textarea auto-resize */
   const autoResize = () => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -215,7 +207,6 @@ export default function Chatbot() {
     ta.style.height = Math.min(ta.scrollHeight, 130) + "px";
   };
 
-  /* send */
   const sendMessage = async (textOverride) => {
     const text = (textOverride || input).trim();
     if (!text) return;
@@ -255,12 +246,7 @@ export default function Chatbot() {
   const editMessage = (id, newText) => setMessages(prev => prev.map(m => m.id === id ? { ...m, text: newText } : m));
 
   const handleMicClick = () => {
-    if (isRecording) {
-      stopMic();
-    } else {
-      setInput("");
-      startMic();
-    }
+    if (isRecording) { stopMic(); } else { setInput(""); startMic(); }
   };
 
   const suggestions = ["Je me sens anxieux", "J'ai du mal à dormir", "Je traverse une période difficile", "Comment gérer le stress ?"];
@@ -270,19 +256,15 @@ export default function Chatbot() {
       <style>{`
         @keyframes psySlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes psyDot { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
-        @keyframes micPulse {
-          0%   { box-shadow: 0 0 0 0px rgba(239,68,68,0.5); }
-          70%  { box-shadow: 0 0 0 9px rgba(239,68,68,0);   }
-          100% { box-shadow: 0 0 0 0px rgba(239,68,68,0);   }
-        }
-        @keyframes micWave {
-          0%,100% { transform: scaleY(1); }
-          50%     { transform: scaleY(1.6); }
-        }
+        @keyframes micPulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)} 70%{box-shadow:0 0 0 9px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+        @keyframes micWave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.6)} }
         textarea:focus { outline: none; }
         textarea::placeholder { color: #94a3b8; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        .mic-btn:hover { background: #f8fafc !important; }
+        .mic-btn.active:hover { background: #dc2626 !important; }
+        .send-btn:hover:not(:disabled) { transform: scale(1.08); }
       `}</style>
 
       {/* ── HEADER ── */}
@@ -339,11 +321,11 @@ export default function Chatbot() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── INPUT BAR ── */}
-      <div style={{ padding: "10px 16px 18px", background: "#fff", borderTop: "1px solid #f1f5f9" }}>
+      {/* ── INPUT ZONE (unique, propre) ── */}
+      <div style={{ borderTop: "1px solid #f1f5f9", padding: "10px 16px 18px", background: "#fff" }}>
         <div style={{ maxWidth: 740, margin: "0 auto" }}>
 
-          {/* Recording banner */}
+          {/* Bandeau enregistrement */}
           {isRecording && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff1f2", border: "1px solid #fecaca", borderRadius: 12, padding: "7px 14px", marginBottom: 8, animation: "psySlideIn 0.2s ease" }}>
               <div style={{ display: "flex", gap: 3, alignItems: "center", height: 20 }}>
@@ -360,74 +342,65 @@ export default function Chatbot() {
             </div>
           )}
 
-          {/* ── INPUT BAR ── */}
-<div style={{ padding: "10px 16px 18px", background: "#fff", borderTop: "1px solid #f1f5f9" }}>
-  <div style={{ maxWidth: 740, margin: "0 auto", display: "flex", gap: 10, alignItems: "center" }}>
+          {/* Barre de saisie */}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: "8px 10px", transition: "border-color 0.2s, box-shadow 0.2s" }}
+            onFocusCapture={e => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(165,180,252,0.15)"; }}
+            onBlurCapture={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}>
 
-    {/* MIC BUTTON */}
-    <button
-      onClick={handleMicClick}
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        border: "1px solid #e2e8f0",
-        background: isRecording ? "#ef4444" : "#fff",
-        color: isRecording ? "#fff" : "#111",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: "pointer"
-      }}
-    >
-      <IconMic />
-    </button>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              placeholder={isRecording ? "Parlez maintenant…" : "Écrivez votre message… (Entrée pour envoyer)"}
+              onChange={e => { setInput(e.target.value); autoResize(); }}
+              onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+              rows={1}
+              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }}
+            />
 
-    {/* TEXT INPUT */}
-    <textarea
-      ref={textareaRef}
-      value={input}
-      placeholder="Écrire un message..."
-      onChange={(e) => setInput(e.target.value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-          e.preventDefault();
-          sendMessage();
-        }
-      }}
-      style={{
-        flex: 1,
-        border: "1px solid #e2e8f0",
-        borderRadius: 20,
-        padding: "10px 14px",
-        fontSize: 14,
-        outline: "none",
-        resize: "none"
-      }}
-    />
+            <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
 
-    {/* SEND BUTTON */}
-    <button
-      onClick={() => sendMessage()}
-      disabled={!input.trim()}
-      style={{
-        width: 44,
-        height: 44,
-        borderRadius: "50%",
-        border: "none",
-        background: input.trim() ? "#4f46e5" : "#e2e8f0",
-        color: "#fff",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        cursor: input.trim() ? "pointer" : "not-allowed"
-      }}
-    >
-      <IconSend />
-    </button>
+              {/* BOUTON MICROPHONE */}
+              {micSupported && (
+                <button
+                  className={`mic-btn${isRecording ? " active" : ""}`}
+                  onClick={handleMicClick}
+                  title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
+                  style={{
+                    width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
+                    border: isRecording ? "none" : "1.5px solid #e2e8f0",
+                    background: isRecording ? "#ef4444" : "#fff",
+                    color: isRecording ? "#fff" : "#64748b",
+                    cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
+                    animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
+                    boxShadow: isRecording ? "0 2px 10px rgba(239,68,68,0.4)" : "none",
+                  }}>
+                  {isRecording ? <IconStop /> : <IconMic />}
+                </button>
+              )}
 
-  </div>
-</div>
+              {/* BOUTON ENVOYER */}
+              <button
+                className="send-btn"
+                onClick={() => sendMessage()}
+                disabled={!input.trim()}
+                title="Envoyer"
+                style={{
+                  width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
+                  border: "none",
+                  background: input.trim() ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "#e2e8f0",
+                  color: input.trim() ? "#fff" : "#94a3b8",
+                  cursor: input.trim() ? "pointer" : "not-allowed",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  transition: "all 0.2s",
+                  boxShadow: input.trim() ? "0 2px 10px rgba(99,102,241,0.4)" : "none",
+                }}>
+                <IconSend />
+              </button>
+
+            </div>
+          </div>
 
           <p style={{ textAlign: "center", fontSize: 11, color: "#cbd5e1", marginTop: 7, marginBottom: 0 }}>
             PsyBot peut faire des erreurs. Consultez un professionnel pour un suivi médical.
