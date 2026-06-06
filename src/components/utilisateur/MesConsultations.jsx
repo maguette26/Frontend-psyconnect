@@ -1,27 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import {
-  CalendarCheck,
-  Clock,
-  User,
-  Euro,
-  MessageSquare,
-  SlidersHorizontal,
-  Info
+  CalendarCheck, Clock, Euro, MessageSquare,
+  SlidersHorizontal, Info, Stethoscope, XCircle, FileText
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR', {
+    day: '2-digit', month: 'long', year: 'numeric'
+  });
+};
+
+const formatHeure = (heureStr) => {
+  if (!heureStr) return '—';
+  return heureStr.substring(0, 5);
+};
+
+const statutConfig = {
+  EN_ATTENTE: { label: '🕒 En attente',  color: 'bg-yellow-100 text-yellow-800' },
+  CONFIRMEE:  { label: '🔵 Confirmée',   color: 'bg-blue-100 text-blue-800'    },
+  TERMINEE:   { label: '✅ Terminée',    color: 'bg-green-100 text-green-800'  },
+  ANNULEE:    { label: '❌ Annulée',     color: 'bg-red-100 text-red-800'      },
+};
+
+const StatutBadge = ({ statut }) => {
+  const config = statutConfig[statut] || { label: statut, color: 'bg-gray-100 text-gray-600' };
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${config.color}`}>
+      {config.label}
+    </span>
+  );
+};
+
+const InfoRow = ({ icon, label, value }) => (
+  <div className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+    <span className="flex items-center gap-2 text-gray-500">{icon} {label}</span>
+    <span className="font-semibold text-gray-800">{value}</span>
+  </div>
+);
+
 const MesConsultations = () => {
   const [consultations, setConsultations] = useState([]);
-  const [statut, setStatut] = useState('');
-  const [error, setError] = useState(null);
+  const [statut, setStatut]               = useState('');
+  const [error, setError]                 = useState(null);
+  const [selected, setSelected]           = useState(null);
 
   useEffect(() => {
     const fetchConsultations = async () => {
       try {
-        const response = await api.get('/consultations/mes-consultations'); // ✅ fix
+        const response = await api.get('/consultations/mes-consultations');
         setConsultations(response.data);
       } catch (err) {
         setError(err.message);
@@ -34,26 +65,11 @@ const MesConsultations = () => {
     statut ? c.statut === statut : true
   );
 
-  const getBadge = (statut) => {
-    switch (statut) {
-      case 'EN_ATTENTE':
-        return <span className="bg-yellow-100 text-yellow-800 px-3 py-1 rounded-full text-xs font-semibold">🕒 En attente</span>;
-      case 'CONFIRMEE':
-        return <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-xs font-semibold">🔵 Confirmée</span>;
-      case 'TERMINEE':
-        return <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-xs font-semibold">✅ Terminée</span>;
-      case 'ANNULEE':
-        return <span className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-xs font-semibold">❌ Annulée</span>;
-      default:
-        return <span className="bg-gray-100 text-gray-800 px-3 py-1 rounded-full text-xs font-semibold">Inconnu</span>;
-    }
-  };
-
   return (
     <div className="max-w-5xl mx-auto p-6">
       <ToastContainer position="top-right" />
 
-      {/* Titre + Filtre */}
+      {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <motion.h2
           className="text-4xl font-extrabold text-indigo-700 flex items-center gap-3"
@@ -82,70 +98,126 @@ const MesConsultations = () => {
       {error && <p className="text-red-600 text-center mb-6">{error}</p>}
 
       {filteredConsultations.length === 0 ? (
-        <p className="text-gray-500 text-center text-lg">Aucune consultation trouvée.</p>
+        <p className="text-gray-500 text-center text-lg mt-16">Aucune consultation trouvée.</p>
       ) : (
-        <ul className="space-y-6">
+        <ul className="space-y-4">
           <AnimatePresence>
             {filteredConsultations.map((c) => (
               <motion.li
                 key={c.idConsultation}
-                className="bg-white p-6 rounded-2xl shadow-md border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-5"
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.3 }}
+                transition={{ duration: 0.25 }}
+                onClick={() => setSelected(c)}
               >
-                <div className="space-y-2 text-sm md:text-base max-w-xl">
-                  <p className="text-indigo-900 font-semibold flex items-center gap-2">
-                    <User size={18} /> Docteur : {c.professionnelPrenom} {c.professionnelNom || '—'}
-                  </p>
-                  <p className="text-gray-700 flex items-center gap-2">
-                    <CalendarCheck size={16} /> Date : {new Date(c.dateConsultation).toLocaleDateString('fr-FR')}
-                  </p>
-                  <p className="text-gray-700 flex items-center gap-2">
-                    <Clock size={16} /> Heure : {c.heure?.substring(0, 5) || '—'}
-                  </p>
-                  <div className="flex items-center gap-2">
-                    <Info size={16} className="text-gray-500" /> Statut :
-                    {getBadge(c.statut)}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-5 gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                      <Stethoscope size={22} />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-gray-900 text-base">
+                        Dr {c.professionnelPrenom} {c.professionnelNom}
+                      </p>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {formatDate(c.dateConsultation)} · {formatHeure(c.heure)}
+                      </p>
+                    </div>
                   </div>
-                  <p className="text-gray-800 font-medium flex items-center gap-1">Prix :
-                    <Euro size={14} /> {c.prix?.toFixed(2) || '—'}
-                  </p>
-
-                  {c.statut === 'TERMINEE' && (
-                    <>
-                      {c.notesUtilisateur && (
-                        <p className="text-gray-700 italic text-sm mt-2">
-                          <strong>Votre note :</strong> {c.notesUtilisateur}
-                        </p>
-                      )}
-                      {c.notesProfessionnel && (
-                        <p className="text-gray-700 italic text-sm mt-1">
-                          <strong>Note du professionnel :</strong> {c.notesProfessionnel}
-                        </p>
-                      )}
-                    </>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3 md:ml-auto">
+                    <StatutBadge statut={c.statut} />
+                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
+                      <Euro size={14} />{c.prix?.toFixed(2) || '—'} €
+                    </span>
+                    <span className="text-xs text-indigo-500 font-medium underline">Voir détails →</span>
+                  </div>
                 </div>
-
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() =>
-                    toast.info(
-                      `Consultation avec ${c.professionnelPrenom} ${c.professionnelNom} le ${new Date(c.dateConsultation).toLocaleDateString('fr-FR')}`
-                    )
-                  }
-                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-medium"
-                >
-                  Voir détails
-                </motion.button>
               </motion.li>
             ))}
           </AnimatePresence>
         </ul>
       )}
+
+      {/* Modal détail */}
+      <AnimatePresence>
+        {selected && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setSelected(null)}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                onClick={() => setSelected(null)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
+              >
+                <XCircle size={24} />
+              </button>
+
+              {/* Avatar */}
+              <div className="flex flex-col items-center mb-6">
+                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-3">
+                  <Stethoscope size={30} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                  Dr {selected.professionnelPrenom} {selected.professionnelNom}
+                </h3>
+                <StatutBadge statut={selected.statut} />
+              </div>
+
+              {/* Infos */}
+              <div className="space-y-1">
+                <InfoRow icon={<CalendarCheck size={16} />} label="Date"     value={formatDate(selected.dateConsultation)} />
+                <InfoRow icon={<Clock size={16} />}         label="Heure"    value={formatHeure(selected.heure)} />
+                <InfoRow icon={<Info size={16} />}          label="Durée"    value={`${selected.dureeMinutes || 45} min`} />
+                <InfoRow icon={<Euro size={16} />}          label="Prix"     value={`${selected.prix?.toFixed(2) || '—'} €`} />
+              </div>
+
+              {/* Notes si terminée */}
+              {selected.statut === 'TERMINEE' && (selected.notesUtilisateur || selected.notesProfessionnel) && (
+                <div className="mt-5 space-y-3">
+                  {selected.notesUtilisateur && (
+                    <div className="bg-indigo-50 rounded-xl p-4">
+                      <p className="text-xs font-semibold text-indigo-600 mb-1 flex items-center gap-1">
+                        <FileText size={13} /> Votre note
+                      </p>
+                      <p className="text-sm text-gray-700 italic">{selected.notesUtilisateur}</p>
+                    </div>
+                  )}
+                  {selected.notesProfessionnel && (
+                    <div className="bg-green-50 rounded-xl p-4">
+                      <p className="text-xs font-semibold text-green-600 mb-1 flex items-center gap-1">
+                        <FileText size={13} /> Note du professionnel
+                      </p>
+                      <p className="text-sm text-gray-700 italic">{selected.notesProfessionnel}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="mt-6">
+                <button
+                  onClick={() => setSelected(null)}
+                  className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition"
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
