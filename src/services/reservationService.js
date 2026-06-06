@@ -7,12 +7,12 @@ const reservationService = {
     return response.data;
   },
 
-  updateReservationStatus: async (reservationId, statut) => {
-    const response = await api.put(`/reservations/statut/${reservationId}`, null, {
-  params: { statut: newStatus }
-});
-    return response.data;
-  },
+ updateReservationStatus: async (reservationId, statut) => {
+  const response = await api.put(`/reservations/statut/${reservationId}`, null, {
+    params: { statut }
+  });
+  return response.data;
+},
 
   getReservationsForUser: async (utilisateurId) => {
     const response = await api.get(`/reservations/utilisateur/${utilisateurId}`);

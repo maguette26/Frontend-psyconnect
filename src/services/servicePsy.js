@@ -51,7 +51,7 @@ export const getReservations = async (proId) => {
 };
 
 export const updateReservationStatus = async (reservationId, newStatus) => {
-  const response = await api.patch(`/reservations/statut/${reservationId}`, null, {
+  const response = await api.put(`/reservations/statut/${reservationId}`, null, {
     params: { statut: newStatus }
   });
   return response.data;
