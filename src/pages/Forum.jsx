@@ -1,6 +1,7 @@
 // src/pages/Forum.jsx
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/commun/Layout'; 
+import { getCurrentUserInfo } from '../services/serviceAuth';
 import { 
     getForumSujets, 
     creerForumSujet, 
@@ -123,23 +124,23 @@ const Forum = () => {
     }, []);
 
     useEffect(() => {
-        const fetchAuthStatus = async () => {
-            try {
-                const profilData = await getProfil();
-                if (profilData && profilData.authenticated) {
-                    setIsAuthenticated(true);
-                    setCurrentUserEmail(profilData.email);
-                    setCurrentUserRole(profilData.role);
-                    setCurrentUserId(profilData.id);
-                } else {
-                    setIsAuthenticated(false);
-                    setError("Vous devez être connecté pour participer au forum.");
-                }
-            } catch (err) {
-                setIsAuthenticated(false);
-                setError("Erreur de connexion. Veuillez vous reconnecter pour participer au forum.");
-            }
-        };
+       const fetchAuthStatus = async () => {
+    try {
+        const profilData = getCurrentUserInfo(); // importe depuis serviceAuth
+        
+        if (profilData && profilData.token) {
+            setIsAuthenticated(true);
+            setCurrentUserEmail(profilData.email);
+            setCurrentUserRole(profilData.role);
+            setCurrentUserId(profilData.id);
+        } else {
+            setIsAuthenticated(false);
+            // Supprimer le setError ici — ne pas bloquer l'affichage du forum
+        }
+    } catch (err) {
+        setIsAuthenticated(false);
+    }
+};
         fetchAuthStatus();
         fetchSujets();
     }, [fetchSujets]);
