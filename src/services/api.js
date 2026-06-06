@@ -10,9 +10,14 @@ const api = axios.create({
 
 // ✅ Injecte le token JWT automatiquement
 api.interceptors.request.use(config => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+  const PUBLIC_ROUTES = ['/professionnels/inscription', '/auth/login', '/auth/register'];
+  const isPublic = PUBLIC_ROUTES.some(route => config.url?.includes(route));
+
+  if (!isPublic) {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
