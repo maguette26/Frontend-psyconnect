@@ -1,222 +1,173 @@
 import React, { useEffect, useState } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
-import { CheckCircle, XCircle } from 'lucide-react';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import {
+  faCheckCircle,
+  faTimesCircle,
+  faVideo,
+  faCalendarCheck,
+  faInfoCircle,
+  faClock
+} from '@fortawesome/free-solid-svg-icons';
 
-const Reservations = ({ proId }) => {
+const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
+
+const ListeReservations = ({ proId }) => {
   const [reservations, setReservations] = useState([]);
-  const [filtre, setFiltre] = useState('TOUTES');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [updatingId, setUpdatingId] = useState(null);
-
-  const fetchReservations = async () => {
-    setLoading(true);
-    try {
-      const data = await getReservations(proId);
-      setReservations(data);
-      setError(null);
-    } catch (err) {
-      setError("Erreur lors du chargement des réservations.");
-      setReservations([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError] = useState('');
+  const [filtreStatut, setFiltreStatut] = useState('TOUS');
 
   useEffect(() => {
-    if (proId) {
-      fetchReservations();
-    } else {
-      setLoading(false);
-      setError("ID professionnel manquant.");
-    }
+    if (proId) chargerReservations();
   }, [proId]);
 
-  const handleUpdateStatus = async (id, status) => {
-    setUpdatingId(id);
+  const chargerReservations = async () => {
     try {
-      await updateReservationStatus(id, status);
-      await fetchReservations();
-      if (status === 'VALIDE') {
-        toast.success("La réservation a été validée.");
-      } else if (status === 'REFUSE') {
-        toast.error("La réservation a été refusée.");
-      }
+      // ✅ FIX : utilisait axios direct sur localhost:9191
+      const data = await getReservations(proId);
+      setReservations(data);
     } catch (err) {
-      setError("Erreur lors de la mise à jour du statut.");
-      toast.error("Erreur lors de la mise à jour.");
-    } finally {
-      setUpdatingId(null);
+      console.error("Erreur lors du chargement des réservations :", err);
+      setError("Erreur lors du chargement des réservations");
     }
   };
 
-  const mapStatutValidation = (reservation) => {
-    if (reservation.statut === 'PAYEE' || reservation.statut === 'EN_ATTENTE_PAIEMENT') {
-      return 'VALIDE';
-    }
-    if (reservation.statut === 'REFUSE' || reservation.statut === 'ANNULEE') {
-      return 'REFUSE';
-    }
-    return 'EN_ATTENTE';
-  };
-
-  const formatHeure = (heure) => {
-    if (!heure) return '';
-    const [h, m] = heure.split(':');
-    return `${h}h${m}`;
-  };
-
-  const getStatutMessage = (statut) => {
-    switch (statut) {
-      case 'VALIDE':
-        return <span className="text-green-600 font-semibold">Validée</span>;
-      case 'REFUSE':
-        return <span className="text-red-600 font-semibold">Refusée</span>;
-      default:
-        return <span className="text-gray-600 font-semibold">En attente</span>;
+  const handleUpdateStatus = async (reservationId, status) => {
+    if (!window.confirm(`Confirmer ${status === 'VALIDE' ? "l'acceptation" : 'le refus'} de cette réservation ?`)) return;
+    try {
+      // ✅ FIX : utilisait axios direct sur localhost:9191
+      await updateReservationStatus(reservationId, status);
+      await chargerReservations();
+    } catch (error) {
+      console.error("Erreur mise à jour statut :", error);
+      setError("Erreur lors de la mise à jour de la réservation");
     }
   };
 
-  const reservationsFiltrees = reservations.filter((r) =>
-    filtre === 'TOUTES' ? true : mapStatutValidation(r) === filtre
-  );
-
-  const renderActions = (id, statut) => {
-    const btnStyle = "p-0 m-0 bg-transparent border-none focus:outline-none hover:scale-110 transition-transform";
-
-    switch (statut) {
-      case 'EN_ATTENTE':
-        return (
-          <>
-            <button
-              onClick={() => handleUpdateStatus(id, 'VALIDE')}
-              className={`${btnStyle} text-green-600`}
-              title="Valider"
-              disabled={updatingId === id}
-            >
-              <CheckCircle size={20} />
-            </button>
-            <button
-              onClick={() => handleUpdateStatus(id, 'REFUSE')}
-              className={`${btnStyle} text-red-600`}
-              title="Refuser"
-              disabled={updatingId === id}
-            >
-              <XCircle size={20} />
-            </button>
-          </>
-        );
-      case 'VALIDE':
-        return (
-          <button
-            onClick={() => handleUpdateStatus(id, 'REFUSE')}
-            className={`${btnStyle} text-red-600`}
-            title="Refuser"
-            disabled={updatingId === id}
-          >
-            <XCircle size={20} />
-          </button>
-        );
-      case 'REFUSE':
-        return (
-          <button
-            onClick={() => handleUpdateStatus(id, 'VALIDE')}
-            className={`${btnStyle} text-green-600`}
-            title="Valider"
-            disabled={updatingId === id}
-          >
-            <CheckCircle size={20} />
-          </button>
-        );
-      default:
-        return null;
+  const formatDateTime = (dateString, timeString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const dt = new Date(`${dateString}T${timeString || '00:00'}:00`);
+      return dt.toLocaleDateString('fr-FR', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (e) {
+      return `${dateString} ${timeString || ''}`;
     }
   };
+
+  const reservationsFiltrees = filtreStatut === 'TOUS'
+    ? reservations
+    : reservations.filter(res => res.statut === filtreStatut);
+
+  if (error) return <p className="text-red-600 p-4">{error}</p>;
+  if (!reservations || reservations.length === 0) {
+    return <p className="text-gray-600 p-4 bg-gray-50 rounded-md">Aucune réservation trouvée pour le moment.</p>;
+  }
 
   return (
-    <div className="max-w-5xl mx-auto p-4">
-      <h2 className="text-2xl font-semibold text-blue-700 mb-6 flex items-center gap-2">
-        <CheckCircle size={24} /> Mes réservations
-      </h2>
-
-      {error && <div className="text-red-500 mb-4">{error}</div>}
-
-      <div className="mb-4 flex gap-2 flex-wrap">
-        {['TOUTES', 'EN_ATTENTE', 'VALIDE', 'REFUSE'].map((f) => (
-          <button
-            key={f}
-            onClick={() => setFiltre(f)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-150 ${
-              filtre === f
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {f === 'TOUTES'
-              ? 'Toutes'
-              : f === 'EN_ATTENTE'
-              ? 'En attente'
-              : f === 'VALIDE'
-              ? 'Validées'
-              : 'Refusées'}
-          </button>
-        ))}
+    <div className="max-w-full overflow-x-auto shadow-lg rounded-lg bg-white p-4">
+      <div className="mb-4 flex items-center gap-4">
+        <label htmlFor="filtreStatut" className="font-semibold text-gray-700">Filtrer par statut :</label>
+        <select
+          id="filtreStatut"
+          value={filtreStatut}
+          onChange={e => setFiltreStatut(e.target.value)}
+          className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {STATUTS.map(statut => (
+            <option key={statut} value={statut}>{statut === 'TOUS' ? 'Tous' : statut}</option>
+          ))}
+        </select>
+        <span className="text-gray-600 italic text-sm">
+          {reservationsFiltrees.length} réservation{reservationsFiltrees.length > 1 ? 's' : ''}
+        </span>
       </div>
 
-      {reservationsFiltrees.length === 0 ? (
-        <p className="text-gray-500">Vous n'avez aucune réservation pour le moment</p>
-      ) : (
-        <div className="overflow-x-auto rounded-lg shadow">
-          <table className="w-full border-collapse">
-            <thead className="bg-blue-600">
-              <tr>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Date</th>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Heure</th>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Statut</th>
-                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Actions</th>
+      <table className="min-w-full divide-y divide-gray-200 rounded-lg">
+        <thead className="bg-gray-50">
+          <tr>
+            {['ID', 'Utilisateur', 'Date & Heure', 'Statut', 'Consultation', 'Actions'].map(header => (
+              <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {reservationsFiltrees.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="text-center p-4 text-gray-500 italic">Aucune réservation correspondante.</td>
+            </tr>
+          ) : (
+            reservationsFiltrees.map((res) => (
+              <tr key={res.id} className="hover:bg-gray-50 transition-colors duration-150">
+                <td className="px-6 py-4 whitespace-nowrap">{res.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {res.utilisateur?.nom} {res.utilisateur?.prenom} ({res.utilisateur?.email})
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">{formatDateTime(res.dateReservation, res.heureDebut)}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                    ${res.statut === 'EN_ATTENTE' ? 'bg-yellow-100 text-yellow-800' :
+                      res.statut === 'VALIDE' ? 'bg-green-100 text-green-800' :
+                      res.statut === 'REFUSE' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'}`}>
+                    <FontAwesomeIcon icon={
+                      res.statut === 'EN_ATTENTE' ? faClock :
+                      res.statut === 'VALIDE' ? faCheckCircle :
+                      res.statut === 'REFUSE' ? faTimesCircle : faInfoCircle
+                    } className="mr-1" />
+                    {res.statut}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {res.statut === 'VALIDE' && res.consultation ? (
+                    <>
+                      <p><FontAwesomeIcon icon={faCalendarCheck} className="mr-1" />
+                        {formatDateTime(res.consultation.dateConsultation, res.consultation.heure)}
+                      </p>
+                      {res.consultation.lienVisio && (
+                        <a href={res.consultation.lienVisio} target="_blank" rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center mt-1">
+                          <FontAwesomeIcon icon={faVideo} className="mr-1" /> Rejoindre la visio
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-gray-500">N/A</p>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
+                  {res.statut === 'EN_ATTENTE' && (
+                    <>
+                      <button onClick={() => handleUpdateStatus(res.id, 'VALIDE')}
+                        className="text-green-600 hover:text-green-900 cursor-pointer bg-transparent border-0"
+                        title="Accepter" aria-label="Accepter la réservation">
+                        <FontAwesomeIcon icon={faCheckCircle} size="lg" />
+                      </button>
+                      <button onClick={() => handleUpdateStatus(res.id, 'REFUSE')}
+                        className="text-red-600 hover:text-red-900 cursor-pointer bg-transparent border-0"
+                        title="Refuser" aria-label="Refuser la réservation">
+                        <FontAwesomeIcon icon={faTimesCircle} size="lg" />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => alert(`Détails réservation ${res.id}\nUtilisateur: ${res.utilisateur?.nom} ${res.utilisateur?.prenom}\nStatut: ${res.statut}`)}
+                    className="text-blue-600 hover:text-blue-900 cursor-pointer bg-transparent border-0"
+                    title="Détails" aria-label="Voir les détails">
+                    <FontAwesomeIcon icon={faInfoCircle} size="lg" />
+                  </button>
+                </td>
               </tr>
-            </thead>
-            <tbody className="bg-white text-sm">
-              {reservationsFiltrees.map((reservation, index) => {
-                const statutMapped = mapStatutValidation(reservation);
-                return (
-                  <tr
-                    key={reservation.id}
-                    className={`border-t transition-all duration-150 ${
-                      index % 2 === 0 ? 'bg-blue-50/20' : 'bg-white'
-                    } hover:bg-blue-50`}
-                  >
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      {new Date(reservation.dateReservation).toLocaleDateString('fr-FR')}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-800">
-                      {formatHeure(reservation.heureConsultation)}
-                    </td>
-                    <td className="px-4 py-3">{getStatutMessage(statutMapped)}</td>
-                    <td className="px-4 py-3 flex gap-2 items-center">{renderActions(reservation.id, statutMapped)}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <ToastContainer
-        position="top-right"
-        autoClose={2000}
-        hideProgressBar={false}
-        newestOnTop
-        closeOnClick
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="colored"
-      />
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
 
-export default Reservations;
+export default ListeReservations;
