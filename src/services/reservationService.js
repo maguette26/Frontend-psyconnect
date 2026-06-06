@@ -8,9 +8,9 @@ const reservationService = {
   },
 
   updateReservationStatus: async (reservationId, statut) => {
-    const response = await api.patch(`/reservations/statut/${reservationId}`, null, {
-      params: { statut }
-    });
+    const response = await api.put(`/reservations/statut/${reservationId}`, null, {
+  params: { statut: newStatus }
+});
     return response.data;
   },
 
