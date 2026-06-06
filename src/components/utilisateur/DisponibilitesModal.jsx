@@ -88,6 +88,7 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
               <p className="text-center text-gray-500 text-lg">Aucune disponibilité trouvée.</p>
             ) : (
               disponibilites.map((dispo, idx) => {
+                console.log('dispo.reservations:', JSON.stringify(dispo.reservations));
                 const sousCreneaux = genererSousCreneaux(dispo);
                 const reservationsActives = dispo.reservations || [];
 
