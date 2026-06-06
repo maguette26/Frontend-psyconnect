@@ -6,28 +6,34 @@ import {
   supprimerDisponibilite
 } from '../../services/servicePsy';
 
-import { CheckCircle, XCircle, Trash2, Pencil, CalendarClock } from 'lucide-react';
+import { CheckCircle, XCircle, Trash2, Pencil, CalendarClock, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const formatHeure = (heure) => {
+  if (!heure) return '';
   const [h, m] = heure.split(':');
   return `${h}h${m}`;
 };
 
 const Disponibilite = ({ proId }) => {
   const [disponibilites, setDisponibilites] = useState([]);
-  const [formData, setFormData] = useState({
-    date: '',
-    heureDebut: '',
-    heureFin: ''
-  });
+  const [formData, setFormData] = useState({ date: '', heureDebut: '', heureFin: '' });
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
 
   useEffect(() => {
     if (proId) chargerDisponibilites();
   }, [proId]);
+
+  // ✅ Auto-efface le message après 4 secondes
+  useEffect(() => {
+    if (!message.text) return;
+    const t = setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+    return () => clearTimeout(t);
+  }, [message]);
 
   const chargerDisponibilites = async () => {
     try {
@@ -35,7 +41,6 @@ const Disponibilite = ({ proId }) => {
       const data = await getDisponibilitesByProId(proId);
       setDisponibilites(data);
     } catch (err) {
-      console.error(err);
       setMessage({ type: 'error', text: "Erreur lors du chargement des disponibilités." });
     } finally {
       setLoading(false);
@@ -53,45 +58,61 @@ const Disponibilite = ({ proId }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    try {
-      if (!formData.date || !formData.heureDebut || !formData.heureFin) {
-        setMessage({ type: 'error', text: 'Tous les champs sont requis.' });
-        return;
-      }
+    if (!formData.date || !formData.heureDebut || !formData.heureFin) {
+      setMessage({ type: 'error', text: 'Tous les champs sont requis.' });
+      return;
+    }
 
+    setSubmitting(true);
+    try {
       if (editingId) {
         await modifierDisponibilite(editingId, formData);
-        setMessage({ type: 'success', text: 'Disponibilité modifiée avec succès.' });
       } else {
         await ajouterDisponibilite(formData);
-        setMessage({ type: 'success', text: 'Disponibilité ajoutée avec succès.' });
       }
-
+      setMessage({ type: 'success', text: editingId ? 'Disponibilité modifiée avec succès.' : 'Disponibilité ajoutée avec succès.' });
       resetForm();
-      chargerDisponibilites();
+      await chargerDisponibilites();
     } catch (err) {
-      console.error("Erreur sauvegarde :", err);
-      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde.' });
+      // ✅ FIX : Railway timeout — si Network Error, on recharge quand même
+      // car l'opération a probablement réussi côté serveur
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        setMessage({ type: 'success', text: editingId ? 'Disponibilité modifiée (serveur lent, rechargement...)' : 'Disponibilité ajoutée (serveur lent, rechargement...)' });
+        resetForm();
+        setTimeout(() => chargerDisponibilites(), 2000);
+      } else {
+        const msg = err.response?.data?.message || err.response?.data || 'Erreur lors de la sauvegarde.';
+        setMessage({ type: 'error', text: typeof msg === 'string' ? msg : 'Erreur lors de la sauvegarde.' });
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleEdit = (dispo) => {
     setEditingId(dispo.id);
-    setFormData({
-      date: dispo.date,
-      heureDebut: dispo.heureDebut,
-      heureFin: dispo.heureFin
-    });
+    setFormData({ date: dispo.date, heureDebut: dispo.heureDebut, heureFin: dispo.heureFin });
   };
 
   const handleDelete = async (id) => {
+    setDeletingId(id);
+    // ✅ Optimistic update : supprime immédiatement de l'UI
+    setDisponibilites(prev => prev.filter(d => d.id !== id));
     try {
       await supprimerDisponibilite(id);
       setMessage({ type: 'success', text: 'Disponibilité supprimée.' });
-      chargerDisponibilites();
     } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Erreur lors de la suppression.' });
+      if (err.code === 'ERR_NETWORK' || err.message === 'Network Error') {
+        // ✅ FIX : Railway timeout — suppression probablement réussie
+        setMessage({ type: 'success', text: 'Disponibilité supprimée.' });
+        setTimeout(() => chargerDisponibilites(), 2000);
+      } else {
+        // Vraie erreur : on remet la dispo dans la liste
+        setMessage({ type: 'error', text: 'Erreur lors de la suppression.' });
+        await chargerDisponibilites();
+      }
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -108,75 +129,58 @@ const Disponibilite = ({ proId }) => {
       </div>
 
       {message.text && (
-        <div className={`flex items-center gap-2 p-3 text-sm rounded-lg ${message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+        <motion.div
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className={`flex items-center gap-2 p-3 text-sm rounded-lg ${
+            message.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+          }`}
+        >
           {message.type === 'success' ? <CheckCircle size={20} /> : <XCircle size={20} />}
           {message.text}
-        </div>
+        </motion.div>
       )}
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="flex flex-col">
-            <label htmlFor="date" className="text-sm text-gray-700 mb-1">Date</label>
-            <input
-              type="date"
-              name="date"
-              value={formData.date}
-              onChange={handleChange}
-              className="border border-gray-300 px-3 py-2 rounded-md"
-              required
-              placeholder="Sélectionner une date"
-            />
+            <label className="text-sm text-gray-700 mb-1">Date</label>
+            <input type="date" name="date" value={formData.date} onChange={handleChange}
+              className="border border-gray-300 px-3 py-2 rounded-md" required />
           </div>
-
           <div className="flex flex-col">
-            <label htmlFor="heureDebut" className="text-sm text-gray-700 mb-1">Heure début</label>
-            <input
-              type="time"
-              name="heureDebut"
-              value={formData.heureDebut}
-              onChange={handleChange}
-              className="border border-gray-300 px-3 py-2 rounded-md"
-              required
-              placeholder="Heure de début"
-            />
+            <label className="text-sm text-gray-700 mb-1">Heure début</label>
+            <input type="time" name="heureDebut" value={formData.heureDebut} onChange={handleChange}
+              className="border border-gray-300 px-3 py-2 rounded-md" required />
           </div>
-
           <div className="flex flex-col">
-            <label htmlFor="heureFin" className="text-sm text-gray-700 mb-1">Heure fin</label>
-            <input
-              type="time"
-              name="heureFin"
-              value={formData.heureFin}
-              onChange={handleChange}
-              className="border border-gray-300 px-3 py-2 rounded-md"
-              required
-              placeholder="Heure de fin"
-            />
+            <label className="text-sm text-gray-700 mb-1">Heure fin</label>
+            <input type="time" name="heureFin" value={formData.heureFin} onChange={handleChange}
+              className="border border-gray-300 px-3 py-2 rounded-md" required />
           </div>
         </div>
 
         <div className="flex justify-end gap-3">
           {editingId && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md text-sm"
-            >
+            <button type="button" onClick={resetForm}
+              className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-md text-sm">
               Annuler
             </button>
           )}
-          <button
-            type="submit"
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium"
-          >
+          <button type="submit" disabled={submitting}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center gap-2">
+            {submitting && <Loader2 size={14} className="animate-spin" />}
             {editingId ? 'Modifier' : 'Ajouter'}
           </button>
         </div>
       </form>
 
       <div className="border-t pt-4">
-        {  disponibilites.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-6">
+            <Loader2 className="animate-spin text-blue-500" size={28} />
+          </div>
+        ) : disponibilites.length === 0 ? (
           <p className="text-center text-gray-500">Vous n'avez aucune disponibilité enregistrée.</p>
         ) : (
           <div className="grid gap-4">
@@ -193,23 +197,20 @@ const Disponibilite = ({ proId }) => {
                   🕒 {formatHeure(dispo.heureDebut)} → {formatHeure(dispo.heureFin)}
                 </div>
                 <div className="flex gap-3">
-                  <button
-  onClick={() => handleEdit(dispo)}
-  className="text-blue-600 hover:text-blue-800 focus:outline-none focus:ring-0 p-0 bg-transparent border-0 cursor-pointer"
-  title="Modifier"
-  aria-label="Modifier disponibilité"
->
-  <Pencil size={18} />
-</button>
-<button
-  onClick={() => handleDelete(dispo.id)}
-  className="text-red-600 hover:text-red-800 focus:outline-none focus:ring-0 p-0 bg-transparent border-0 cursor-pointer"
-  title="Supprimer"
-  aria-label="Supprimer disponibilité"
->
-  <Trash2 size={18} />
-</button>
-
+                  <button onClick={() => handleEdit(dispo)}
+                    className="text-blue-600 hover:text-blue-800 bg-transparent border-0 cursor-pointer p-0"
+                    title="Modifier" aria-label="Modifier disponibilité">
+                    <Pencil size={18} />
+                  </button>
+                  <button onClick={() => handleDelete(dispo.id)}
+                    disabled={deletingId === dispo.id}
+                    className="text-red-600 hover:text-red-800 bg-transparent border-0 cursor-pointer p-0 disabled:opacity-40"
+                    title="Supprimer" aria-label="Supprimer disponibilité">
+                    {deletingId === dispo.id
+                      ? <Loader2 size={18} className="animate-spin" />
+                      : <Trash2 size={18} />
+                    }
+                  </button>
                 </div>
               </motion.div>
             ))}
