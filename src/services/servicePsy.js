@@ -32,7 +32,7 @@ export const getDisponibilitesFiltrees = async (proId, date) => {
   return response.data;
 };
 
-// ✅ FIX : utilisait axios direct sans baseURL ni token
+// Consultations
 export const getConsultations = async () => {
   const response = await api.get('/professionnels/mes-reservations');
   return response.data;
