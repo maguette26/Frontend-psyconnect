@@ -17,28 +17,36 @@ const Ressources = () => {
   const [notConnectedMessage, setNotConnectedMessage] = useState('');
 
   const fetchFonctionnalites = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await api.get('/fonctionnalites');
-      if (Array.isArray(res.data)) {
-        const ressourcesFiltrees = res.data
-          .filter(f => f.statut === true)
-          .map(f => ({
-            ...f,
-            premium: f.type === 'podcast' ? true : f.premium
-          }));
-        setFonctionnalites(ressourcesFiltrees);
-      } else {
-        throw new Error("Format de données invalide.");
-      }
-    } catch (err) {
-      setError("Erreur de chargement des fonctionnalités.");
-    } finally {
-      setLoading(false);
+  setLoading(true);
+  setError(null);
+  try {
+    const res = await api.get('/fonctionnalites');
+    console.log('RAW DATA:', res.data);
+    console.log('Types statut:', res.data?.map(f => ({ 
+      nom: f.nom, 
+      statut: f.statut, 
+      typeStatut: typeof f.statut 
+    })));
+    
+    if (Array.isArray(res.data)) {
+      const ressourcesFiltrees = res.data
+        .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)  // ← fix
+        .map(f => ({
+          ...f,
+          premium: f.type === 'podcast' ? true : f.premium
+        }));
+      console.log('Après filtre:', ressourcesFiltrees.length, 'ressources');
+      setFonctionnalites(ressourcesFiltrees);
+    } else {
+      throw new Error("Format de données invalide.");
     }
-  }, []);
-
+  } catch (err) {
+    console.error('Erreur fetch:', err);
+    setError("Erreur de chargement des fonctionnalités.");
+  } finally {
+    setLoading(false);
+  }
+}, []);
   useEffect(() => {
     const roleLocal = localStorage.getItem('role');
 
