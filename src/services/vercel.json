@@ -1,7 +1,7 @@
 {
   "rewrites": [
     {
-      "source": "/api/(.*)",
+        { "source": "/(.*)", "destination": "/index.html" }
       "destination": "https://backend-psyconnect.up.railway.app/api/$1"
     }
   ]

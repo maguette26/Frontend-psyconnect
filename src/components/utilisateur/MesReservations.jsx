@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import { CalendarCheck, Clock, User, Euro, TicketCheck, SlidersHorizontal, XCircle } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +13,7 @@ const MesReservations = () => {
   useEffect(() => {
     const fetchReservations = async () => {
       try {
-        const response = await axios.get('/api/reservations/mes-reservations', { withCredentials: true });
+       await api.get('/reservations/mes-reservations');
         setReservations(response.data);
       } catch (err) {
         setError(err.message);
@@ -24,10 +24,7 @@ const MesReservations = () => {
 
   const handleDownloadTicket = async (id) => {
     try {
-      const response = await axios.get(`/api/reservations/telecharger-recu/${id}`, {
-        responseType: 'blob',
-        withCredentials: true,
-      });
+     await api.get(`/reservations/telecharger-recu/${id}`, { responseType: 'blob' });
       const blob = new Blob([response.data], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
@@ -42,7 +39,7 @@ const MesReservations = () => {
 
   const handleAnnulerReservation = async (reservation) => {
     try {
-      await axios.delete(`/api/reservations/annuler/${reservation.id}`, { withCredentials: true });
+      await api.delete(`/reservations/annuler/${reservation.id}`);
       toast.success("❌ Réservation annulée avec succès !");
       setReservations((prev) => prev.filter(r => r.id !== reservation.id));
     } catch (err) {

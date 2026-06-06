@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../../services/api';
 import {
   CalendarCheck,
   Clock,
@@ -21,9 +21,7 @@ const MesConsultations = () => {
   useEffect(() => {
     const fetchConsultations = async () => {
       try {
-        const response = await axios.get('/api/consultations/mes-consultations', {
-          withCredentials: true,
-        });
+       await api.get('/consultations/mes-consultations');
         setConsultations(response.data);
       } catch (err) {
         setError(err.message);

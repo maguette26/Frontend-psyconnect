@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import api from '../services/api';
 import { toast, ToastContainer } from 'react-toastify';
 import {
   UserCheck,
@@ -44,7 +44,7 @@ const ListeProfessionnels = () => {
   useEffect(() => {
     const fetchProfessionnels = async () => {
       try {
-        const res = await axios.get('/api/professionnels/tous', { withCredentials: true });
+        const res = await api.get('/professionnels/tous');
         setProfessionnels(res.data);
         setError('');
 
@@ -70,7 +70,7 @@ const ListeProfessionnels = () => {
       setDisponibilites([]);
       setDisponibilitesVisibles(false);
 
-      const res = await axios.get(`/api/disponibilites/${proId}`, { withCredentials: true });
+      const res = await api.get(`/disponibilites/${proId}`);
       const pro = professionnels.find(p => p.id === proId) || null;
       setSelectedPro(pro);
       setDisponibilites(res.data);
@@ -120,7 +120,7 @@ const ListeProfessionnels = () => {
     };
 
     try {
-      const res = await axios.post('/api/reservations', reservation, { withCredentials: true });
+      const res = await api.post('/reservations', reservation);
       toast.success('✅ Réservation enregistrée ! Attente de validation du professionnel.');
       if (selectedPro) fetchDisponibilites(selectedPro.id);
     } catch (error) {
