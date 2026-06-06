@@ -1,17 +1,16 @@
-import React, { useState, useEffect, useRef } from "react";
-import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 
 const PSYBOT_URL = import.meta.env.VITE_PSYBOT_URL;
 
-/* ── Avatars ── */
+/* ─────────────────── AVATARS ─────────────────── */
 const BotAvatar = () => (
   <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #a5f3fc 0%, #38bdf8 50%, #6366f1 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(99,102,241,0.25)" }}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="11" width="18" height="10" rx="2"/>
-      <circle cx="12" cy="5" r="2"/>
-      <path d="M12 7v4"/>
-      <circle cx="8.5" cy="15.5" r="1.5" fill="white" stroke="none"/>
-      <circle cx="15.5" cy="15.5" r="1.5" fill="white" stroke="none"/>
+      <rect x="3" y="11" width="18" height="10" rx="2" />
+      <circle cx="12" cy="5" r="2" />
+      <path d="M12 7v4" />
+      <circle cx="8.5" cy="15.5" r="1.5" fill="white" stroke="none" />
+      <circle cx="15.5" cy="15.5" r="1.5" fill="white" stroke="none" />
     </svg>
   </div>
 );
@@ -19,13 +18,13 @@ const BotAvatar = () => (
 const UserAvatar = () => (
   <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #e0e7ff, #c7d2fe)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-      <circle cx="12" cy="7" r="4"/>
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
     </svg>
   </div>
 );
 
-/* ── Typing indicator ── */
+/* ─────────────────── TYPING DOTS ─────────────────── */
 const TypingDots = () => (
   <div style={{ display: "flex", gap: 5, alignItems: "center", padding: "2px 0" }}>
     {[0, 1, 2].map(i => (
@@ -34,49 +33,51 @@ const TypingDots = () => (
   </div>
 );
 
-/* ── Mic icon ── */
-const MicIcon = ({ active }) => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? "#fff" : "currentColor"} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="2" width="6" height="12" rx="3"/>
-    <path d="M5 10a7 7 0 0 0 14 0"/>
-    <line x1="12" y1="19" x2="12" y2="22"/>
-    <line x1="8" y1="22" x2="16" y2="22"/>
+/* ─────────────────── ICONS ─────────────────── */
+const IconMic = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="9" y="2" width="6" height="12" rx="3" />
+    <path d="M5 10a7 7 0 0 0 14 0" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+    <line x1="8" y1="22" x2="16" y2="22" />
   </svg>
 );
 
-/* ── Send icon ── */
-const SendIcon = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13"/>
-    <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+const IconMicOff = () => (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="1" y1="1" x2="23" y2="23" />
+    <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6" />
+    <path d="M17 16.95A7 7 0 0 1 5 10v-1m14 0v1a7 7 0 0 1-.11 1.23" />
+    <line x1="12" y1="19" x2="12" y2="22" />
+    <line x1="8" y1="22" x2="16" y2="22" />
   </svg>
 );
 
-/* ── Action button ── */
+const IconSend = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </svg>
+);
+
+/* ─────────────────── ACTION BUTTON ─────────────────── */
 const ActionBtn = ({ icon, label, onClick, danger }) => {
   const [hov, setHov] = useState(false);
   const icons = {
-    edit: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
-    copy: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>,
-    trash: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>,
+    edit: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>,
+    copy: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>,
+    trash: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>,
   };
   return (
     <button onClick={onClick} title={label}
       onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{
-        display: "flex", alignItems: "center", gap: 4,
-        background: hov ? (danger ? "#fff1f2" : "#f8fafc") : "#fff",
-        border: `1px solid ${hov ? (danger ? "#fca5a5" : "#cbd5e1") : "#e2e8f0"}`,
-        borderRadius: 6, padding: "3px 8px", cursor: "pointer",
-        color: hov ? (danger ? "#ef4444" : "#475569") : "#94a3b8",
-        fontSize: 11, transition: "all 0.15s",
-      }}>
+      style={{ display: "flex", alignItems: "center", gap: 4, background: hov ? (danger ? "#fff1f2" : "#f8fafc") : "#fff", border: `1px solid ${hov ? (danger ? "#fca5a5" : "#cbd5e1") : "#e2e8f0"}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: hov ? (danger ? "#ef4444" : "#475569") : "#94a3b8", fontSize: 11, transition: "all 0.15s" }}>
       {icons[icon]} {label}
     </button>
   );
 };
 
-/* ── Message ── */
+/* ─────────────────── MESSAGE ─────────────────── */
 const Message = ({ msg, onDelete, onEdit }) => {
   const isUser = msg.sender === "user";
   const [hovered, setHovered] = useState(false);
@@ -102,10 +103,9 @@ const Message = ({ msg, onDelete, onEdit }) => {
       onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 10, maxWidth: "80%" }}>
         {!isUser && <div style={{ marginBottom: editing ? 54 : 30 }}><BotAvatar /></div>}
-
         <div style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
           {editing ? (
-            <div style={{ background: "#fff", border: "2px solid #6366f1", borderRadius: 14, padding: 12, minWidth: 240, width: "100%" }}>
+            <div style={{ background: "#fff", border: "2px solid #6366f1", borderRadius: 14, padding: 12, minWidth: 240 }}>
               <textarea ref={editRef} value={editText}
                 onChange={e => { setEditText(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === "Escape") setEditing(false); }}
@@ -116,55 +116,75 @@ const Message = ({ msg, onDelete, onEdit }) => {
               </div>
             </div>
           ) : (
-            <div style={{
-              background: isUser ? "#1e293b" : "#f1f5f9",
-              color: isUser ? "#f8fafc" : "#1e293b",
-              padding: "11px 16px",
-              borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
-              fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word",
-              letterSpacing: "-0.01em",
-              boxShadow: isUser ? "0 2px 12px rgba(30,41,59,0.12)" : "none",
-            }}>
+            <div style={{ background: isUser ? "#1e293b" : "#f1f5f9", color: isUser ? "#f8fafc" : "#1e293b", padding: "11px 16px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word", letterSpacing: "-0.01em", boxShadow: isUser ? "0 2px 12px rgba(30,41,59,0.12)" : "none" }}>
               {msg.text}
             </div>
           )}
-
           <span style={{ fontSize: 11, color: "#cbd5e1", marginTop: 4, paddingInline: 3 }}>{msg.time}</span>
-
-          <div style={{
-            display: "flex", gap: 4, marginTop: 2,
-            opacity: hovered && !editing ? 1 : 0,
-            transition: "opacity 0.15s",
-            justifyContent: isUser ? "flex-end" : "flex-start",
-          }}>
+          <div style={{ display: "flex", gap: 4, marginTop: 2, opacity: hovered && !editing ? 1 : 0, transition: "opacity 0.15s", justifyContent: isUser ? "flex-end" : "flex-start" }}>
             {isUser && <ActionBtn icon="edit" label="Modifier" onClick={() => { setEditText(msg.text); setEditing(true); }} />}
             <ActionBtn icon="copy" label="Copier" onClick={() => navigator.clipboard.writeText(msg.text)} />
             <ActionBtn icon="trash" label="Supprimer" onClick={() => onDelete(msg.id)} danger />
           </div>
         </div>
-
         {isUser && <div style={{ marginBottom: 52 }}><UserAvatar /></div>}
       </div>
     </div>
   );
 };
 
-/* ══════════════════════════════════════
-   MAIN CHATBOT COMPONENT
-══════════════════════════════════════ */
+/* ─────────────────── HOOK: Web Speech API native ─────────────────── */
+function useSpeech(onResult) {
+  const recognitionRef = useRef(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [supported, setSupported] = useState(false);
+
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) return;
+    setSupported(true);
+    const rec = new SpeechRecognition();
+    rec.lang = "fr-FR";
+    rec.continuous = true;
+    rec.interimResults = true;
+    rec.onresult = (e) => {
+      const transcript = Array.from(e.results)
+        .map(r => r[0].transcript)
+        .join("");
+      onResult(transcript);
+    };
+    rec.onend = () => setIsRecording(false);
+    rec.onerror = () => setIsRecording(false);
+    recognitionRef.current = rec;
+  }, []);
+
+  const start = useCallback(() => {
+    if (!recognitionRef.current) return;
+    try { recognitionRef.current.start(); setIsRecording(true); } catch (_) {}
+  }, []);
+
+  const stop = useCallback(() => {
+    if (!recognitionRef.current) return;
+    try { recognitionRef.current.stop(); } catch (_) {}
+    setIsRecording(false);
+  }, []);
+
+  return { isRecording, supported, start, stop };
+}
+
+/* ─────────────────── MAIN CHATBOT ─────────────────── */
 export default function Chatbot() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState(null);
-  const [isRecording, setIsRecording] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
-  const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
+  const { isRecording, supported: micSupported, start: startMic, stop: stopMic } =
+    useSpeech((text) => setInput(text));
 
-  useEffect(() => { if (transcript) setInput(transcript); }, [transcript]);
-
+  /* storage */
   useEffect(() => {
     const sync = () => setUserId(localStorage.getItem("userId"));
     sync();
@@ -187,6 +207,7 @@ export default function Chatbot() {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
 
+  /* textarea auto-resize */
   const autoResize = () => {
     const ta = textareaRef.current;
     if (!ta) return;
@@ -194,16 +215,17 @@ export default function Chatbot() {
     ta.style.height = Math.min(ta.scrollHeight, 130) + "px";
   };
 
+  /* send */
   const sendMessage = async (textOverride) => {
     const text = (textOverride || input).trim();
     if (!text) return;
+    if (isRecording) stopMic();
     const userMsg = {
       id: Date.now(), sender: "user", text,
       time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
     };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
-    resetTranscript();
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsTyping(true);
     try {
@@ -232,8 +254,14 @@ export default function Chatbot() {
   const deleteMessage = (id) => setMessages(prev => prev.filter(m => m.id !== id));
   const editMessage = (id, newText) => setMessages(prev => prev.map(m => m.id === id ? { ...m, text: newText } : m));
 
-  const startMic = () => { resetTranscript(); setIsRecording(true); SpeechRecognition.startListening({ language: "fr-FR", continuous: true }); };
-  const stopMic = () => { setIsRecording(false); SpeechRecognition.stopListening(); };
+  const handleMicClick = () => {
+    if (isRecording) {
+      stopMic();
+    } else {
+      setInput("");
+      startMic();
+    }
+  };
 
   const suggestions = ["Je me sens anxieux", "J'ai du mal à dormir", "Je traverse une période difficile", "Comment gérer le stress ?"];
 
@@ -243,13 +271,13 @@ export default function Chatbot() {
         @keyframes psySlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes psyDot { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
         @keyframes micPulse {
-          0%  { box-shadow: 0 0 0 0   rgba(239,68,68,0.5), 0 0 0 0   rgba(239,68,68,0.3); }
-          50% { box-shadow: 0 0 0 6px rgba(239,68,68,0),   0 0 0 12px rgba(239,68,68,0); }
-          100%{ box-shadow: 0 0 0 0   rgba(239,68,68,0.5), 0 0 0 0   rgba(239,68,68,0.3); }
+          0%   { box-shadow: 0 0 0 0px rgba(239,68,68,0.5); }
+          70%  { box-shadow: 0 0 0 9px rgba(239,68,68,0);   }
+          100% { box-shadow: 0 0 0 0px rgba(239,68,68,0);   }
         }
         @keyframes micWave {
           0%,100% { transform: scaleY(1); }
-          50%     { transform: scaleY(1.18); }
+          50%     { transform: scaleY(1.6); }
         }
         textarea:focus { outline: none; }
         textarea::placeholder { color: #94a3b8; }
@@ -258,16 +286,13 @@ export default function Chatbot() {
       `}</style>
 
       {/* ── HEADER ── */}
-      <div style={{ borderBottom: "1px solid #f1f5f9", padding: "14px 24px", background: "#fff", boxShadow: "0 1px 0 #f1f5f9" }}>
+      <div style={{ borderBottom: "1px solid #f1f5f9", padding: "14px 24px", background: "#fff" }}>
         <div style={{ maxWidth: 740, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
             <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #a5f3fc, #38bdf8, #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(99,102,241,0.3)" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="10" rx="2"/>
-                <circle cx="12" cy="5" r="2"/>
-                <path d="M12 7v4"/>
-                <circle cx="8.5" cy="15.5" r="1.5" fill="white" stroke="none"/>
-                <circle cx="15.5" cy="15.5" r="1.5" fill="white" stroke="none"/>
+                <rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" />
+                <circle cx="8.5" cy="15.5" r="1.5" fill="white" stroke="none" /><circle cx="15.5" cy="15.5" r="1.5" fill="white" stroke="none" />
               </svg>
             </div>
             <span style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.04em" }}>PsyBot</span>
@@ -284,7 +309,6 @@ export default function Chatbot() {
 
       {/* ── MESSAGES ── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 16px 12px", maxWidth: 740, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
-
         {messages.length <= 1 && (
           <div style={{ marginBottom: 28, display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
             {suggestions.map((s, i) => (
@@ -321,14 +345,18 @@ export default function Chatbot() {
 
           {/* Recording banner */}
           {isRecording && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#fff1f2", border: "1px solid #fecaca", borderRadius: 10, padding: "6px 14px", marginBottom: 8, animation: "psySlideIn 0.2s ease" }}>
-              {/* Animated waveform */}
-              <div style={{ display: "flex", gap: 3, alignItems: "center", height: 18 }}>
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} style={{ width: 3, height: [10, 16, 12, 18, 8][i], borderRadius: 3, background: "#ef4444", animation: `micWave 0.8s ease-in-out ${i * 0.12}s infinite` }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff1f2", border: "1px solid #fecaca", borderRadius: 12, padding: "7px 14px", marginBottom: 8, animation: "psySlideIn 0.2s ease" }}>
+              <div style={{ display: "flex", gap: 3, alignItems: "center", height: 20 }}>
+                {[0.3, 0.6, 1, 0.7, 0.4].map((h, i) => (
+                  <div key={i} style={{ width: 3, height: 20 * h, borderRadius: 3, background: "#ef4444", animation: `micWave 0.7s ease-in-out ${i * 0.1}s infinite` }} />
                 ))}
               </div>
-              <span style={{ fontSize: 12.5, color: "#dc2626", fontWeight: 500 }}>Enregistrement en cours… Relâchez pour envoyer.</span>
+              <span style={{ fontSize: 12.5, color: "#dc2626", fontWeight: 500, flex: 1 }}>
+                Enregistrement… Parlez maintenant.
+              </span>
+              <button onClick={stopMic} style={{ fontSize: 11.5, color: "#dc2626", background: "none", border: "1px solid #fca5a5", borderRadius: 8, padding: "3px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                Arrêter
+              </button>
             </div>
           )}
 
@@ -336,41 +364,36 @@ export default function Chatbot() {
             onFocusCapture={e => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(165,180,252,0.15)"; }}
             onBlurCapture={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}>
 
-            <textarea ref={textareaRef} value={input}
-              placeholder="Écrivez votre message… (Entrée pour envoyer)"
+            <textarea
+              ref={textareaRef}
+              value={input}
+              placeholder={isRecording ? "Parlez maintenant…" : "Écrivez votre message… (Entrée pour envoyer)"}
               onChange={e => { setInput(e.target.value); autoResize(); }}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
               rows={1}
-              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }} />
+              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }}
+            />
 
             <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
 
-              {/* ── MICROPHONE BUTTON (fixed) ── */}
-              {browserSupportsSpeechRecognition && (
+              {/* ── MIC BUTTON ── */}
+              {micSupported && (
                 <button
-                  onMouseDown={startMic}
-                  onMouseUp={stopMic}
-                  onMouseLeave={stopMic}
-                  title={isRecording ? "Relâcher pour arrêter" : "Maintenir pour dicter"}
+                  onClick={handleMicClick}
+                  title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
                   style={{
-                    width: 38,
-                    height: 38,
-                    borderRadius: "50%",
+                    width: 38, height: 38, borderRadius: "50%",
                     border: isRecording ? "none" : "1.5px solid #e2e8f0",
-                    background: isRecording
-                      ? "linear-gradient(135deg, #f87171, #ef4444)"
-                      : "#fff",
+                    background: isRecording ? "#ef4444" : "#fff",
                     cursor: "pointer",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
+                    display: "flex", alignItems: "center", justifyContent: "center",
                     color: isRecording ? "#fff" : "#64748b",
-                    animation: isRecording ? "micPulse 1.2s infinite" : "none",
-                    transition: "all 0.2s",
+                    animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
+                    transition: "background 0.2s, border 0.2s, color 0.2s",
                     flexShrink: 0,
-                    boxShadow: isRecording ? "0 2px 8px rgba(239,68,68,0.35)" : "none",
+                    boxShadow: isRecording ? "0 2px 10px rgba(239,68,68,0.4)" : "none",
                   }}>
-                  <MicIcon active={isRecording} />
+                  {isRecording ? <IconMicOff /> : <IconMic />}
                 </button>
               )}
 
@@ -380,25 +403,19 @@ export default function Chatbot() {
                 disabled={!input.trim()}
                 title="Envoyer"
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: "50%",
+                  width: 38, height: 38, borderRadius: "50%",
                   border: "none",
-                  background: input.trim()
-                    ? "linear-gradient(135deg, #6366f1, #4f46e5)"
-                    : "#e2e8f0",
+                  background: input.trim() ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "#e2e8f0",
                   cursor: input.trim() ? "pointer" : "not-allowed",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
+                  display: "flex", alignItems: "center", justifyContent: "center",
                   color: input.trim() ? "#fff" : "#94a3b8",
                   transition: "all 0.2s",
                   flexShrink: 0,
-                  boxShadow: input.trim() ? "0 2px 8px rgba(99,102,241,0.35)" : "none",
+                  boxShadow: input.trim() ? "0 2px 10px rgba(99,102,241,0.4)" : "none",
                 }}
                 onMouseEnter={e => { if (input.trim()) e.currentTarget.style.transform = "scale(1.08)"; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
-                <SendIcon />
+                <IconSend />
               </button>
             </div>
           </div>
