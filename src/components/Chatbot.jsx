@@ -35,7 +35,7 @@ const TypingDots = () => (
 
 /* ─────────────────── ICONS ─────────────────── */
 const IconMic = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="9" y="2" width="6" height="12" rx="3" />
     <path d="M5 10a7 7 0 0 0 14 0" />
     <line x1="12" y1="19" x2="12" y2="22" />
@@ -44,31 +44,39 @@ const IconMic = () => (
 );
 
 const IconStop = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <rect x="4" y="4" width="16" height="16" rx="2" />
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <rect x="4" y="4" width="16" height="16" rx="3" />
   </svg>
 );
 
 const IconSend = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.3" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" y1="19" x2="12" y2="5" />
+    <polyline points="5 12 12 5 19 12" />
   </svg>
 );
 
-/* ─────────────────── ACTION BUTTON ─────────────────── */
-const ActionBtn = ({ icon, label, onClick, danger }) => {
+/* ─────────────────── ICON-ONLY ACTION BUTTONS ─────────────────── */
+const IconBtn = ({ children, onClick, title, danger }) => {
   const [hov, setHov] = useState(false);
-  const icons = {
-    edit: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>,
-    copy: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>,
-    trash: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>,
-  };
   return (
-    <button onClick={onClick} title={label}
-      onMouseEnter={() => setHov(true)} onMouseLeave={() => setHov(false)}
-      style={{ display: "flex", alignItems: "center", gap: 4, background: hov ? (danger ? "#fff1f2" : "#f8fafc") : "#fff", border: `1px solid ${hov ? (danger ? "#fca5a5" : "#cbd5e1") : "#e2e8f0"}`, borderRadius: 6, padding: "3px 8px", cursor: "pointer", color: hov ? (danger ? "#ef4444" : "#475569") : "#94a3b8", fontSize: 11, transition: "all 0.15s" }}>
-      {icons[icon]} {label}
+    <button
+      onClick={onClick}
+      title={title}
+      onMouseEnter={() => setHov(true)}
+      onMouseLeave={() => setHov(false)}
+      style={{
+        width: 28, height: 28,
+        borderRadius: 8,
+        border: "none",
+        background: hov ? (danger ? "#fee2e2" : "#e0e7ff") : "#f1f5f9",
+        color: hov ? (danger ? "#ef4444" : "#6366f1") : "#94a3b8",
+        cursor: "pointer",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        transition: "all 0.15s",
+        flexShrink: 0,
+      }}>
+      {children}
     </button>
   );
 };
@@ -95,35 +103,78 @@ const Message = ({ msg, onDelete, onEdit }) => {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", marginBottom: 6 }}
-      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}>
+    <div
+      style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start", marginBottom: 6 }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <div style={{ display: "flex", alignItems: "flex-end", gap: 10, maxWidth: "80%" }}>
         {!isUser && <div style={{ marginBottom: editing ? 54 : 30 }}><BotAvatar /></div>}
+
         <div style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
           {editing ? (
             <div style={{ background: "#fff", border: "2px solid #6366f1", borderRadius: 14, padding: 12, minWidth: 240 }}>
-              <textarea ref={editRef} value={editText}
+              <textarea
+                ref={editRef}
+                value={editText}
                 onChange={e => { setEditText(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === "Escape") setEditing(false); }}
-                style={{ width: "100%", border: "none", outline: "none", resize: "none", fontSize: 14, fontFamily: "inherit", color: "#111", background: "transparent", lineHeight: 1.6, minHeight: 40, boxSizing: "border-box" }} />
+                style={{ width: "100%", border: "none", outline: "none", resize: "none", fontSize: 14, fontFamily: "inherit", color: "#111", background: "transparent", lineHeight: 1.6, minHeight: 40, boxSizing: "border-box" }}
+              />
               <div style={{ display: "flex", gap: 6, marginTop: 8, justifyContent: "flex-end" }}>
                 <button onClick={() => setEditing(false)} style={{ background: "none", border: "1px solid #e2e8f0", borderRadius: 7, padding: "4px 12px", fontSize: 12, cursor: "pointer", color: "#64748b" }}>Annuler</button>
-                <button onClick={saveEdit} style={{ background: "#1e293b", border: "none", borderRadius: 7, padding: "4px 12px", fontSize: 12, cursor: "pointer", color: "#fff" }}>Enregistrer</button>
+                <button onClick={saveEdit} style={{ background: "#6366f1", border: "none", borderRadius: 7, padding: "4px 12px", fontSize: 12, cursor: "pointer", color: "#fff" }}>Enregistrer</button>
               </div>
             </div>
           ) : (
-            <div style={{ background: isUser ? "#1e293b" : "#f1f5f9", color: isUser ? "#f8fafc" : "#1e293b", padding: "11px 16px", borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px", fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word", letterSpacing: "-0.01em", boxShadow: isUser ? "0 2px 12px rgba(30,41,59,0.12)" : "none" }}>
+            <div style={{
+              /* User: violet doux — Bot: gris clair */
+              background: isUser ? "linear-gradient(135deg, #6366f1, #818cf8)" : "#f1f5f9",
+              color: isUser ? "#fff" : "#1e293b",
+              padding: "11px 16px",
+              borderRadius: isUser ? "18px 18px 4px 18px" : "18px 18px 18px 4px",
+              fontSize: 14.5, lineHeight: 1.7, whiteSpace: "pre-wrap", wordBreak: "break-word", letterSpacing: "-0.01em",
+              boxShadow: isUser ? "0 3px 14px rgba(99,102,241,0.3)" : "none",
+            }}>
               {msg.text}
             </div>
           )}
+
           <span style={{ fontSize: 11, color: "#cbd5e1", marginTop: 4, paddingInline: 3 }}>{msg.time}</span>
-          <div style={{ display: "flex", gap: 4, marginTop: 2, opacity: hovered && !editing ? 1 : 0, transition: "opacity 0.15s", justifyContent: isUser ? "flex-end" : "flex-start" }}>
-            {isUser && <ActionBtn icon="edit" label="Modifier" onClick={() => { setEditText(msg.text); setEditing(true); }} />}
-            <ActionBtn icon="copy" label="Copier" onClick={() => navigator.clipboard.writeText(msg.text)} />
-            <ActionBtn icon="trash" label="Supprimer" onClick={() => onDelete(msg.id)} danger />
+
+          {/* Action icons — icônes seules, sans texte */}
+          <div style={{
+            display: "flex", gap: 4, marginTop: 3,
+            opacity: hovered && !editing ? 1 : 0,
+            transition: "opacity 0.15s",
+            justifyContent: isUser ? "flex-end" : "flex-start",
+          }}>
+            {isUser && (
+              <IconBtn title="Modifier" onClick={() => { setEditText(msg.text); setEditing(true); }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                  <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
+              </IconBtn>
+            )}
+            <IconBtn title="Copier" onClick={() => navigator.clipboard.writeText(msg.text)}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" />
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+              </svg>
+            </IconBtn>
+            <IconBtn title="Supprimer" onClick={() => onDelete(msg.id)} danger>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                <path d="M10 11v6M14 11v6" />
+                <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
+              </svg>
+            </IconBtn>
           </div>
         </div>
-        {isUser && <div style={{ marginBottom: 52 }}><UserAvatar /></div>}
+
+        {isUser && <div style={{ marginBottom: 50 }}><UserAvatar /></div>}
       </div>
     </div>
   );
@@ -256,15 +307,12 @@ export default function Chatbot() {
       <style>{`
         @keyframes psySlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes psyDot { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
-        @keyframes micPulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)} 70%{box-shadow:0 0 0 9px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+        @keyframes micPulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0.45)} 70%{box-shadow:0 0 0 10px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
         @keyframes micWave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.6)} }
         textarea:focus { outline: none; }
         textarea::placeholder { color: #94a3b8; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        .mic-btn:hover { background: #f8fafc !important; }
-        .mic-btn.active:hover { background: #dc2626 !important; }
-        .send-btn:hover:not(:disabled) { transform: scale(1.08); }
       `}</style>
 
       {/* ── HEADER ── */}
@@ -321,7 +369,7 @@ export default function Chatbot() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── INPUT ZONE (unique, propre) ── */}
+      {/* ── INPUT ZONE ── */}
       <div style={{ borderTop: "1px solid #f1f5f9", padding: "10px 16px 18px", background: "#fff" }}>
         <div style={{ maxWidth: 740, margin: "0 auto" }}>
 
@@ -343,59 +391,68 @@ export default function Chatbot() {
           )}
 
           {/* Barre de saisie */}
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: "8px 10px", transition: "border-color 0.2s, box-shadow 0.2s" }}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 20, padding: "8px 8px 8px 14px", transition: "border-color 0.2s, box-shadow 0.2s" }}
             onFocusCapture={e => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(165,180,252,0.15)"; }}
             onBlurCapture={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}>
 
             <textarea
               ref={textareaRef}
               value={input}
-              placeholder={isRecording ? "Parlez maintenant…" : "Écrivez votre message… (Entrée pour envoyer)"}
+              placeholder={isRecording ? "Parlez maintenant…" : "Écrivez votre message…"}
               onChange={e => { setInput(e.target.value); autoResize(); }}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
               rows={1}
-              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }}
+              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3, paddingBottom: 3 }}
             />
 
-            <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
 
-              {/* BOUTON MICROPHONE */}
+              {/* BOUTON MICROPHONE — rounded square comme dans l'image */}
               {micSupported && (
                 <button
-                  className={`mic-btn${isRecording ? " active" : ""}`}
                   onClick={handleMicClick}
                   title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
                   style={{
-                    width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
-                    border: isRecording ? "none" : "1.5px solid #e2e8f0",
-                    background: isRecording ? "#ef4444" : "#fff",
-                    color: isRecording ? "#fff" : "#64748b",
+                    width: 40, height: 40,
+                    borderRadius: 13,       /* rounded square */
+                    border: "none",
+                    background: isRecording
+                      ? "#ef4444"
+                      : "#e0e7ff",          /* violet clair au repos */
+                    color: isRecording ? "#fff" : "#6366f1",
                     cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
+                    transition: "background 0.2s, color 0.2s, transform 0.15s",
                     animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
-                    boxShadow: isRecording ? "0 2px 10px rgba(239,68,68,0.4)" : "none",
-                  }}>
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.transform = "scale(1.07)"; }}
+                  onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
                   {isRecording ? <IconStop /> : <IconMic />}
                 </button>
               )}
 
-              {/* BOUTON ENVOYER */}
+              {/* BOUTON ENVOYER — rounded square */}
               <button
-                className="send-btn"
                 onClick={() => sendMessage()}
                 disabled={!input.trim()}
                 title="Envoyer"
                 style={{
-                  width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
+                  width: 40, height: 40,
+                  borderRadius: 13,         /* rounded square */
                   border: "none",
-                  background: input.trim() ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "#e2e8f0",
+                  background: input.trim()
+                    ? "linear-gradient(135deg, #6366f1, #4f46e5)"
+                    : "#e2e8f0",
                   color: input.trim() ? "#fff" : "#94a3b8",
                   cursor: input.trim() ? "pointer" : "not-allowed",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "all 0.2s",
-                  boxShadow: input.trim() ? "0 2px 10px rgba(99,102,241,0.4)" : "none",
-                }}>
+                  flexShrink: 0,
+                  boxShadow: input.trim() ? "0 2px 10px rgba(99,102,241,0.35)" : "none",
+                }}
+                onMouseEnter={e => { if (input.trim()) e.currentTarget.style.transform = "scale(1.07)"; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = "scale(1)"; }}>
                 <IconSend />
               </button>
 
