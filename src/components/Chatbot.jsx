@@ -69,7 +69,7 @@ const Chatbot = () => {
   resetTranscript();
   setIsTyping(true);
 
-  const url = `${import.meta.env.VITE_PSYBOT_URL}/chat`;
+const url = `${import.meta.env.VITE_PSYBOT_URL}/api/chat`;
   console.log("URL appelée:", url);
   console.log("VITE_PSYBOT_URL:", import.meta.env.VITE_PSYBOT_URL);
 
