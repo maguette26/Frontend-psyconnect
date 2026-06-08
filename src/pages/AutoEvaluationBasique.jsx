@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../components/commun/Layout';
 import { Smile, Frown, Moon, CheckCircle, RefreshCcw, ChevronLeft, ArrowRight } from 'lucide-react';
-import {  AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const champs = [
   {
