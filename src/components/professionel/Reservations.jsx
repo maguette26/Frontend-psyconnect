@@ -1,16 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   faCheckCircle,
   faTimesCircle,
   faVideo,
   faCalendarCheck,
   faInfoCircle,
-  faClock,
-  faUser,
-  faEnvelope
+  faClock
 } from '@fortawesome/free-solid-svg-icons';
 
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
@@ -19,7 +16,6 @@ const ListeReservations = ({ proId }) => {
   const [reservations, setReservations] = useState([]);
   const [error, setError] = useState('');
   const [filtreStatut, setFiltreStatut] = useState('TOUS');
-  const [selectedRes, setSelectedRes] = useState(null);
 
   useEffect(() => {
     if (proId) chargerReservations();
@@ -27,168 +23,149 @@ const ListeReservations = ({ proId }) => {
 
   const chargerReservations = async () => {
     try {
+      // ✅ FIX : utilisait axios direct sur localhost:9191
       const data = await getReservations(proId);
       setReservations(data);
     } catch (err) {
+      console.error("Erreur lors du chargement des réservations :", err);
       setError("Erreur lors du chargement des réservations");
     }
   };
 
-  const handleUpdateStatus = async (id, status) => {
-    if (!window.confirm(`Confirmer ${status === 'VALIDE' ? "acceptation" : "refus"} ?`)) return;
+  const handleUpdateStatus = async (reservationId, status) => {
+    if (!window.confirm(`Confirmer ${status === 'VALIDE' ? "l'acceptation" : 'le refus'} de cette réservation ?`)) return;
     try {
-      await updateReservationStatus(id, status);
+      // ✅ FIX : utilisait axios direct sur localhost:9191
+      await updateReservationStatus(reservationId, status);
       await chargerReservations();
-    } catch {
-      setError("Erreur mise à jour");
+    } catch (error) {
+      console.error("Erreur mise à jour statut :", error);
+      setError("Erreur lors de la mise à jour de la réservation");
     }
   };
 
-  // ✅ FIX HEURE PROPRE
-  const formatDateTime = (date, heure) => {
-    if (!date) return 'N/A';
-    const h = heure && heure !== "00:00" ? heure : null;
-
-    const dt = new Date(`${date}T${h || '00:00'}:00`);
-
-    return {
-      date: dt.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric'
-      }),
-      heure: h ? h : dt.toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
+  const formatDateTime = (dateString, timeString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const dt = new Date(`${dateString}T${timeString || '00:00'}:00`);
+      return dt.toLocaleDateString('fr-FR', {
+        year: 'numeric', month: 'long', day: 'numeric',
+        hour: '2-digit', minute: '2-digit'
+      });
+    } catch (e) {
+      return `${dateString} ${timeString || ''}`;
+    }
   };
 
-  const filtrees =
-    filtreStatut === 'TOUS'
-      ? reservations
-      : reservations.filter(r => r.statut === filtreStatut);
+  const reservationsFiltrees = filtreStatut === 'TOUS'
+    ? reservations
+    : reservations.filter(res => res.statut === filtreStatut);
+
+  if (error) return <p className="text-red-600 p-4">{error}</p>;
+  if (!reservations || reservations.length === 0) {
+    return <p className="text-gray-600 p-4 bg-gray-50 rounded-md">Aucune réservation trouvée pour le moment.</p>;
+  }
 
   return (
-    <div className="p-4">
-
-      {/* FILTRES (version propre comme avant) */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {STATUTS.map(s => (
-          <button
-            key={s}
-            onClick={() => setFiltreStatut(s)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition ${
-              filtreStatut === s
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            {s}
-          </button>
-        ))}
+    <div className="max-w-full overflow-x-auto shadow-lg rounded-lg bg-white p-4">
+      <div className="mb-4 flex items-center gap-4">
+        <label htmlFor="filtreStatut" className="font-semibold text-gray-700">Filtrer par statut :</label>
+        <select
+          id="filtreStatut"
+          value={filtreStatut}
+          onChange={e => setFiltreStatut(e.target.value)}
+          className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          {STATUTS.map(statut => (
+            <option key={statut} value={statut}>{statut === 'TOUS' ? 'Tous' : statut}</option>
+          ))}
+        </select>
+        <span className="text-gray-600 italic text-sm">
+          {reservationsFiltrees.length} réservation{reservationsFiltrees.length > 1 ? 's' : ''}
+        </span>
       </div>
 
-      {error && <p className="text-red-500">{error}</p>}
-
-      {/* LISTE */}
-      <div className="space-y-3">
-        {filtrees.map(res => {
-          const dt = formatDateTime(res.dateReservation, res.heureDebut);
-
-          return (
-            <div key={res.id} className="bg-white shadow rounded-lg p-4 flex justify-between items-center">
-
-              <div>
-                <p className="font-semibold">
-                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
-                </p>
-
-                <p className="text-sm text-gray-500">
-                  {dt.date} à {dt.heure}
-                </p>
-              </div>
-
-              <div className="flex gap-2 items-center">
-
-                {res.statut === 'EN_ATTENTE' && (
-                  <>
-                    <button onClick={() => handleUpdateStatus(res.id, 'VALIDE')}>
-                      <FontAwesomeIcon icon={faCheckCircle} className="text-green-600" />
-                    </button>
-
-                    <button onClick={() => handleUpdateStatus(res.id, 'REFUSE')}>
-                      <FontAwesomeIcon icon={faTimesCircle} className="text-red-600" />
-                    </button>
-                  </>
-                )}
-
-                <button onClick={() => setSelectedRes(res)}>
-                  <FontAwesomeIcon icon={faInfoCircle} className="text-blue-600" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* ✅ MODAL CENTRÉ PRO */}
-      <AnimatePresence>
-        {selectedRes && (
-          <div
-            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
-            onClick={() => setSelectedRes(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6"
-            >
-
-              <h2 className="text-lg font-bold mb-4">
-                Détails de la réservation
-              </h2>
-
-              {/* USER */}
-              <div className="space-y-2 text-sm">
-
-                <p className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faUser} />
-                  {selectedRes.utilisateur?.prenom} {selectedRes.utilisateur?.nom}
-                </p>
-
-                <p className="flex items-center gap-2 text-gray-600">
-                  <FontAwesomeIcon icon={faEnvelope} />
-                  {selectedRes.utilisateur?.email || "Email non disponible"}
-                </p>
-
-                <p className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faCalendarCheck} />
-                  {formatDateTime(selectedRes.dateReservation, selectedRes.heureDebut).date}
-                </p>
-
-                <p className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faClock} />
-                  {formatDateTime(selectedRes.dateReservation, selectedRes.heureDebut).heure}
-                </p>
-
-              </div>
-
-              <button
-                onClick={() => setSelectedRes(null)}
-                className="mt-6 w-full bg-blue-600 text-white py-2 rounded-lg"
-              >
-                Fermer
-              </button>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
+      <table className="min-w-full divide-y divide-gray-200 rounded-lg">
+        <thead className="bg-gray-50">
+          <tr>
+            {['ID', 'Utilisateur', 'Date & Heure', 'Statut', 'Consultation', 'Actions'].map(header => (
+              <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {header}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="bg-white divide-y divide-gray-200">
+          {reservationsFiltrees.length === 0 ? (
+            <tr>
+              <td colSpan="6" className="text-center p-4 text-gray-500 italic">Aucune réservation correspondante.</td>
+            </tr>
+          ) : (
+            reservationsFiltrees.map((res) => (
+              <tr key={res.id} className="hover:bg-gray-50 transition-colors duration-150">
+                <td className="px-6 py-4 whitespace-nowrap">{res.id}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {res.utilisateur?.nom} {res.utilisateur?.prenom} ({res.utilisateur?.email})
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">{formatDateTime(res.dateReservation, res.heureDebut)}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
+                    ${res.statut === 'EN_ATTENTE' ? 'bg-yellow-100 text-yellow-800' :
+                      res.statut === 'VALIDE' ? 'bg-green-100 text-green-800' :
+                      res.statut === 'REFUSE' ? 'bg-red-100 text-red-800' :
+                      'bg-gray-100 text-gray-800'}`}>
+                    <FontAwesomeIcon icon={
+                      res.statut === 'EN_ATTENTE' ? faClock :
+                      res.statut === 'VALIDE' ? faCheckCircle :
+                      res.statut === 'REFUSE' ? faTimesCircle : faInfoCircle
+                    } className="mr-1" />
+                    {res.statut}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {res.statut === 'VALIDE' && res.consultation ? (
+                    <>
+                      <p><FontAwesomeIcon icon={faCalendarCheck} className="mr-1" />
+                        {formatDateTime(res.consultation.dateConsultation, res.consultation.heure)}
+                      </p>
+                      {res.consultation.lienVisio && (
+                        <a href={res.consultation.lienVisio} target="_blank" rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline flex items-center mt-1">
+                          <FontAwesomeIcon icon={faVideo} className="mr-1" /> Rejoindre la visio
+                        </a>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-gray-500">N/A</p>
+                  )}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
+                  {res.statut === 'EN_ATTENTE' && (
+                    <>
+                      <button onClick={() => handleUpdateStatus(res.id, 'VALIDE')}
+                        className="text-green-600 hover:text-green-900 cursor-pointer bg-transparent border-0"
+                        title="Accepter" aria-label="Accepter la réservation">
+                        <FontAwesomeIcon icon={faCheckCircle} size="lg" />
+                      </button>
+                      <button onClick={() => handleUpdateStatus(res.id, 'REFUSE')}
+                        className="text-red-600 hover:text-red-900 cursor-pointer bg-transparent border-0"
+                        title="Refuser" aria-label="Refuser la réservation">
+                        <FontAwesomeIcon icon={faTimesCircle} size="lg" />
+                      </button>
+                    </>
+                  )}
+                  <button
+                    onClick={() => alert(`Détails réservation ${res.id}\nUtilisateur: ${res.utilisateur?.nom} ${res.utilisateur?.prenom}\nStatut: ${res.statut}`)}
+                    className="text-blue-600 hover:text-blue-900 cursor-pointer bg-transparent border-0"
+                    title="Détails" aria-label="Voir les détails">
+                    <FontAwesomeIcon icon={faInfoCircle} size="lg" />
+                  </button>
+                </td>
+              </tr>
+            ))
+          )}
+        </tbody>
+      </table>
     </div>
   );
 };
