@@ -3,8 +3,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getConsultation, getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 
-export default function ChatPage() {
-  const { consultationId } = useParams();
+export default function ChatPage({ currentUser }) {
+  const params = useParams();
+  const consultationId = params?.consultationId;
   const navigate = useNavigate();
 
   const [consultation, setConsultation] = useState(null);
@@ -12,6 +13,15 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true);
 
   const stompClient = useWebSocket();
+
+  // ❗ SAFE CHECK
+  if (!consultationId) {
+    return (
+      <div style={{ padding: 20 }}>
+        ❌ Consultation introuvable (ID manquant)
+      </div>
+    );
+  }
 
   // 1. LOAD DATA
   useEffect(() => {
@@ -23,7 +33,6 @@ export default function ChatPage() {
         setConsultation(c);
         setMessages(history);
 
-        // ❌ BLOQUER SI PAS CONFIRMEE
         if (c.statut !== "CONFIRMEE") {
           navigate("/consultations");
         }
@@ -31,7 +40,7 @@ export default function ChatPage() {
       .finally(() => setLoading(false));
   }, [consultationId]);
 
-  // 2. AUTO LISTEN CHAT START EVENT (backup)
+  // 2. WEBSOCKET
   useEffect(() => {
     if (!stompClient) return;
 
@@ -40,8 +49,8 @@ export default function ChatPage() {
       (msg) => {
         const data = JSON.parse(msg.body);
 
-        if (data.type === "CONSULTATION_STARTED") {
-          console.log("Chat activé !");
+        if (data.type === "NEW_MESSAGE") {
+          setMessages((prev) => [...prev, data]);
         }
       }
     );
@@ -55,7 +64,6 @@ export default function ChatPage() {
     <div className="p-4">
       <h2>Chat consultation #{consultationId}</h2>
 
-      {/* MESSAGES */}
       <div className="border p-3 h-96 overflow-auto">
         {messages.map((m) => (
           <div key={m.id}>
