@@ -2,78 +2,130 @@ import React, { useEffect, useState } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import {
   CheckCircle, XCircle, Clock, Info, Video,
-  CalendarCheck, Filter, RefreshCw, User
+  CalendarCheck, Filter, RefreshCw, User, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
 
 const STATUT_CONFIG = {
-  EN_ATTENTE: { label: 'En attente', bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',  icon: Clock        },
-  VALIDE:     { label: 'Validée',    bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',icon: CheckCircle  },
-  REFUSE:     { label: 'Refusée',    bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',    icon: XCircle      },
+  EN_ATTENTE: {
+    label: 'En attente',
+    bg: '#FFFBEB', text: '#B45309', border: '#FDE68A',
+    dot: '#F59E0B',
+    icon: Clock,
+  },
+  VALIDE: {
+    label: 'Validée',
+    bg: '#F0FDF4', text: '#15803D', border: '#BBF7D0',
+    dot: '#22C55E',
+    icon: CheckCircle,
+  },
+  REFUSE: {
+    label: 'Refusée',
+    bg: '#FEF2F2', text: '#B91C1C', border: '#FECACA',
+    dot: '#EF4444',
+    icon: XCircle,
+  },
 };
 
 function StatutBadge({ statut }) {
   const cfg = STATUT_CONFIG[statut];
-  if (!cfg) return <span className="text-xs text-slate-400">{statut}</span>;
-  const Icon = cfg.icon;
+  if (!cfg) return <span style={{ fontSize: 11, color: '#94A3B8' }}>{statut}</span>;
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-      <Icon size={12} />
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 6,
+      padding: '4px 10px', borderRadius: 20,
+      fontSize: 11.5, fontWeight: 600,
+      background: cfg.bg, color: cfg.text,
+      border: `1px solid ${cfg.border}`,
+    }}>
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, display: 'inline-block' }} />
       {cfg.label}
     </span>
   );
 }
 
+function Avatar({ prenom, nom }) {
+  const initials = `${prenom?.[0] || ''}${nom?.[0] || ''}`.toUpperCase();
+  const colors = [
+    ['#EEF2FF', '#4F46E5'], ['#F0FDF4', '#16A34A'], ['#FFF7ED', '#EA580C'],
+    ['#F5F3FF', '#7C3AED'], ['#FDF2F8', '#BE185D'],
+  ];
+  const idx = (prenom?.charCodeAt(0) || 0) % colors.length;
+  const [bg, color] = colors[idx];
+  return (
+    <div style={{
+      width: 44, height: 44, borderRadius: 14, flexShrink: 0,
+      background: bg, color, fontWeight: 700, fontSize: 14,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      border: `1.5px solid ${color}20`,
+    }}>
+      {initials || <User size={16} />}
+    </div>
+  );
+}
+
+const formatDate = (dateString, timeString) => {
+  if (!dateString) return 'N/A';
+  try {
+    const dt = new Date(`${dateString}T${timeString || '00:00'}:00`);
+    return dt.toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return `${dateString} ${timeString || ''}`; }
+};
+
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   const [expanded, setExpanded] = useState(false);
-
-  const formatDate = (dateString, timeString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const dt = new Date(`${dateString}T${timeString || '00:00'}:00`);
-      return dt.toLocaleDateString('fr-FR', {
-        weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-        hour: '2-digit', minute: '2-digit'
-      });
-    } catch { return `${dateString} ${timeString || ''}`; }
-  };
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+      exit={{ opacity: 0, y: -8 }}
+      style={{
+        background: '#fff',
+        border: '1px solid #E8EDF2',
+        borderRadius: 18,
+        overflow: 'hidden',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03)',
+        transition: 'box-shadow 0.2s',
+      }}
+      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.07), 0 4px 20px rgba(0,0,0,0.06)'}
+      onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04), 0 2px 8px rgba(0,0,0,0.03)'}
     >
-      {/* HEADER */}
-      <div className="p-5 flex items-start gap-4">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow flex-shrink-0">
-          {res.utilisateur?.prenom?.[0]}{res.utilisateur?.nom?.[0]}
-        </div>
+      {/* MAIN ROW */}
+      <div style={{ padding: '18px 20px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+        <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} />
 
-        <div className="flex-1 min-w-0">
-          <div className="flex items-start justify-between gap-2 flex-wrap">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 6 }}>
             <div>
-              <h3 className="font-semibold text-slate-800 text-base leading-tight">
+              <p style={{ margin: 0, fontSize: 14.5, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.01em' }}>
                 {res.utilisateur?.prenom} {res.utilisateur?.nom}
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1 truncate">
-                <User size={11} />
+              </p>
+              <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#94A3B8', display: 'flex', alignItems: 'center', gap: 4 }}>
+                <User size={10} />
                 {res.utilisateur?.email}
               </p>
             </div>
             <StatutBadge statut={res.statut} />
           </div>
 
-          <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600">
-            <span className="flex items-center gap-1.5">
-              <CalendarCheck size={13} className="text-indigo-400" />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              fontSize: 12, color: '#475569',
+              background: '#F8FAFC', padding: '4px 10px', borderRadius: 8,
+              border: '1px solid #E2E8F0',
+            }}>
+              <CalendarCheck size={11} color="#6366F1" />
               {formatDate(res.dateReservation, res.heureDebut)}
             </span>
-            <span className="text-xs text-slate-400">#{res.id}</span>
+            <span style={{ fontSize: 11, color: '#CBD5E1', fontFamily: 'monospace' }}>#{res.id}</span>
           </div>
         </div>
       </div>
@@ -86,26 +138,41 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="overflow-hidden"
+            style={{ overflow: 'hidden' }}
           >
-            <div className="px-5 pb-4 border-t border-slate-100 pt-4 space-y-3">
+            <div style={{ padding: '16px 20px', borderTop: '1px solid #F1F5F9', background: '#FAFBFC' }}>
               {res.statut === 'VALIDE' && res.consultation ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 space-y-2">
-                  <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Consultation confirmée</p>
-                  <p className="text-sm text-slate-700 flex items-center gap-2">
-                    <CalendarCheck size={14} className="text-emerald-500" />
+                <div style={{
+                  background: '#F0FDF4', border: '1px solid #BBF7D0',
+                  borderRadius: 14, padding: '14px 16px',
+                }}>
+                  <p style={{ margin: '0 0 8px', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#16A34A' }}>
+                    Consultation confirmée
+                  </p>
+                  <p style={{ margin: '0 0 10px', fontSize: 13, color: '#166534', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <CalendarCheck size={13} color="#22C55E" />
                     {formatDate(res.consultation.dateConsultation, res.consultation.heure)}
                   </p>
                   {res.consultation.lienVisio && (
                     <a href={res.consultation.lienVisio} target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-medium transition">
-                      <Video size={14} />
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '8px 14px', background: '#16A34A', color: '#fff',
+                        borderRadius: 10, fontSize: 12.5, fontWeight: 600,
+                        textDecoration: 'none', transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = '#15803D'}
+                      onMouseLeave={e => e.currentTarget.style.background = '#16A34A'}
+                    >
+                      <Video size={13} />
                       Rejoindre la visio
                     </a>
                   )}
                 </div>
               ) : (
-                <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
+                <p style={{ margin: 0, fontSize: 13, color: '#CBD5E1', fontStyle: 'italic' }}>
+                  Aucune consultation associée.
+                </p>
               )}
             </div>
           </motion.div>
@@ -113,31 +180,67 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
       </AnimatePresence>
 
       {/* FOOTER */}
-      <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-between gap-3 flex-wrap">
-        <button onClick={() => setExpanded(!expanded)}
-          className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition">
+      <div style={{
+        padding: '11px 20px',
+        borderTop: '1px solid #F1F5F9',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+        flexWrap: 'wrap',
+      }}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            fontSize: 12.5, fontWeight: 600, color: '#6366F1',
+            display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0',
+            fontFamily: 'inherit', transition: 'color 0.15s',
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = '#4338CA'}
+          onMouseLeave={e => e.currentTarget.style.color = '#6366F1'}
+        >
+          {expanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
           {expanded ? 'Masquer' : 'Voir détails'}
         </button>
 
-        <div className="flex items-center gap-2">
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
           {res.statut === 'EN_ATTENTE' && (
             <>
-              <button onClick={() => onAccept(res.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm">
-                <CheckCircle size={13} />
-                Accepter
+              <button onClick={() => onAccept(res.id)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '7px 14px', background: '#F0FDF4',
+                border: '1px solid #BBF7D0', color: '#16A34A',
+                borderRadius: 10, fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#16A34A'; e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#F0FDF4'; e.currentTarget.style.color = '#16A34A'; }}
+              >
+                <CheckCircle size={12} /> Accepter
               </button>
-              <button onClick={() => onRefuse(res.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition active:scale-95 shadow-sm">
-                <XCircle size={13} />
-                Refuser
+              <button onClick={() => onRefuse(res.id)} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                padding: '7px 14px', background: '#FEF2F2',
+                border: '1px solid #FECACA', color: '#DC2626',
+                borderRadius: 10, fontSize: 12, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+              }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#DC2626'; e.currentTarget.style.color = '#fff'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#DC2626'; }}
+              >
+                <XCircle size={12} /> Refuser
               </button>
             </>
           )}
-          <button onClick={() => onDetails(res)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition">
-            <Info size={13} />
-            Détails
+          <button onClick={() => onDetails(res)} style={{
+            display: 'inline-flex', alignItems: 'center', gap: 5,
+            padding: '7px 14px', background: '#F8FAFC',
+            border: '1px solid #E2E8F0', color: '#475569',
+            borderRadius: 10, fontSize: 12, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = '#F1F5F9'}
+            onMouseLeave={e => e.currentTarget.style.background = '#F8FAFC'}
+          >
+            <Info size={12} /> Détails
           </button>
         </div>
       </div>
@@ -145,63 +248,100 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   );
 }
 
-// Modal détails
 function DetailsModal({ res, onClose }) {
   if (!res) return null;
-  const formatDate = (d, t) => {
-    if (!d) return 'N/A';
-    try {
-      const dt = new Date(`${d}T${t || '00:00'}:00`);
-      return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    } catch { return `${d} ${t || ''}`; }
-  };
 
   return (
-    <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-      onClick={onClose}>
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)',
+        backdropFilter: 'blur(4px)', display: 'flex',
+        alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: '0 16px',
+      }}
+      onClick={onClose}
+    >
       <motion.div
-        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        initial={{ opacity: 0, scale: 0.96, y: 16 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6"
+        exit={{ opacity: 0, scale: 0.96 }}
         onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 22,
+          boxShadow: '0 24px 60px rgba(0,0,0,0.14)',
+          width: '100%', maxWidth: 440, padding: '28px 28px 24px',
+        }}
       >
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-slate-800">Détails réservation #{res.id}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition">
-            <XCircle size={22} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+          <div>
+            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em' }}>
+              Détails de la réservation
+            </h3>
+            <p style={{ margin: '2px 0 0', fontSize: 11.5, color: '#94A3B8', fontFamily: 'monospace' }}>#{res.id}</p>
+          </div>
+          <button onClick={onClose} style={{
+            padding: 8, borderRadius: 10, border: 'none', background: '#F1F5F9',
+            cursor: 'pointer', color: '#64748B', display: 'flex', alignItems: 'center',
+            transition: 'background 0.15s',
+          }}
+            onMouseEnter={e => e.currentTarget.style.background = '#E2E8F0'}
+            onMouseLeave={e => e.currentTarget.style.background = '#F1F5F9'}
+          >
+            <XCircle size={18} />
           </button>
         </div>
 
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {[
             { label: 'Patient', value: `${res.utilisateur?.prenom} ${res.utilisateur?.nom}` },
             { label: 'Email', value: res.utilisateur?.email },
-            { label: 'Date réservation', value: formatDate(res.dateReservation, res.heureDebut) },
+            { label: 'Date', value: formatDate(res.dateReservation, res.heureDebut) },
             { label: 'Statut', value: <StatutBadge statut={res.statut} /> },
           ].map(({ label, value }) => (
-            <div key={label} className="bg-slate-50 rounded-xl px-4 py-3">
-              <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-              <div className="font-medium text-slate-700 text-sm">{value}</div>
+            <div key={label} style={{
+              background: '#F8FAFC', borderRadius: 12, padding: '12px 16px',
+              border: '1px solid #F1F5F9',
+            }}>
+              <p style={{ margin: '0 0 3px', fontSize: 10.5, fontWeight: 600, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#94A3B8' }}>
+                {label}
+              </p>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: '#1E293B' }}>{value}</div>
             </div>
           ))}
 
           {res.statut === 'VALIDE' && res.consultation && (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3">
-              <p className="text-xs text-emerald-500 mb-1 font-semibold uppercase tracking-wide">Consultation</p>
-              <p className="text-sm text-slate-700">{formatDate(res.consultation.dateConsultation, res.consultation.heure)}</p>
+            <div style={{
+              background: '#F0FDF4', border: '1px solid #BBF7D0',
+              borderRadius: 12, padding: '12px 16px',
+            }}>
+              <p style={{ margin: '0 0 6px', fontSize: 10.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: '#16A34A' }}>
+                Consultation
+              </p>
+              <p style={{ margin: 0, fontSize: 13, color: '#166534' }}>
+                {formatDate(res.consultation.dateConsultation, res.consultation.heure)}
+              </p>
               {res.consultation.lienVisio && (
                 <a href={res.consultation.lienVisio} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 mt-2 text-emerald-600 hover:underline text-sm">
-                  <Video size={14} /> Lien visio
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                    marginTop: 8, fontSize: 12.5, color: '#16A34A', fontWeight: 600,
+                    textDecoration: 'none',
+                  }}>
+                  <Video size={13} /> Lien visio
                 </a>
               )}
             </div>
           )}
         </div>
 
-        <button onClick={onClose}
-          className="mt-5 w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition">
+        <button onClick={onClose} style={{
+          marginTop: 18, width: '100%', padding: '12px',
+          background: '#18181B', color: '#fff', border: 'none',
+          borderRadius: 12, fontSize: 13.5, fontWeight: 600,
+          fontFamily: 'inherit', cursor: 'pointer', transition: 'background 0.15s',
+        }}
+          onMouseEnter={e => e.currentTarget.style.background = '#27272A'}
+          onMouseLeave={e => e.currentTarget.style.background = '#18181B'}
+        >
           Fermer
         </button>
       </motion.div>
@@ -225,7 +365,6 @@ const ListeReservations = ({ proId }) => {
       setReservations(data);
       setError('');
     } catch (err) {
-      console.error(err);
       setError('Erreur lors du chargement des réservations.');
     } finally { setRefreshing(false); }
   };
@@ -236,9 +375,7 @@ const ListeReservations = ({ proId }) => {
     try {
       await updateReservationStatus(id, status);
       await chargerReservations();
-    } catch {
-      setError('Erreur lors de la mise à jour.');
-    }
+    } catch { setError('Erreur lors de la mise à jour.'); }
   };
 
   const reservationsFiltrees = filtreStatut === 'TOUS'
@@ -251,38 +388,82 @@ const ListeReservations = ({ proId }) => {
   }, {});
 
   return (
-    <div className="space-y-5" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <div style={{ fontFamily: "'Instrument Sans', 'DM Sans', sans-serif" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap');
+      `}</style>
 
       {/* HEADER */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
-        <h2 className="text-xl font-bold text-slate-800">Réservations</h2>
-        <button onClick={chargerReservations}
-          className={`flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition ${refreshing ? 'opacity-60' : ''}`}>
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 22 }}>
+        <div>
+          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#0F172A', letterSpacing: '-0.02em' }}>
+            Réservations
+          </h2>
+          <p style={{ margin: '2px 0 0', fontSize: 12.5, color: '#94A3B8', fontStyle: 'italic', fontFamily: "'Instrument Serif', serif" }}>
+            {reservations.length} réservation{reservations.length !== 1 ? 's' : ''} au total
+          </p>
+        </div>
+        <button
+          onClick={chargerReservations}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: 7,
+            padding: '9px 16px', background: '#F8FAFC',
+            border: '1.5px solid #E2E8F0', borderRadius: 12,
+            fontSize: 13, fontWeight: 600, color: '#475569',
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'all 0.15s', opacity: refreshing ? 0.6 : 1,
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#F1F5F9'}
+          onMouseLeave={e => e.currentTarget.style.background = '#F8FAFC'}
+        >
+          <RefreshCw size={13} style={{ animation: refreshing ? 'spin 0.8s linear infinite' : 'none' }} />
           Actualiser
         </button>
       </div>
 
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">{error}</div>
+        <div style={{
+          marginBottom: 16, padding: '12px 16px',
+          background: '#FEF2F2', border: '1px solid #FECACA',
+          borderRadius: 12, fontSize: 13, color: '#DC2626',
+        }}>
+          {error}
+        </div>
       )}
 
       {/* FILTRES */}
-      <div className="flex flex-wrap gap-2">
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
         {STATUTS.map(s => {
           const cfg = STATUT_CONFIG[s];
           const active = filtreStatut === s;
           return (
-            <button key={s} onClick={() => setFiltreStatut(s)}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold border transition ${
-                active
-                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-              }`}>
-              {s === 'TOUS' ? <Filter size={12} /> : cfg && <cfg.icon size={12} />}
+            <button
+              key={s}
+              onClick={() => setFiltreStatut(s)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '7px 14px',
+                background: active ? '#18181B' : '#F8FAFC',
+                border: `1.5px solid ${active ? '#18181B' : '#E2E8F0'}`,
+                borderRadius: 10,
+                fontSize: 12, fontWeight: 600,
+                color: active ? '#fff' : '#64748B',
+                cursor: 'pointer', fontFamily: 'inherit',
+                transition: 'all 0.15s',
+              }}
+              onMouseEnter={e => { if (!active) e.currentTarget.style.borderColor = '#CBD5E1'; }}
+              onMouseLeave={e => { if (!active) e.currentTarget.style.borderColor = '#E2E8F0'; }}
+            >
+              {s === 'TOUS' ? <Filter size={11} /> : cfg && <cfg.icon size={11} />}
               {s === 'TOUS' ? 'Tous' : cfg?.label || s}
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
+              <span style={{
+                fontSize: 10.5, fontWeight: 700,
+                background: active ? 'rgba(255,255,255,0.18)' : '#E2E8F0',
+                color: active ? '#fff' : '#64748B',
+                padding: '1px 6px', borderRadius: 20,
+              }}>
                 {counts[s]}
               </span>
             </button>
@@ -292,16 +473,31 @@ const ListeReservations = ({ proId }) => {
 
       {/* LISTE */}
       {reservations.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-          <CalendarCheck className="text-slate-200 mx-auto mb-3" size={40} />
-          <p className="text-slate-500 font-medium">Aucune réservation pour le moment.</p>
+        <div style={{
+          textAlign: 'center', padding: '56px 24px',
+          background: '#fff', borderRadius: 18,
+          border: '1px solid #E8EDF2',
+        }}>
+          <CalendarCheck size={36} color="#E2E8F0" style={{ marginBottom: 12 }} />
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 600, color: '#94A3B8' }}>
+            Aucune réservation pour le moment.
+          </p>
+          <p style={{ margin: '4px 0 0', fontSize: 12.5, color: '#CBD5E1' }}>
+            Les nouvelles réservations apparaîtront ici.
+          </p>
         </div>
       ) : reservationsFiltrees.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
-          <p className="text-slate-400 italic text-sm">Aucune réservation avec ce statut.</p>
+        <div style={{
+          textAlign: 'center', padding: '40px 24px',
+          background: '#F8FAFC', borderRadius: 16,
+          border: '1px dashed #E2E8F0',
+        }}>
+          <p style={{ margin: 0, fontSize: 13, color: '#94A3B8', fontStyle: 'italic' }}>
+            Aucune réservation avec ce statut.
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <AnimatePresence>
             {reservationsFiltrees.map(res => (
               <ReservationCard
