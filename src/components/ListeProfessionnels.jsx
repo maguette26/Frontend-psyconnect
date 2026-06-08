@@ -23,7 +23,7 @@ import ModalPortal from './ModalPortal';
 const DUREE_CONSULTATION_MINUTES = 45;
 
 const ListeProfessionnels = () => {
-  const [step, setStep] = useState(1); // 1 = intro, 2 = liste
+  const [step, setStep] = useState(1);
   const [professionnels, setProfessionnels] = useState([]);
   const [selectedPro, setSelectedPro] = useState(null);
   const [disponibilites, setDisponibilites] = useState([]);
@@ -47,11 +47,10 @@ const ListeProfessionnels = () => {
         const res = await api.get('/professionnels/tous');
         setProfessionnels(res.data);
         setError('');
-
         const specs = Array.from(new Set(res.data.map(p => p.specialite))).sort();
         setSpecialites(specs);
       } catch (err) {
-        console.error(err); 
+        console.error(err);
         setError("❌ Impossible de charger les professionnels.");
       }
     };
@@ -73,7 +72,21 @@ const ListeProfessionnels = () => {
       const res = await api.get(`/disponibilites/${proId}`);
       const pro = professionnels.find(p => p.id === proId) || null;
       setSelectedPro(pro);
-      setDisponibilites(res.data);
+
+      const maintenant = new Date();
+
+      const disponibilitesFiltreesEtTriees = res.data
+        // Supprimer les dispos dont la fin est déjà passée
+        .filter(dispo => {
+          const [hEnd, mEnd] = dispo.heureFin.split(':').map(Number);
+          const finDispo = new Date(dispo.date);
+          finDispo.setHours(hEnd, mEnd, 0, 0);
+          return finDispo > maintenant;
+        })
+        // Trier du plus proche au plus lointain
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      setDisponibilites(disponibilitesFiltreesEtTriees);
       setDisponibilitesVisibles(true);
     } catch (err) {
       console.error(err);
@@ -120,7 +133,7 @@ const ListeProfessionnels = () => {
     };
 
     try {
-      const res = await api.post('/reservations', reservation);
+      await api.post('/reservations', reservation);
       toast.success('✅ Réservation enregistrée ! Attente de validation du professionnel.');
       if (selectedPro) fetchDisponibilites(selectedPro.id);
     } catch (error) {
@@ -162,69 +175,68 @@ const ListeProfessionnels = () => {
       >
         <AnimatePresence mode="wait">
           {step === 1 && (
-  <motion.section
-    key="intro"
-    variants={{
-      initial: { opacity: 0, scale: 0.95, y: 20 },
-      animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
-      exit: { opacity: 0, scale: 0.95, y: -20, transition: { duration: 0.5, ease: "easeIn" } }
-    }}
-    initial="initial"
-    animate="animate"
-    exit="exit"
-    className="relative w-full min-h-[38vh] text-center px-8 py-6 bg-gradient-to-tr from-indigo-50 via-indigo-100 to-white overflow-hidden flex flex-col justify-center"
-  >
-    <div
-      aria-hidden="true"
-      className="absolute -top-28 -left-28 w-80 h-80 bg-indigo-300 rounded-full opacity-25 filter blur-3xl animate-blob"
-    />
-    <div
-      aria-hidden="true"
-      className="absolute -bottom-32 -right-24 w-96 h-96 bg-indigo-400 rounded-full opacity-20 filter blur-3xl animate-blob animation-delay-4000"
-    />
+            <motion.section
+              key="intro"
+              variants={{
+                initial: { opacity: 0, scale: 0.95, y: 20 },
+                animate: { opacity: 1, scale: 1, y: 0, transition: { duration: 0.7, ease: "easeOut" } },
+                exit: { opacity: 0, scale: 0.95, y: -20, transition: { duration: 0.5, ease: "easeIn" } }
+              }}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="relative w-full min-h-[38vh] text-center px-8 py-6 bg-gradient-to-tr from-indigo-50 via-indigo-100 to-white overflow-hidden flex flex-col justify-center"
+            >
+              <div
+                aria-hidden="true"
+                className="absolute -top-28 -left-28 w-80 h-80 bg-indigo-300 rounded-full opacity-25 filter blur-3xl animate-blob"
+              />
+              <div
+                aria-hidden="true"
+                className="absolute -bottom-32 -right-24 w-96 h-96 bg-indigo-400 rounded-full opacity-20 filter blur-3xl animate-blob animation-delay-4000"
+              />
 
-    <h1 className="relative text-3xl font-extrabold text-indigo-900 mb-3 leading-snug tracking-tight drop-shadow-md">
-      Bienvenue sur <span className="text-indigo-600">PsyConnect</span>
-    </h1>
-    <h2 className="relative text-base italic text-indigo-700 mb-6 max-w-xl mx-auto drop-shadow-sm">
-      Votre passerelle vers des professionnels de santé mentale qualifiés et à l’écoute.
-    </h2>
+              <h1 className="relative text-3xl font-extrabold text-indigo-900 mb-3 leading-snug tracking-tight drop-shadow-md">
+                Bienvenue sur <span className="text-indigo-600">PsyConnect</span>
+              </h1>
+              <h2 className="relative text-base italic text-indigo-700 mb-6 max-w-xl mx-auto drop-shadow-sm">
+                Votre passerelle vers des professionnels de santé mentale qualifiés et à l'écoute.
+              </h2>
 
-    <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 text-left mb-6">
-      <div className="flex items-start gap-4">
-        <HeartPulse className="w-8 h-8 text-indigo-500 mt-1" />
-        <div>
-          <h3 className="text-xl font-semibold text-indigo-700 mb-1">Psychologues</h3>
-          <p className="text-gray-700 text-sm leading-relaxed max-w-sm">
-            Professionnels formés à l’écoute et à l’accompagnement par la parole, ils vous aident à surmonter vos difficultés à travers des thérapies adaptées, sans prescription médicale.
-          </p>
-        </div>
-      </div>
+              <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 text-left mb-6">
+                <div className="flex items-start gap-4">
+                  <HeartPulse className="w-8 h-8 text-indigo-500 mt-1" />
+                  <div>
+                    <h3 className="text-xl font-semibold text-indigo-700 mb-1">Psychologues</h3>
+                    <p className="text-gray-700 text-sm leading-relaxed max-w-sm">
+                      Professionnels formés à l'écoute et à l'accompagnement par la parole, ils vous aident à surmonter vos difficultés à travers des thérapies adaptées, sans prescription médicale.
+                    </p>
+                  </div>
+                </div>
 
-      <div className="flex items-start gap-4">
-        <Stethoscope className="w-8 h-8 text-indigo-500 mt-1" />
-        <div>
-          <h3 className="text-xl font-semibold text-indigo-700 mb-1">Psychiatres</h3>
-          <p className="text-gray-700 text-sm leading-relaxed max-w-sm">
-            Médecins spécialisés en santé mentale, capables de poser un diagnostic médical, prescrire des traitements et assurer un suivi global pour votre bien-être.
-          </p>
-        </div>
-      </div>
-    </div>
+                <div className="flex items-start gap-4">
+                  <Stethoscope className="w-8 h-8 text-indigo-500 mt-1" />
+                  <div>
+                    <h3 className="text-xl font-semibold text-indigo-700 mb-1">Psychiatres</h3>
+                    <p className="text-gray-700 text-sm leading-relaxed max-w-sm">
+                      Médecins spécialisés en santé mentale, capables de poser un diagnostic médical, prescrire des traitements et assurer un suivi global pour votre bien-être.
+                    </p>
+                  </div>
+                </div>
+              </div>
 
-    <div className="flex justify-center">
-      <button
-        onClick={() => setStep(2)}
-        className="mt-6 relative inline-flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 via-indigo-600 to-indigo-700 text-white font-semibold rounded-full px-10 py-3 shadow-md hover:shadow-indigo-700 transition-all duration-300 active:scale-95"
-        aria-label="Découvrir nos professionnels"
-      >
-        Découvrir nos professionnels
-        <ArrowRightCircle className="w-5 h-5" />
-      </button>
-    </div>
-  </motion.section>
-)}
-
+              <div className="flex justify-center">
+                <button
+                  onClick={() => setStep(2)}
+                  className="mt-6 relative inline-flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 via-indigo-600 to-indigo-700 text-white font-semibold rounded-full px-10 py-3 shadow-md hover:shadow-indigo-700 transition-all duration-300 active:scale-95"
+                  aria-label="Découvrir nos professionnels"
+                >
+                  Découvrir nos professionnels
+                  <ArrowRightCircle className="w-5 h-5" />
+                </button>
+              </div>
+            </motion.section>
+          )}
 
           {step === 2 && (
             <motion.section
@@ -298,7 +310,7 @@ const ListeProfessionnels = () => {
                 <button
                   onClick={() => setStep(1)}
                   className="mt-8 relative inline-flex items-center justify-center gap-4 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold rounded-full px-12 py-4 shadow-lg hover:shadow-indigo-600 transition-all duration-300 active:scale-95"
-                  aria-label="Retour à l’introduction"
+                  aria-label="Retour à l'introduction"
                 >
                   <ArrowLeftCircle className="w-5 h-5" />
                   Retour à l&apos;introduction
