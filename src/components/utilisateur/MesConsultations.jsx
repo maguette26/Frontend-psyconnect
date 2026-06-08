@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import 'react-toastify/dist/ReactToastify.css';
 
 const formatDate = (dateStr) => {
@@ -50,10 +51,12 @@ const InfoRow = ({ icon, label, value }) => (
 
 const MesConsultations = () => {
   const [consultations, setConsultations] = useState([]);
-  const [statut, setStatut]               = useState('');
-  const [error, setError]                 = useState(null);
-  const [selected, setSelected]           = useState(null);
+  const [statut, setStatut] = useState('');
+  const [error, setError] = useState(null);
+  const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchConsultations = async () => {
@@ -87,7 +90,7 @@ const MesConsultations = () => {
     <div className="max-w-5xl mx-auto p-6">
       <ToastContainer position="top-right" />
 
-      {/* Header */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <motion.h2
           className="text-4xl font-extrabold text-indigo-700 flex items-center gap-3"
@@ -115,8 +118,11 @@ const MesConsultations = () => {
 
       {error && <p className="text-red-600 text-center mb-6">{error}</p>}
 
+      {/* LISTE */}
       {filteredConsultations.length === 0 ? (
-        <p className="text-gray-500 text-center text-lg mt-16">Aucune consultation trouvée.</p>
+        <p className="text-gray-500 text-center text-lg mt-16">
+          Aucune consultation trouvée.
+        </p>
       ) : (
         <ul className="space-y-4">
           <AnimatePresence>
@@ -124,45 +130,57 @@ const MesConsultations = () => {
               <motion.li
                 key={c.id}
                 className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.25 }}
               >
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-5 gap-4">
+
+                  {/* INFO */}
                   <div
                     className="flex items-center gap-4 cursor-pointer flex-1"
                     onClick={() => setSelected(c)}
                   >
-                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
+                    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600">
                       <Stethoscope size={22} />
                     </div>
+
                     <div>
                       <p className="font-semibold text-gray-900 text-base">
                         Dr {c.professionnelPrenom} {c.professionnelNom}
                       </p>
-                      <p className="text-sm text-gray-500 mt-0.5">
+                      <p className="text-sm text-gray-500">
                         {formatDate(c.date)} · {formatHeure(c.heure)}
                       </p>
                     </div>
                   </div>
+
+                  {/* ACTIONS */}
                   <div className="flex flex-wrap items-center gap-3 md:ml-auto">
                     <StatutBadge statut={c.statut} />
-                    <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
-                      <Euro size={14} />{c.prix?.toFixed(2) || '—'} €
-                    </span>
+
+                    {/* 💬 CHAT BUTTON */}
+                    {c.statut === 'CONFIRMEE' && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/chat/${c.id}`);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1 rounded-xl bg-indigo-100 hover:bg-indigo-200 text-indigo-700 text-sm font-medium transition"
+                      >
+                        <MessageSquare size={14} />
+                        Chat
+                      </button>
+                    )}
+
                     <span
                       className="text-xs text-indigo-500 font-medium underline cursor-pointer"
                       onClick={() => setSelected(c)}
                     >
                       Voir détails →
                     </span>
-                    {/* Bouton supprimer uniquement si passée ou annulée */}
+
                     {(isPassee(c.date) || c.statut === 'ANNULEE' || c.statut === 'TERMINEE') && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setConfirmDelete(c); }}
-                        className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition"
-                        title="Supprimer"
+                        className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -175,132 +193,39 @@ const MesConsultations = () => {
         </ul>
       )}
 
-      {/* Modal détail */}
+      {/* MODAL DETAIL */}
       <AnimatePresence>
         {selected && (
           <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
             onClick={() => setSelected(null)}
           >
             <motion.div
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-8 relative"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
+              className="bg-white rounded-3xl w-full max-w-md p-8"
               onClick={(e) => e.stopPropagation()}
             >
-              <button
-                onClick={() => setSelected(null)}
-                className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 transition"
-              >
-                <XCircle size={24} />
-              </button>
+              <h3 className="text-xl font-bold mb-4">Détails consultation</h3>
 
-              <div className="flex flex-col items-center mb-6">
-                <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-3">
-                  <Stethoscope size={30} />
-                </div>
-                <h3 className="text-xl font-bold text-gray-900 mb-2">
-                  Dr {selected.professionnelPrenom} {selected.professionnelNom}
-                </h3>
-                <StatutBadge statut={selected.statut} />
-              </div>
+              <InfoRow icon={<CalendarCheck />} label="Date" value={formatDate(selected.date)} />
+              <InfoRow icon={<Clock />} label="Heure" value={formatHeure(selected.heure)} />
+              <InfoRow icon={<Euro />} label="Prix" value={`${selected.prix} €`} />
 
-              <div className="space-y-1">
-                <InfoRow icon={<CalendarCheck size={16} />} label="Date"  value={formatDate(selected.date)} />
-                <InfoRow icon={<Clock size={16} />}         label="Heure" value={formatHeure(selected.heure)} />
-                <InfoRow icon={<Info size={16} />}          label="Durée" value={`${selected.dureeMinutes || 45} min`} />
-                <InfoRow icon={<Euro size={16} />}          label="Prix"  value={`${selected.prix?.toFixed(2) || '—'} €`} />
-              </div>
-
-              {selected.statut === 'TERMINEE' && (selected.notesUtilisateur || selected.notesProfessionnel) && (
-                <div className="mt-5 space-y-3">
-                  {selected.notesUtilisateur && (
-                    <div className="bg-indigo-50 rounded-xl p-4">
-                      <p className="text-xs font-semibold text-indigo-600 mb-1 flex items-center gap-1">
-                        <FileText size={13} /> Votre note
-                      </p>
-                      <p className="text-sm text-gray-700 italic">{selected.notesUtilisateur}</p>
-                    </div>
-                  )}
-                  {selected.notesProfessionnel && (
-                    <div className="bg-green-50 rounded-xl p-4">
-                      <p className="text-xs font-semibold text-green-600 mb-1 flex items-center gap-1">
-                        <FileText size={13} /> Note du professionnel
-                      </p>
-                      <p className="text-sm text-gray-700 italic">{selected.notesProfessionnel}</p>
-                    </div>
-                  )}
-                </div>
+              {/* 💬 CHAT BUTTON MODAL */}
+              {selected.statut === 'CONFIRMEE' && (
+                <button
+                  onClick={() => navigate(`/chat/${selected.id}`)}
+                  className="w-full mt-5 py-3 rounded-xl bg-indigo-600 text-white font-semibold"
+                >
+                  Ouvrir le chat 💬
+                </button>
               )}
 
-              <div className="mt-6 flex flex-col gap-3">
-                {(isPassee(selected.date) || selected.statut === 'ANNULEE' || selected.statut === 'TERMINEE') && (
-                  <motion.button
-                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-                    onClick={() => { setConfirmDelete(selected); setSelected(null); }}
-                    className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold flex items-center justify-center gap-2 transition"
-                  >
-                    <Trash2 size={18} /> Supprimer la consultation
-                  </motion.button>
-                )}
-                <button
-                  onClick={() => setSelected(null)}
-                  className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition"
-                >
-                  Fermer
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Modal confirmation suppression */}
-      <AnimatePresence>
-        {confirmDelete && (
-          <motion.div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setConfirmDelete(null)}
-          >
-            <motion.div
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 relative text-center"
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-500 mx-auto mb-4">
-                <Trash2 size={30} />
-              </div>
-              <h3 className="text-lg font-bold text-gray-900 mb-2">Confirmer la suppression</h3>
-              <p className="text-sm text-gray-500 mb-6">
-                Voulez-vous supprimer la consultation du{' '}
-                <span className="font-semibold text-gray-700">{formatDate(confirmDelete.date)}</span>{' '}
-                avec Dr {confirmDelete.professionnelPrenom} {confirmDelete.professionnelNom} ?
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setConfirmDelete(null)}
-                  className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition"
-                >
-                  Annuler
-                </button>
-               {/* <button
-                  onClick={() => handleSupprimer(confirmDelete)}
-                  className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition"
-                >
-                  Supprimer
-                </button>*/}
-              </div>
+              <button
+                onClick={() => setSelected(null)}
+                className="w-full mt-3 py-2 bg-gray-100 rounded-xl"
+              >
+                Fermer
+              </button>
             </motion.div>
           </motion.div>
         )}
