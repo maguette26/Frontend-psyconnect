@@ -1,230 +1,133 @@
 import React, { useEffect, useState } from 'react';
-import { getReservations, updateReservationStatus } from '../../services/servicePsy';
-import {
-  CheckCircle,
-  XCircle,
-  Info,
-  Calendar,
-  Clock,
-  Video,
-  X
-} from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { getConsultations } from '../../services/servicePsy';
+import { CheckCircle } from 'lucide-react';
 
-const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
+const Consultations = () => {
+  const [consultations, setConsultations] = useState([]);
+  const [filtreStatut, setFiltreStatut] = useState('TOUTES');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-const ListeReservations = ({ proId }) => {
-  const [reservations, setReservations] = useState([]);
-  const [filtreStatut, setFiltreStatut] = useState('TOUS');
-  const [error, setError] = useState('');
-  const [selected, setSelected] = useState(null);
-
+  const fetchConsultations = async () => {
+    try {
+      const data = await getConsultations();
+      setConsultations(data);
+      setError(null);
+    } catch (e) {
+  console.error("Erreur complète :", e);
+  console.error("Response :", e.response);
+  console.error("Data :", e.response?.data);
+  setError("Erreur lors du chargement des consultations.");
+}finally {
+      setLoading(false);
+    }
+  };
+console.log("CONSULTATIONS:", consultations);
   useEffect(() => {
-    if (proId) load();
-  }, [proId]);
+    fetchConsultations();
+  }, []);
 
-  const load = async () => {
+  const parseDateTime = (dateStr, timeStr) => {
     try {
-      const data = await getReservations(proId);
-      setReservations(data);
+      return new Date(`${dateStr}T${timeStr || '00:00'}`);
     } catch {
-      setError("Erreur chargement réservations");
+      return new Date(0);
     }
   };
 
-  const updateStatus = async (id, status) => {
-    if (!window.confirm('Confirmer cette action ?')) return;
-    try {
-      await updateReservationStatus(id, status);
-      await load();
-    } catch {
-      setError("Erreur mise à jour");
+  const consultationsFiltrees = consultations
+    .filter(({ statut }) => {
+      return filtreStatut === 'TOUTES' || statut === filtreStatut;
+    })
+    .sort((a, b) =>
+      parseDateTime(a.date, a.heure) - parseDateTime(b.date, b.heure)
+    );
+
+  const getStatutStyle = (statut) => {
+    switch (statut) {
+      case 'CONFIRMEE':
+        return 'text-green-600 font-medium';
+      case 'EN_ATTENTE':
+        return 'text-yellow-600 font-medium';
+      case 'TERMINEE':
+        return 'text-gray-600 font-medium';
+      default:
+        return 'text-gray-500';
     }
   };
-
-  // ✅ FIX HEURE ROBUSTE
-  const getHeure = (c) =>
-    c?.heure || c?.heureConsultation || c?.heureDebut || '';
-
-  const format = (d, h) => {
-    if (!d) return 'N/A';
-    return new Date(`${d}T${h || '00:00'}`).toLocaleString('fr-FR', {
-      weekday: 'short',
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
-  const filtered =
-    filtreStatut === 'TOUS'
-      ? reservations
-      : reservations.filter(r => r.statut === filtreStatut);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <div className="max-w-5xl mx-auto p-4">
+      <h2 className="text-2xl font-semibold text-blue-700 mb-6 flex items-center gap-2">
+        <CheckCircle size={24} /> Mes consultations
+      </h2>
 
-      {/* HEADER */}
-      <div className="mb-4">
-        <h1 className="text-xl font-bold text-slate-800">
-          📅 Réservations
-        </h1>
+      {error && <div className="text-red-500 mb-4">{error}</div>}
 
-        <div className="flex gap-2 mt-3 flex-wrap">
-          {STATUTS.map(s => (
-            <button
-              key={s}
-              onClick={() => setFiltreStatut(s)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition ${
-                filtreStatut === s
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-white border'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {error && (
-        <p className="text-red-500 mb-3">{error}</p>
-      )}
-
-      {/* LISTE CARDS */}
-      <div className="space-y-3">
-        {filtered.map(res => (
-          <motion.div
-            key={res.id}
-            whileTap={{ scale: 0.98 }}
-            className="bg-white rounded-2xl shadow-sm border p-4"
+      {/* Filtres */}
+      <div className="mb-4 flex gap-2 flex-wrap">
+        {['TOUTES', 'EN_ATTENTE', 'CONFIRMEE', 'TERMINEE'].map((statut) => (
+          <button
+            key={statut}
+            onClick={() => setFiltreStatut(statut)}
+            className={`px-3 py-1 rounded-full text-sm font-medium transition-all duration-150 ${
+              filtreStatut === statut
+                ? 'bg-blue-600 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
           >
-
-            {/* TOP */}
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="font-semibold text-slate-800">
-                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
-                </p>
-                <p className="text-xs text-slate-400">
-                  ID #{res.id}
-                </p>
-              </div>
-
-              <span className="text-xs px-2 py-1 rounded-full bg-slate-100">
-                {res.statut}
-              </span>
-            </div>
-
-            {/* DATE */}
-            <div className="flex items-center gap-2 text-sm text-slate-600 mt-3">
-              <Calendar size={14} />
-              {format(res.dateReservation, getHeure(res.consultation))}
-            </div>
-
-            {/* ACTIONS */}
-            <div className="flex justify-between items-center mt-4">
-
-              <div className="flex gap-2">
-                {res.statut === 'EN_ATTENTE' && (
-                  <>
-                    <button
-                      onClick={() => updateStatus(res.id, 'VALIDE')}
-                      className="text-green-600"
-                    >
-                      <CheckCircle size={18} />
-                    </button>
-
-                    <button
-                      onClick={() => updateStatus(res.id, 'REFUSE')}
-                      className="text-red-500"
-                    >
-                      <XCircle size={18} />
-                    </button>
-                  </>
-                )}
-              </div>
-
-              <button
-                onClick={() => setSelected(res)}
-                className="text-indigo-600 text-sm font-medium"
-              >
-                Détails
-              </button>
-            </div>
-
-          </motion.div>
+            {statut === 'TOUTES'
+              ? 'Toutes'
+              : statut === 'EN_ATTENTE'
+              ? 'En attente'
+              : statut === 'CONFIRMEE'
+              ? 'Confirmées'
+              : 'Terminées'}
+          </button>
         ))}
       </div>
 
-      {/* MODAL DETAILS */}
-      <AnimatePresence>
-        {selected && (
-          <div
-            className="fixed inset-0 bg-black/40 flex items-end justify-center"
-            onClick={() => setSelected(null)}
-          >
-
-            <motion.div
-              initial={{ y: 300 }}
-              animate={{ y: 0 }}
-              exit={{ y: 300 }}
-              className="bg-white w-full max-w-md rounded-t-3xl p-5"
-              onClick={e => e.stopPropagation()}
-            >
-
-              <div className="flex justify-between mb-3">
-                <h2 className="font-bold">Détails</h2>
-                <button onClick={() => setSelected(null)}>
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-3 text-sm">
-
-                <p>
-                  <strong>Patient:</strong><br />
-                  {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
-                </p>
-
-                <p>
-                  <strong>Email:</strong><br />
-                  {selected.utilisateur?.email}
-                </p>
-
-                <p>
-                  <strong>Date:</strong><br />
-                  {format(selected.dateReservation, getHeure(selected.consultation))}
-                </p>
-
-                {selected.consultation?.lienVisio && (
-                  <a
-                    href={selected.consultation.lienVisio}
-                    target="_blank"
-                    className="flex items-center gap-2 text-blue-600"
-                  >
-                    <Video size={14} />
-                    Rejoindre la visio
-                  </a>
-                )}
-
-              </div>
-
-              <button
-                onClick={() => setSelected(null)}
-                className="w-full mt-5 bg-indigo-600 text-white py-2 rounded-xl"
-              >
-                Fermer
-              </button>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
+      {consultationsFiltrees.length === 0 ? (
+        <p className="text-gray-500">Vous n'avez aucune consultation pour le moment</p>
+      ) : (
+        <div className="overflow-x-auto rounded-lg shadow">
+          <table className="w-full border-collapse">
+            <thead className="bg-blue-600">
+              <tr>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Date</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Heure</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Utilisateur</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Email</th>
+                <th className="px-4 py-2 text-left text-sm font-semibold text-white">Statut</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white text-sm">
+              {consultationsFiltrees.map(({ id, date, heure, utilisateurNom, utilisateurPrenom, utilisateurEmail, statut }, index) => (
+                <tr
+                  key={id}
+                  className={`border-t transition-all duration-150 ${
+                    index % 2 === 0 ? 'bg-blue-50/20' : 'bg-white'
+                  } hover:bg-blue-50`}
+                >
+                  <td className="px-4 py-3 font-medium text-gray-800">{date}</td>
+                  <td className="px-4 py-3 font-medium text-gray-800">{heure}</td>
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    {utilisateurPrenom} {utilisateurNom}
+                  </td>
+                  <td className="px-4 py-3 font-medium text-gray-800">
+                    {utilisateurEmail || 'Email inconnu'}
+                  </td>
+                  <td className={`px-4 py-3 capitalize ${getStatutStyle(statut)}`}>
+                    {statut.toLowerCase()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
-export default ListeReservations;
+export default Consultations;
