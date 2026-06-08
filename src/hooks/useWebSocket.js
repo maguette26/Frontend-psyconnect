@@ -3,10 +3,10 @@ import { useEffect, useRef, useCallback, useState } from "react";
 import SockJS from "sockjs-client";
 import { Client } from "@stomp/stompjs";
 
-// 🔥 IMPORTANT: WebSocket URL Railway
+// 🔥 Railway backend
 const WS_URL = "https://backend-psyconnect.up.railway.app/ws-consultation";
 
-export function useWebSocket({ consultationId, onMessage, onOnlineStatus }) {
+export function useWebSocket({ consultationId, onMessage, onOnlineStatus } = {}) {
   const clientRef = useRef(null);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState(null);
@@ -15,8 +15,7 @@ export function useWebSocket({ consultationId, onMessage, onOnlineStatus }) {
     if (!consultationId) return;
 
     const client = new Client({
-      webSocketFactory: () =>
-        new SockJS(WS_URL), // ← Railway backend ici
+      webSocketFactory: () => new SockJS(WS_URL),
 
       reconnectDelay: 3000,
 
@@ -24,25 +23,35 @@ export function useWebSocket({ consultationId, onMessage, onOnlineStatus }) {
         setConnected(true);
         setError(null);
 
+        // 💬 CHAT
         client.subscribe(
-          `/topic/consultation/${consultationId}`,
+          `/topic/consultation.${consultationId}`,
           (frame) => {
-            const notification = JSON.parse(frame.body);
+            try {
+              const notification = JSON.parse(frame.body);
 
-            if (notification.type === "NEW_MESSAGE") {
-              onMessage?.(notification.payload);
+              if (notification.type === "NEW_MESSAGE") {
+                onMessage?.(notification.payload);
+              }
+            } catch (e) {
+              console.error("WS parse error:", e);
             }
           }
         );
 
+        // 🟢 ONLINE STATUS
         client.subscribe("/topic/online-status", (frame) => {
-          const notification = JSON.parse(frame.body);
+          try {
+            const notification = JSON.parse(frame.body);
 
-          if (
-            notification.type === "USER_ONLINE" ||
-            notification.type === "USER_OFFLINE"
-          ) {
-            onOnlineStatus?.(notification.payload);
+            if (
+              notification.type === "USER_ONLINE" ||
+              notification.type === "USER_OFFLINE"
+            ) {
+              onOnlineStatus?.(notification.payload);
+            }
+          } catch (e) {
+            console.error("WS parse error:", e);
           }
         });
       },
@@ -61,11 +70,14 @@ export function useWebSocket({ consultationId, onMessage, onOnlineStatus }) {
     client.activate();
 
     return () => client.deactivate();
-  }, [consultationId]);
+  }, [consultationId, onMessage, onOnlineStatus]);
 
   const sendMessage = useCallback(
     ({ contenu, anonymat = false }) => {
-      if (!clientRef.current?.connected) return false;
+      if (!clientRef.current?.connected) {
+        setError("WebSocket non connecté");
+        return false;
+      }
 
       clientRef.current.publish({
         destination: "/app/chat.send",

@@ -3,23 +3,22 @@ import { useParams, useNavigate } from "react-router-dom";
 import { getConsultation, getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 
-export default function ChatPage({ currentUser }) {
-  const { consultationId } = useParams();
+export default function ChatPage(props) {
+  const { consultationId } = useParams(); // ✅ SAFE
   const navigate = useNavigate();
 
   const [consultation, setConsultation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ IMPORTANT: hook corrigé
-  const { connected, sendMessage } = useWebSocket({
+  const { connected, error, sendMessage } = useWebSocket({
     consultationId,
     onMessage: (msg) => {
       setMessages((prev) => [...prev, msg]);
     },
   });
 
-  // ❗ protection
+  // ❌ SAFE GUARD
   if (!consultationId) {
     return (
       <div style={{ padding: 20 }}>
@@ -29,28 +28,23 @@ export default function ChatPage({ currentUser }) {
   }
 
   useEffect(() => {
-    let mounted = true;
+    if (!consultationId) return;
 
     Promise.all([
       getConsultation(consultationId),
       getChatHistory(consultationId),
     ])
       .then(([c, history]) => {
-        if (!mounted) return;
-
         setConsultation(c);
         setMessages(history);
 
-        if (c?.statut !== "CONFIRMEE") {
+        if (c.statut !== "CONFIRMEE") {
           navigate("/consultations");
         }
       })
+      .catch((err) => console.error("API ERROR:", err))
       .finally(() => setLoading(false));
-
-    return () => {
-      mounted = false;
-    };
-  }, [consultationId, navigate]);
+  }, [consultationId]);
 
   if (loading) return <p>Chargement...</p>;
 
@@ -59,17 +53,26 @@ export default function ChatPage({ currentUser }) {
       <h2>Chat consultation #{consultationId}</h2>
 
       <div className="border p-3 h-96 overflow-auto">
-        {messages.map((m, index) => (
-          <div key={m.id || index}>
+        {messages.map((m, i) => (
+          <div key={m.id || i}>
             <b>{m.expediteurNom}</b> : {m.contenu}
           </div>
         ))}
       </div>
 
-      {/* connexion status */}
-      <p style={{ marginTop: 10 }}>
-        WebSocket: {connected ? "🟢 connecté" : "🔴 déconnecté"}
-      </p>
+      {/* SIMPLE INPUT (sans changer design) */}
+      <div style={{ marginTop: 10 }}>
+        <button
+          onClick={() =>
+            sendMessage({ contenu: "test message", anonymat: false })
+          }
+        >
+          Envoyer test
+        </button>
+      </div>
+
+      {error && <p style={{ color: "red" }}>{error}</p>}
+      {connected ? <p>🟢 Connecté</p> : <p>🔴 Déconnecté</p>}
     </div>
   );
 }
