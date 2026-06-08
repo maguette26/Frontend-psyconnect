@@ -121,8 +121,9 @@ const MesConsultations = () => {
                       <p className="font-semibold text-gray-900 text-base">
                         Dr {c.professionnelPrenom} {c.professionnelNom}
                       </p>
+                      {/* ✅ CORRIGÉ : jourConsultation + heureConsultation */}
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {formatDate(c.dateConsultation)} · {formatHeure(c.heure)}
+                        {formatDate(c.jourConsultation)} · {formatHeure(c.heureConsultation)}
                       </p>
                     </div>
                   </div>
@@ -176,10 +177,10 @@ const MesConsultations = () => {
                 <StatutBadge statut={selected.statut} />
               </div>
 
-              {/* Infos */}
+              {/* ✅ CORRIGÉ : jourConsultation + heureConsultation dans le modal */}
               <div className="space-y-1">
-                <InfoRow icon={<CalendarCheck size={16} />} label="Date"     value={formatDate(selected.dateConsultation)} />
-                <InfoRow icon={<Clock size={16} />}         label="Heure"    value={formatHeure(selected.heure)} />
+                <InfoRow icon={<CalendarCheck size={16} />} label="Date"     value={formatDate(selected.jourConsultation)} />
+                <InfoRow icon={<Clock size={16} />}         label="Heure"    value={formatHeure(selected.heureConsultation)} />
                 <InfoRow icon={<Info size={16} />}          label="Durée"    value={`${selected.dureeMinutes || 45} min`} />
                 <InfoRow icon={<Euro size={16} />}          label="Prix"     value={`${selected.prix?.toFixed(2) || '—'} €`} />
               </div>
