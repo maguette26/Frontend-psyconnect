@@ -1,135 +1,253 @@
-import React, { useEffect, useState } from "react";
-import { getReservations, updateReservationStatus } from "../../services/servicePsy";
-import { motion, AnimatePresence } from "framer-motion";
-import {
-  CheckCircle,
-  XCircle,
-  Clock,
-  Calendar,
-  User,
-  Mail,
-  Eye,
-  Video
-} from "lucide-react";
+import React, { useEffect, useState } from 'react';
+import { getReservations, updateReservationStatus } from '../../services/servicePsy';
+import { motion, AnimatePresence } from 'framer-motion';
 
-const STATUTS = ["TOUS", "EN_ATTENTE", "VALIDE", "REFUSE"];
+const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
+const LABELS  = { EN_ATTENTE: 'En attente', VALIDE: 'Validé', REFUSE: 'Refusé' };
 
-const COLORS = {
-  EN_ATTENTE: "bg-yellow-100 text-yellow-700",
-  VALIDE: "bg-green-100 text-green-700",
-  REFUSE: "bg-red-100 text-red-700",
+const BADGE_COLORS = {
+  EN_ATTENTE: { bg: '#FAEEDA', color: '#633806' },
+  VALIDE:     { bg: '#EAF3DE', color: '#27500A' },
+  REFUSE:     { bg: '#FCEBEB', color: '#791F1F' },
 };
 
-const formatDate = (date) => {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+const FILTER_ACTIVE = {
+  TOUS:       { background: '#1a1a2e', color: '#e8e4ff', borderColor: '#1a1a2e' },
+  EN_ATTENTE: { background: '#FAC775', color: '#412402', borderColor: '#FAC775' },
+  VALIDE:     { background: '#C0DD97', color: '#173404', borderColor: '#C0DD97' },
+  REFUSE:     { background: '#F7C1C1', color: '#501313', borderColor: '#F7C1C1' },
 };
 
-const formatHeure = (h) => {
-  if (!h) return "—";
-  return h.toString().replace("H", ":").substring(0, 5);
-};
+function initials(prenom, nom) {
+  return ((prenom?.[0] ?? '') + (nom?.[0] ?? '')).toUpperCase();
+}
 
-const getHeure = (res) => {
+function fmtDate(dateStr) {
+  if (!dateStr) return 'N/A';
+  const dt = new Date(dateStr + 'T12:00:00');
+  return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function fmtHeure(heure) {
+  if (!heure) return 'N/A';
+  return heure.replace(':', 'h');
+}
+
+function Avatar({ prenom, nom, statut, size = 38 }) {
+  const s = BADGE_COLORS[statut] ?? BADGE_COLORS.EN_ATTENTE;
   return (
-    res.heureDebut ||
-    res.heureReservation ||
-    res.consultation?.heure ||
-    "—"
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.33, fontWeight: 600,
+      background: s.bg, color: s.color,
+    }}>
+      {initials(prenom, nom)}
+    </div>
   );
-};
+}
 
-export default function ListeReservations({ proId }) {
-  const [data, setData] = useState([]);
-  const [filtre, setFiltre] = useState("TOUS");
-  const [selected, setSelected] = useState(null);
+ 
 
-  useEffect(() => {
-    if (proId) load();
-  }, [proId]);
+const ListeReservations = ({ proId }) => {
+  const [reservations, setReservations] = useState([]);
+  const [error,        setError]        = useState('');
+  const [filtreStatut, setFiltreStatut] = useState('TOUS');
+  const [selected,     setSelected]     = useState(null);
 
-  const load = async () => {
-    const res = await getReservations(proId);
-    setData(res);
+  useEffect(() => { if (proId) chargerReservations(); }, [proId]);
+
+  const chargerReservations = async () => {
+    try {
+      const data = await getReservations(proId);
+      setReservations(data);
+    } catch {
+      setError('Erreur lors du chargement des réservations.');
+    }
   };
 
-  const changeStatus = async (id, statut) => {
-    await updateReservationStatus(id, statut);
-    load();
+  const handleUpdateStatus = async (id, statut) => {
+    if (!window.confirm('Confirmer cette action ?')) return;
+    try {
+      await updateReservationStatus(id, statut);
+      await chargerReservations();
+    } catch {
+      setError('Erreur lors de la mise à jour.');
+    }
   };
 
   const filtered =
-    filtre === "TOUS" ? data : data.filter((r) => r.statut === filtre);
+    filtreStatut === 'TOUS'
+      ? reservations
+      : reservations.filter(r => r.statut === filtreStatut);
+
+  const countFor = (s) =>
+    s === 'TOUS' ? reservations.length : reservations.filter(r => r.statut === s).length;
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
+    <div style={{
+      padding: '1.5rem',
+      maxWidth: 720,
+      margin: '0 auto',
+      fontFamily: "'Sora', 'Inter', sans-serif",
+      boxSizing: 'border-box',
+    }}>
 
-      {/* HEADER */}
-      <div className="flex justify-between items-center mb-4">
-        <h1 className="text-xl font-bold text-gray-800">
-          Gestion des réservations
-        </h1>
+      {/* TITRE */}
+      <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 1.25rem', color: '#111' }}>
+        Réservations
+      </h1>
 
-        <select
-          className="border rounded px-3 py-1"
-          value={filtre}
-          onChange={(e) => setFiltre(e.target.value)}
-        >
-          {STATUTS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
+      {/* SOUS-TITRE + COMPTEUR */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <span style={{ fontSize: 13, color: '#888' }}>Gestion des séances</span>
+        <span style={{
+          fontFamily: 'monospace', fontSize: 12, color: '#888',
+          background: '#f5f5f5', padding: '4px 10px',
+          borderRadius: 20, border: '0.5px solid #e5e5e5',
+        }}>
+          {filtered.length} session{filtered.length !== 1 ? 's' : ''}
+        </span>
       </div>
 
+      {/* FILTRES */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        {STATUTS.map(s => {
+          const active = filtreStatut === s;
+          return (
+            <button key={s} onClick={() => setFiltreStatut(s)} style={{
+              padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+              cursor: 'pointer', transition: 'all 0.15s',
+              border: '0.5px solid #ccc', background: 'transparent', color: '#666',
+              ...(active ? FILTER_ACTIVE[s] : {}),
+            }}>
+              {s === 'TOUS' ? 'Tous' : LABELS[s]}{' '}
+              <span style={{ opacity: 0.6 }}>{countFor(s)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {error && <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</p>}
+
       {/* LISTE */}
-      <div className="space-y-3">
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 && (
-          <p className="text-center text-gray-500 py-10">
-            Aucune réservation pour ce filtre
+          <p style={{ textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 14 }}>
+            Aucune réservation
           </p>
         )}
 
-        {filtered.map((res) => (
+        {filtered.map(res => (
           <div
             key={res.id}
             onClick={() => setSelected(res)}
-            className="bg-white border rounded-xl p-4 flex justify-between items-center hover:shadow cursor-pointer"
+            style={{
+              background: '#fff', border: '0.5px solid #e8e8e8', borderRadius: 12,
+              padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
+              cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s',
+              boxSizing: 'border-box', minWidth: 0,
+            }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = '#bbb'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = '#e8e8e8'}
           >
-            {/* USER */}
-            <div className="flex items-center gap-3">
-              <div className="bg-indigo-100 text-indigo-600 p-2 rounded-full">
-                <User size={18} />
-              </div>
+            {/* Avatar */}
+            <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
 
-              <div>
-                <p className="font-semibold">
-                  {res.utilisateur?.prenom || "—"} {res.utilisateur?.nom || ""}
-                </p>
+            {/* Infos — flex:1 + minWidth:0 pour ne pas déborder */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                margin: '0 0 4px', fontWeight: 600, fontSize: 14, color: '#111',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {res.utilisateur?.prenom} {res.utilisateur?.nom}
+              </p>
+              {/* META : icônes SVG inline Tabler-style */}
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                fontSize: 11, color: '#999', flexWrap: 'wrap',
+              }}>
+                {/* Icône calendrier */}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+                </svg>
+                <span style={{ whiteSpace: 'nowrap' }}>{fmtDate(res.dateReservation)}</span>
 
-                <p className="text-xs text-gray-500 flex gap-3">
-                  <span className="flex items-center gap-1">
-                    <Calendar size={12} /> {formatDate(res.dateReservation)}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Clock size={12} /> {formatHeure(getHeure(res))}
-                  </span>
-                </p>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#ddd', flexShrink: 0 }} />
+
+                {/* Icône horloge */}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>
+                </svg>
+                <span style={{ whiteSpace: 'nowrap' }}>Résa. {fmtHeure(res.heureReservation ?? res.heureDebut)}</span>
+
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#ddd', flexShrink: 0 }} />
+
+                {/* Icône stéthoscope simplifié */}
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M4.5 6.5a5 5 0 0 0 5 5v3a3.5 3.5 0 0 0 7 0v-1a2 2 0 1 1 0-4 2 2 0 0 1 0 4"/><path d="M4.5 6.5H7m-2.5 0A2.5 2.5 0 0 1 7 4h3a2.5 2.5 0 0 1 0 5H7"/>
+                </svg>
+                <span style={{ whiteSpace: 'nowrap' }}>Consult. {fmtHeure(res.heureDebut)}</span>
               </div>
             </div>
 
-            {/* STATUS */}
-            <span className={`px-3 py-1 rounded-full text-xs ${COLORS[res.statut]}`}>
-              {res.statut}
-            </span>
+            {/* Actions — flexShrink:0 pour ne pas écraser */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+             <button
+  title="Voir détails"
+  onClick={e => { e.stopPropagation(); setSelected(res); }}
+  style={{
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: '0.5px solid #e0e0e0',
+    background: 'transparent',
+    color: '#444',
+    transition: 'all 0.12s',
+  }}
+  onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
+  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+>
+  <EyeIcon />
+</button>
 
-            {/* ACTION */}
-            <Eye className="text-gray-400" />
+              {res.statut === 'EN_ATTENTE' && (
+                <>
+                  <button
+                    title="Valider"
+                    onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
+                    style={iconBtn}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#EAF3DE'; e.currentTarget.style.borderColor = '#C0DD97'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#e0e0e0'; }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#27500A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  </button>
+                  <button
+                    title="Refuser"
+                    onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
+                    style={iconBtn}
+                    onMouseEnter={e => { e.currentTarget.style.background = '#FCEBEB'; e.currentTarget.style.borderColor = '#F7C1C1'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = '#e0e0e0'; }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#791F1F" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </>
+              )}
+
+              <button
+                title="Détails"
+                onClick={e => { e.stopPropagation(); setSelected(res); }}
+                style={iconBtn}
+                onMouseEnter={e => e.currentTarget.style.background = '#f5f5f5'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -137,95 +255,145 @@ export default function ListeReservations({ proId }) {
       {/* MODAL */}
       <AnimatePresence>
         {selected && (
-          <motion.div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4"
+          <div
             onClick={() => setSelected(null)}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 999, padding: '1rem',
+            }}
           >
             <motion.div
-              className="bg-white w-full max-w-md rounded-2xl p-6"
-              onClick={(e) => e.stopPropagation()}
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: '#fff', borderRadius: 16,
+                width: '100%', maxWidth: 400,
+                border: '0.5px solid #ddd', overflow: 'hidden',
+              }}
             >
-              {/* HEADER MODAL */}
-              <div className="mb-4">
-                <h2 className="text-lg font-bold flex items-center gap-2">
-                  <User size={18} />
-                  {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
-                </h2>
-
-                <p className="text-sm text-gray-500 flex items-center gap-2">
-                  <Mail size={14} />
-                  {selected.utilisateur?.email || "—"}
-                </p>
+              {/* Header */}
+              <div style={{
+                padding: '20px 20px 16px', borderBottom: '0.5px solid #eee',
+                display: 'flex', gap: 14, alignItems: 'center',
+              }}>
+                <Avatar prenom={selected.utilisateur?.prenom} nom={selected.utilisateur?.nom} statut={selected.statut} size={48} />
+                <div style={{ minWidth: 0 }}>
+                  <p style={{ margin: '0 0 3px', fontWeight: 600, fontSize: 16, color: '#111' }}>
+                    {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: '#999', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {selected.utilisateur?.email ?? 'Email indisponible'}
+                  </p>
+                </div>
               </div>
 
-              {/* INFOS */}
-              <div className="space-y-3 text-sm">
+              {/* Body */}
+              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <p style={sectionLabel}>Date &amp; horaires</p>
 
-                <p className="flex justify-between">
-                  <span>Date :</span>
-                  <b>{formatDate(selected.dateReservation)}</b>
-                </p>
+                <ModalRow icon={<CalIcon />} label="Date de réservation">
+                  {fmtDate(selected.dateReservation)}
+                </ModalRow>
+                
+                <ModalRow icon={<StethIcon />} label="Heure de consultation">
+                  {fmtHeure(selected.heureDebut)}
+                </ModalRow>
 
-                <p className="flex justify-between">
-                  <span>Heure réservation :</span>
-                  <b>{formatHeure(getHeure(selected))}</b>
-                </p>
+                <div style={{ height: 1, background: '#eee', margin: '4px 0' }} />
 
-                <p className="flex justify-between">
-                  <span>Statut :</span>
-                  <b>{selected.statut}</b>
-                </p>
-
-                {/* VISIO */}
-                {selected.consultation?.lienVisio && (
-                  <a
-                    href={selected.consultation.lienVisio}
-                    className="flex items-center gap-2 text-blue-600 mt-3"
-                    target="_blank"
-                  >
-                    <Video size={14} />
-                    Rejoindre la visio
-                  </a>
-                )}
+                <p style={sectionLabel}>Statut</p>
+                <ModalRow icon={<TagIcon />} label="Statut de la réservation">
+                  <Badge statut={selected.statut} />
+                </ModalRow>
               </div>
 
-              {/* ACTIONS */}
-              <div className="mt-5 flex gap-2">
-                {selected.statut === "EN_ATTENTE" && (
+              {/* Footer */}
+              <div style={{ padding: '12px 20px', borderTop: '0.5px solid #eee', display: 'flex', gap: 8 }}>
+                {selected.statut === 'EN_ATTENTE' && (
                   <>
                     <button
-                      onClick={() => changeStatus(selected.id, "VALIDE")}
-                      className="flex-1 bg-green-600 text-white py-2 rounded"
-                    >
-                      Valider
-                    </button>
-
+                      onClick={() => { handleUpdateStatus(selected.id, 'VALIDE'); setSelected(null); }}
+                      style={{ flex: 1, padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '0.5px solid #C0DD97', background: '#EAF3DE', color: '#27500A' }}
+                    >✓ Valider</button>
                     <button
-                      onClick={() => changeStatus(selected.id, "REFUSE")}
-                      className="flex-1 bg-red-600 text-white py-2 rounded"
-                    >
-                      Refuser
-                    </button>
+                      onClick={() => { handleUpdateStatus(selected.id, 'REFUSE'); setSelected(null); }}
+                      style={{ flex: 1, padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer', border: '0.5px solid #F7C1C1', background: '#FCEBEB', color: '#791F1F' }}
+                    >✕ Refuser</button>
                   </>
                 )}
+                <button
+                  onClick={() => setSelected(null)}
+                  style={{
+                    flex: selected.statut === 'EN_ATTENTE' ? 1 : 3,
+                    padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                    cursor: 'pointer', border: 'none', background: '#1a1a2e', color: '#e8e4ff',
+                  }}
+                >Fermer</button>
               </div>
-
-              <button
-                onClick={() => setSelected(null)}
-                className="w-full mt-3 bg-gray-100 py-2 rounded"
-              >
-                Fermer
-              </button>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
   );
+};
+
+/* ── Styles utilitaires ── */
+const iconBtn = {
+  width: 30, height: 30, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  border: '0.5px solid #e0e0e0', background: 'transparent', transition: 'all 0.12s',
+};
+
+const sectionLabel = {
+  margin: '0 0 6px', fontSize: 10, fontWeight: 600,
+  textTransform: 'uppercase', letterSpacing: '0.08em', color: '#bbb',
+};
+
+function ModalRow({ icon, label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+      <span style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: '#aaa' }}>
+        {icon}
+      </span>
+      <span style={{ width: 160, flexShrink: 0, color: '#888' }}>{label}</span>
+      <span style={{ color: '#111', fontWeight: 500 }}>{children}</span>
+    </div>
+  );
 }
+
+/* ── Icônes SVG ── */
+const CalIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+  </svg>
+);
+const ClockIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>
+  </svg>
+);
+const StethIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4.5 6.5a5 5 0 0 0 5 5v3a3.5 3.5 0 0 0 7 0v-1a2 2 0 1 1 0-4 2 2 0 0 1 0 4"/>
+    <path d="M4.5 6.5H7m-2.5 0A2.5 2.5 0 0 1 7 4h3a2.5 2.5 0 0 1 0 5H7"/>
+  </svg>
+);
+const TagIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2H7a2 2 0 0 0-2 2v5l9 9 7-7-9-9Z"/><circle cx="6.5" cy="8.5" r="1.5"/>
+  </svg>
+);
+const EyeIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/>
+    <circle cx="12" cy="12" r="3"/>
+  </svg>
+);
+
+export default ListeReservations;
