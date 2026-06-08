@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import {
   CalendarCheck, Clock, Euro, MessageSquare,
-  SlidersHorizontal, Info, Stethoscope, XCircle, FileText
+  SlidersHorizontal, Info, Stethoscope, XCircle, FileText, Trash2
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,7 +17,12 @@ const formatDate = (dateStr) => {
 
 const formatHeure = (heureStr) => {
   if (!heureStr) return '—';
-  return heureStr.substring(0, 5);
+  return heureStr.replace('H', ':').substring(0, 5);
+};
+
+const isPassee = (dateStr) => {
+  if (!dateStr) return false;
+  return new Date(dateStr + 'T00:00:00') < new Date();
 };
 
 const statutConfig = {
@@ -48,12 +53,12 @@ const MesConsultations = () => {
   const [statut, setStatut]               = useState('');
   const [error, setError]                 = useState(null);
   const [selected, setSelected]           = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
 
-useEffect(() => {
+  useEffect(() => {
     const fetchConsultations = async () => {
       try {
         const response = await api.get('/consultations/mes-consultations');
-        console.log('CONSULTATION DATA:', response.data[0]); // ← ajoute cette ligne
         setConsultations(response.data);
       } catch (err) {
         setError(err.message);
@@ -61,6 +66,18 @@ useEffect(() => {
     };
     fetchConsultations();
   }, []);
+
+  const handleSupprimer = async (c) => {
+    try {
+      await api.delete(`/consultations/supprimer/${c.id}`);
+      setConsultations((prev) => prev.filter(x => x.id !== c.id));
+      setConfirmDelete(null);
+      setSelected(null);
+      toast.success('Consultation supprimée !');
+    } catch {
+      toast.error('Erreur lors de la suppression !');
+    }
+  };
 
   const filteredConsultations = consultations.filter(c =>
     statut ? c.statut === statut : true
@@ -105,16 +122,18 @@ useEffect(() => {
           <AnimatePresence>
             {filteredConsultations.map((c) => (
               <motion.li
-                key={c.idConsultation}
-                className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer"
+                key={c.id}
+                className="bg-white rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.25 }}
-                onClick={() => setSelected(c)}
               >
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center p-5 gap-4">
-                  <div className="flex items-center gap-4">
+                  <div
+                    className="flex items-center gap-4 cursor-pointer flex-1"
+                    onClick={() => setSelected(c)}
+                  >
                     <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 shrink-0">
                       <Stethoscope size={22} />
                     </div>
@@ -123,7 +142,7 @@ useEffect(() => {
                         Dr {c.professionnelPrenom} {c.professionnelNom}
                       </p>
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {formatDate(c.dateConsultation)} · {formatHeure(c.heure)}
+                        {formatDate(c.date)} · {formatHeure(c.heure)}
                       </p>
                     </div>
                   </div>
@@ -132,7 +151,22 @@ useEffect(() => {
                     <span className="text-sm font-semibold text-gray-700 flex items-center gap-1">
                       <Euro size={14} />{c.prix?.toFixed(2) || '—'} €
                     </span>
-                    <span className="text-xs text-indigo-500 font-medium underline">Voir détails →</span>
+                    <span
+                      className="text-xs text-indigo-500 font-medium underline cursor-pointer"
+                      onClick={() => setSelected(c)}
+                    >
+                      Voir détails →
+                    </span>
+                    {/* Bouton supprimer uniquement si passée ou annulée */}
+                    {(isPassee(c.date) || c.statut === 'ANNULEE' || c.statut === 'TERMINEE') && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(c); }}
+                        className="p-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-500 transition"
+                        title="Supprimer"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
                   </div>
                 </div>
               </motion.li>
@@ -166,7 +200,6 @@ useEffect(() => {
                 <XCircle size={24} />
               </button>
 
-              {/* Avatar */}
               <div className="flex flex-col items-center mb-6">
                 <div className="w-16 h-16 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 mb-3">
                   <Stethoscope size={30} />
@@ -177,15 +210,13 @@ useEffect(() => {
                 <StatutBadge statut={selected.statut} />
               </div>
 
-              {/* Infos */}
               <div className="space-y-1">
-                <InfoRow icon={<CalendarCheck size={16} />} label="Date"     value={formatDate(selected.dateConsultation)} />
-                <InfoRow icon={<Clock size={16} />}         label="Heure"    value={formatHeure(selected.heure)} />
-                <InfoRow icon={<Info size={16} />}          label="Durée"    value={`${selected.dureeMinutes || 45} min`} />
-                <InfoRow icon={<Euro size={16} />}          label="Prix"     value={`${selected.prix?.toFixed(2) || '—'} €`} />
+                <InfoRow icon={<CalendarCheck size={16} />} label="Date"  value={formatDate(selected.date)} />
+                <InfoRow icon={<Clock size={16} />}         label="Heure" value={formatHeure(selected.heure)} />
+                <InfoRow icon={<Info size={16} />}          label="Durée" value={`${selected.dureeMinutes || 45} min`} />
+                <InfoRow icon={<Euro size={16} />}          label="Prix"  value={`${selected.prix?.toFixed(2) || '—'} €`} />
               </div>
 
-              {/* Notes si terminée */}
               {selected.statut === 'TERMINEE' && (selected.notesUtilisateur || selected.notesProfessionnel) && (
                 <div className="mt-5 space-y-3">
                   {selected.notesUtilisateur && (
@@ -207,13 +238,68 @@ useEffect(() => {
                 </div>
               )}
 
-              <div className="mt-6">
+              <div className="mt-6 flex flex-col gap-3">
+                {(isPassee(selected.date) || selected.statut === 'ANNULEE' || selected.statut === 'TERMINEE') && (
+                  <motion.button
+                    whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
+                    onClick={() => { setConfirmDelete(selected); setSelected(null); }}
+                    className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold flex items-center justify-center gap-2 transition"
+                  >
+                    <Trash2 size={18} /> Supprimer la consultation
+                  </motion.button>
+                )}
                 <button
                   onClick={() => setSelected(null)}
                   className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition"
                 >
                   Fermer
                 </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal confirmation suppression */}
+      <AnimatePresence>
+        {confirmDelete && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setConfirmDelete(null)}
+          >
+            <motion.div
+              className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 relative text-center"
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-500 mx-auto mb-4">
+                <Trash2 size={30} />
+              </div>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Confirmer la suppression</h3>
+              <p className="text-sm text-gray-500 mb-6">
+                Voulez-vous supprimer la consultation du{' '}
+                <span className="font-semibold text-gray-700">{formatDate(confirmDelete.date)}</span>{' '}
+                avec Dr {confirmDelete.professionnelPrenom} {confirmDelete.professionnelNom} ?
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  className="flex-1 py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium transition"
+                >
+                  Annuler
+                </button>
+               {/* <button
+                  onClick={() => handleSupprimer(confirmDelete)}
+                  className="flex-1 py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold transition"
+                >
+                  Supprimer
+                </button>*/}
               </div>
             </motion.div>
           </motion.div>
