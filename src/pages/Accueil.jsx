@@ -30,43 +30,43 @@ const Accueil = () => {
   }, [autoScroll]);
 
   return (
-    <Layout>
-      {/* Bouton Play/Pause flottant en bas à droite */}
+    <Layout noPadding>
       <button
         onClick={() => setAutoScroll(!autoScroll)}
         aria-label={autoScroll ? 'Pause auto scroll' : 'Play auto scroll'}
-        className="
-          fixed bottom-6 right-6 z-50 flex items-center justify-center
-          w-12 h-12 rounded-full
-          bg-indigo-400 text-white
-          shadow-lg
-          hover:bg-indigo-600
-          transition
+        className="fixed bottom-6 right-6 z-50 flex items-center justify-center
+          w-10 h-10 md:w-12 md:h-12 rounded-full
+          bg-indigo-400 text-white shadow-lg
+          hover:bg-indigo-600 transition
           focus:outline-none focus:ring-2 focus:ring-indigo-500
-          active:scale-90
-        "
+          active:scale-90"
       >
-        {autoScroll ? (
-          <Pause className="w-6 h-6" />
-        ) : (
-          <Play className="w-6 h-6" />
-        )}
+        {autoScroll ? <Pause className="w-5 h-5" /> : <Play className="w-5 h-5" />}
       </button>
 
-      {/* Conteneur à défilement automatique */}
       <div
         ref={containerRef}
-        className="h-screen overflow-y-scroll scroll-smooth snap-y snap-mandatory"
+        className="overflow-y-scroll scroll-smooth snap-y snap-mandatory"
+        style={{ height: '100dvh' }}
       >
-        <section className="h-screen snap-start flex items-center justify-center bg-indigo-50">
+        <section
+          className="snap-start flex items-center justify-center bg-indigo-50 px-4"
+          style={{ minHeight: '100dvh' }}
+        >
           <Hero />
         </section>
 
-        <section className="h-screen snap-start flex items-center justify-center bg-white">
+        <section
+          className="snap-start flex items-center justify-center bg-white dark:bg-gray-900 px-4"
+          style={{ minHeight: '100dvh' }}
+        >
           <Fonctionnalites />
         </section>
 
-        <section className="h-screen snap-start flex items-center justify-center bg-white">
+        <section
+          className="snap-start flex items-center justify-center bg-white dark:bg-gray-900 px-4"
+          style={{ minHeight: '100dvh' }}
+        >
           <PourquoiNous />
         </section>
       </div>
