@@ -23,7 +23,7 @@ export const supprimerDisponibilite = async (id) => {
 
 export const getDisponibilitesByProId = async (proId) => {
   if (!proId) throw new Error("L'ID professionnel est requis.");
-  const response = await api.get(`/disponibilites/pro/${proId}`);
+  const response = await api.get(`/disponibilites/${proId}`)
   return response.data;
 };
 
