@@ -14,9 +14,11 @@ const Consultations = () => {
       setConsultations(data);
       setError(null);
     } catch (e) {
-      console.error("Erreur lors du chargement :", e);
-      setError("Erreur lors du chargement des consultations.");
-    } finally {
+  console.error("Erreur complète :", e);
+  console.error("Response :", e.response);
+  console.error("Data :", e.response?.data);
+  setError("Erreur lors du chargement des consultations.");
+}finally {
       setLoading(false);
     }
   };
