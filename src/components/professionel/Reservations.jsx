@@ -22,14 +22,10 @@ function initials(prenom, nom) {
   return ((prenom?.[0] ?? '') + (nom?.[0] ?? '')).toUpperCase();
 }
 
-function fmtDate(dateStr) {
-  if (!dateStr) return 'N/A';
-  const dt = new Date(dateStr + 'T12:00:00');
-  return dt.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long'
-  });
+function fmtDate(dateReservation) {
+  if (!dateReservation) return 'N/A';
+  const dt = new Date(dateReservation + 'T12:00:00');
+  return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function fmtHeure(heure) {
@@ -37,38 +33,78 @@ function fmtHeure(heure) {
   return heure.replace(':', 'h');
 }
 
+/* ── Avatar ── */
 function Avatar({ prenom, nom, statut, size = 38 }) {
   const s = BADGE_COLORS[statut] ?? BADGE_COLORS.EN_ATTENTE;
   return (
     <div style={{
-      width: size,
-      height: size,
-      borderRadius: '50%',
-      flexShrink: 0,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      fontSize: size * 0.33,
-      fontWeight: 600,
-      background: s.bg,
-      color: s.color,
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.33, fontWeight: 600,
+      background: s.bg, color: s.color,
     }}>
       {initials(prenom, nom)}
     </div>
   );
 }
 
-/* ❌ Badge supprimé volontairement */
+/* ── Badge statut ── */
+function Badge({ statut }) {
+  const s = BADGE_COLORS[statut] ?? BADGE_COLORS.EN_ATTENTE;
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 12,
+      whiteSpace: 'nowrap', background: s.bg, color: s.color,
+    }}>
+      {LABELS[statut] ?? statut}
+    </span>
+  );
+}
 
+/* ── Bouton icône ── */
+function IconBtn({ onClick, title, children, hoverBg, hoverBorder }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        width: 30, height: 30, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, fontWeight: 600, transition: 'background 0.12s',
+        border: `0.5px solid ${hover && hoverBorder ? hoverBorder : '#e0e0e0'}`,
+        background: hover && hoverBg ? hoverBg : 'transparent',
+        color: '#555',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── Ligne dans le modal ── */
+function ModalRow({ icon, label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+      <span style={{ fontSize: 15, width: 20, textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+      <span style={{ minWidth: 155, color: '#888', fontSize: 13 }}>{label}</span>
+      <span style={{ color: '#111', fontWeight: 500 }}>{children}</span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   COMPOSANT PRINCIPAL
+══════════════════════════════════════════════════ */
 const ListeReservations = ({ proId }) => {
   const [reservations, setReservations] = useState([]);
-  const [error, setError] = useState('');
+  const [error,        setError]        = useState('');
   const [filtreStatut, setFiltreStatut] = useState('TOUS');
-  const [selected, setSelected] = useState(null);
+  const [selected,     setSelected]     = useState(null);
 
-  useEffect(() => {
-    if (proId) chargerReservations();
-  }, [proId]);
+  useEffect(() => { if (proId) chargerReservations(); }, [proId]);
 
   const chargerReservations = async () => {
     try {
@@ -85,7 +121,7 @@ const ListeReservations = ({ proId }) => {
       await updateReservationStatus(id, statut);
       await chargerReservations();
     } catch {
-      setError('Erreur lors de la mise à jour.');
+      setError('Erreur lors de la mise à jour du statut.');
     }
   };
 
@@ -95,9 +131,7 @@ const ListeReservations = ({ proId }) => {
       : reservations.filter(r => r.statut === filtreStatut);
 
   const countFor = (s) =>
-    s === 'TOUS'
-      ? reservations.length
-      : reservations.filter(r => r.statut === s).length;
+    s === 'TOUS' ? reservations.length : reservations.filter(r => r.statut === s).length;
 
   return (
     <div style={{
@@ -105,36 +139,29 @@ const ListeReservations = ({ proId }) => {
       maxWidth: 720,
       margin: '0 auto',
       fontFamily: "'Sora', 'Inter', sans-serif",
-      boxSizing: 'border-box',
     }}>
 
-      <h1 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 1.25rem', color: '#111' }}>
+      {/* ── TITRE PAGE ── */}
+      <h1 style={{
+        fontSize: 22, fontWeight: 600, margin: '0 0 1.25rem',
+        color: '#111',
+      }}>
         Réservations
       </h1>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        marginBottom: '1rem'
-      }}>
-        <span style={{ fontSize: 13, color: '#888' }}>
-          Gestion des séances
-        </span>
-
+      {/* ── HEADER (sous-titre + compteur) ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: '#888' }}>Gestion des séances</span>
         <span style={{
-          fontFamily: 'monospace',
-          fontSize: 12,
-          color: '#888',
-          background: '#f5f5f5',
-          padding: '4px 10px',
-          borderRadius: 20,
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#888',
+          background: '#f5f5f5', padding: '4px 10px', borderRadius: 20,
           border: '0.5px solid #e5e5e5',
         }}>
           {filtered.length} session{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
+      {/* ── FILTRES ── */}
       <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
         {STATUTS.map(s => {
           const active = filtreStatut === s;
@@ -143,15 +170,10 @@ const ListeReservations = ({ proId }) => {
               key={s}
               onClick={() => setFiltreStatut(s)}
               style={{
-                padding: '5px 14px',
-                borderRadius: 20,
-                fontSize: 12,
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 0.15s',
+                padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                cursor: 'pointer', transition: 'all 0.15s',
                 border: '0.5px solid #ccc',
-                background: 'transparent',
-                color: '#666',
+                background: 'transparent', color: '#666',
                 ...(active ? FILTER_ACTIVE[s] : {}),
               }}
             >
@@ -163,11 +185,10 @@ const ListeReservations = ({ proId }) => {
       </div>
 
       {error && (
-        <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>
-          {error}
-        </p>
+        <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</p>
       )}
 
+      {/* ── LISTE DES CARTES ── */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 && (
           <p style={{ textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 14 }}>
@@ -180,97 +201,73 @@ const ListeReservations = ({ proId }) => {
             key={res.id}
             onClick={() => setSelected(res)}
             style={{
-              background: '#fff',
-              border: '0.5px solid #e8e8e8',
-              borderRadius: 12,
-              padding: '12px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              transition: 'border-color 0.15s, box-shadow 0.15s',
-              boxSizing: 'border-box',
-              minWidth: 0,
+              background: '#fff', border: '0.5px solid #e8e8e8', borderRadius: 12,
+              padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14,
+              cursor: 'pointer', transition: 'border-color 0.15s, transform 0.1s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#bbb';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#e8e8e8';
+              e.currentTarget.style.transform = 'none';
             }}
           >
-            <Avatar
-              prenom={res.utilisateur?.prenom}
-              nom={res.utilisateur?.nom}
-              statut={res.statut}
-            />
+            {/* Avatar */}
+            <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
 
+            {/* Infos */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <p style={{
-                margin: '0 0 4px',
-                fontWeight: 600,
-                fontSize: 14,
-                color: '#111',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                margin: '0 0 4px', fontWeight: 600, fontSize: 14, color: '#111',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
               }}>
                 {res.utilisateur?.prenom} {res.utilisateur?.nom}
               </p>
-
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                fontSize: 11,
-                color: '#999',
-                flexWrap: 'wrap',
-              }}>
-                <span>{fmtDate(res.dateReservation)}</span>
-
-                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#ddd' }} />
-
-                <span>Réservation {fmtHeure(res.heureReservation)}</span>
-
-                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#ddd' }} />
-
-                <span>Consult. {fmtHeure(res.heureDebut)}</span>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: '#999', flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span>📅</span>{fmtDate(res.dateReservation)}
+                </span>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#ddd', flexShrink: 0 }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span>🕐</span>Consultation {fmtHeure(res.heureDebut)}
+                </span>
               </div>
             </div>
 
-            {/* ✅ ICI: Badge remplacé par œil */}
+            {/* Actions */}
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-
-              <button
-                title="Voir détails"
-                onClick={e => { e.stopPropagation(); setSelected(res); }}
-                style={{
-                  width: 30,
-                  height: 30,
-                  borderRadius: 8,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  border: '0.5px solid #e0e0e0',
-                  background: 'transparent',
-                }}
-              >
-                <EyeIcon />
-              </button>
-
+              <Badge statut={res.statut} />
+              {res.statut === 'EN_ATTENTE' && (
+                <>
+                  <IconBtn
+                    title="Valider"
+                    onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
+                    hoverBg="#EAF3DE" hoverBorder="#C0DD97"
+                  >✓</IconBtn>
+                  <IconBtn
+                    title="Refuser"
+                    onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
+                    hoverBg="#FCEBEB" hoverBorder="#F7C1C1"
+                  >✕</IconBtn>
+                </>
+              )}
+              <IconBtn title="Détails" onClick={e => { e.stopPropagation(); setSelected(res); }}>›</IconBtn>
             </div>
           </div>
         ))}
       </div>
 
+      {/* ── MODAL ── */}
       <AnimatePresence>
         {selected && (
           <div
             onClick={() => setSelected(null)}
             style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 999,
-              padding: '1rem',
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 999, padding: '1rem',
             }}
           >
             <motion.div
@@ -280,18 +277,98 @@ const ListeReservations = ({ proId }) => {
               transition={{ duration: 0.18 }}
               onClick={e => e.stopPropagation()}
               style={{
-                background: '#fff',
-                borderRadius: 16,
-                width: '100%',
-                maxWidth: 400,
-                border: '0.5px solid #ddd',
-                overflow: 'hidden',
+                background: '#fff', borderRadius: 16,
+                width: '100%', maxWidth: 400,
+                border: '0.5px solid #ddd', overflow: 'hidden',
               }}
             >
-              <div style={{ padding: 20 }}>
-                <p style={{ fontWeight: 600 }}>
-                  {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
+              {/* Header modal */}
+              <div style={{
+                padding: '20px 20px 16px', borderBottom: '0.5px solid #eee',
+                display: 'flex', gap: 14, alignItems: 'center',
+              }}>
+                <Avatar
+                  prenom={selected.utilisateur?.prenom}
+                  nom={selected.utilisateur?.nom}
+                  statut={selected.statut}
+                  size={48}
+                />
+                <div>
+                  <p style={{ margin: '0 0 3px', fontWeight: 600, fontSize: 16, color: '#111' }}>
+                    {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: '#999' }}>
+                    {selected.utilisateur?.email ?? 'Email indisponible'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Body modal */}
+              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Section date & horaires */}
+                <p style={{
+                  margin: '0 0 4px', fontSize: 10, fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.08em', color: '#bbb',
+                }}>
+                  Date &amp; horaires
                 </p>
+                <ModalRow icon="📅" label="Date de réservation">
+                  {fmtDate(selected.dateReservation)}
+                </ModalRow>
+                <ModalRow icon="🕐" label="Heure de consultation">
+                  {fmtHeure(selected.heureDebut)}
+                </ModalRow>
+
+                <div style={{ height: 1, background: '#eee', margin: '4px 0' }} />
+
+                {/* Section statut */}
+                <p style={{
+                  margin: '0 0 4px', fontSize: 10, fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.08em', color: '#bbb',
+                }}>
+                  Statut
+                </p>
+                <ModalRow icon="🏷" label="Statut de la réservation">
+                  <Badge statut={selected.statut} />
+                </ModalRow>
+              </div>
+
+              {/* Footer modal */}
+              <div style={{
+                padding: '12px 20px', borderTop: '0.5px solid #eee',
+                display: 'flex', gap: 8,
+              }}>
+                {selected.statut === 'EN_ATTENTE' && (
+                  <>
+                    <button
+                      onClick={() => { handleUpdateStatus(selected.id, 'VALIDE'); setSelected(null); }}
+                      style={{
+                        flex: 1, padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                        cursor: 'pointer', border: '0.5px solid #C0DD97',
+                        background: '#EAF3DE', color: '#27500A',
+                      }}
+                    >✓ Valider</button>
+                    <button
+                      onClick={() => { handleUpdateStatus(selected.id, 'REFUSE'); setSelected(null); }}
+                      style={{
+                        flex: 1, padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                        cursor: 'pointer', border: '0.5px solid #F7C1C1',
+                        background: '#FCEBEB', color: '#791F1F',
+                      }}
+                    >✕ Refuser</button>
+                  </>
+                )}
+                <button
+                  onClick={() => setSelected(null)}
+                  style={{
+                    flex: selected.statut === 'EN_ATTENTE' ? 1 : 3,
+                    padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                    cursor: 'pointer', border: 'none',
+                    background: '#1a1a2e', color: '#e8e4ff',
+                  }}
+                >
+                  Fermer
+                </button>
               </div>
             </motion.div>
           </div>
@@ -300,14 +377,5 @@ const ListeReservations = ({ proId }) => {
     </div>
   );
 };
-
-/* ✅ Eye Icon */
-const EyeIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-    stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-);
 
 export default ListeReservations;
