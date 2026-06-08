@@ -17,7 +17,7 @@ export default function ChatPage(props) {
       setMessages((prev) => [...prev, msg]);
     },
   });
-
+console.log("CONSULTATION ID =", consultationId);
   // ❌ SAFE GUARD
   if (!consultationId) {
     return (

@@ -44,11 +44,12 @@ export default function ConsultationsPage() {
               </p>
 
               <p>{c.prix} MAD</p>
-
+console.log("CONSULTATION OBJ:", c);
               {/* ✅ BOUTON AJOUTÉ (SANS TOUCHER DESIGN) */}
               {canChat && (
                 <button
                   onClick={() =>
+                    
                     navigate(`/chat/${c.idConsultation}`)
                   }
                   style={{

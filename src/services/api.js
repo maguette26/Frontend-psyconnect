@@ -39,6 +39,18 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+
+  console.log("➡️ API CALL:", config.url);
+  console.log("🔐 TOKEN:", token);
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
 
 export const getConsultations = () => api.get('/consultations').then(r => r.data);
 export const getConsultation = (id) => api.get(`/consultations/${id}`).then(r => r.data);
