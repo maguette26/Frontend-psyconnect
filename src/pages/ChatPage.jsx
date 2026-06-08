@@ -4,17 +4,22 @@ import { getConsultation, getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 
 export default function ChatPage({ currentUser }) {
-  const params = useParams();
-  const consultationId = params?.consultationId;
+  const { consultationId } = useParams();
   const navigate = useNavigate();
 
   const [consultation, setConsultation] = useState(null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const stompClient = useWebSocket();
+  // ✅ IMPORTANT: hook corrigé
+  const { connected, sendMessage } = useWebSocket({
+    consultationId,
+    onMessage: (msg) => {
+      setMessages((prev) => [...prev, msg]);
+    },
+  });
 
-  // ❗ SAFE CHECK
+  // ❗ protection
   if (!consultationId) {
     return (
       <div style={{ padding: 20 }}>
@@ -23,40 +28,29 @@ export default function ChatPage({ currentUser }) {
     );
   }
 
-  // 1. LOAD DATA
   useEffect(() => {
+    let mounted = true;
+
     Promise.all([
       getConsultation(consultationId),
       getChatHistory(consultationId),
     ])
       .then(([c, history]) => {
+        if (!mounted) return;
+
         setConsultation(c);
         setMessages(history);
 
-        if (c.statut !== "CONFIRMEE") {
+        if (c?.statut !== "CONFIRMEE") {
           navigate("/consultations");
         }
       })
       .finally(() => setLoading(false));
-  }, [consultationId]);
 
-  // 2. WEBSOCKET
-  useEffect(() => {
-    if (!stompClient) return;
-
-    const sub = stompClient.subscribe(
-      `/topic/consultation/${consultationId}`,
-      (msg) => {
-        const data = JSON.parse(msg.body);
-
-        if (data.type === "NEW_MESSAGE") {
-          setMessages((prev) => [...prev, data]);
-        }
-      }
-    );
-
-    return () => sub.unsubscribe();
-  }, [stompClient, consultationId]);
+    return () => {
+      mounted = false;
+    };
+  }, [consultationId, navigate]);
 
   if (loading) return <p>Chargement...</p>;
 
@@ -65,12 +59,17 @@ export default function ChatPage({ currentUser }) {
       <h2>Chat consultation #{consultationId}</h2>
 
       <div className="border p-3 h-96 overflow-auto">
-        {messages.map((m) => (
-          <div key={m.id}>
+        {messages.map((m, index) => (
+          <div key={m.id || index}>
             <b>{m.expediteurNom}</b> : {m.contenu}
           </div>
         ))}
       </div>
+
+      {/* connexion status */}
+      <p style={{ marginTop: 10 }}>
+        WebSocket: {connected ? "🟢 connecté" : "🔴 déconnecté"}
+      </p>
     </div>
   );
 }

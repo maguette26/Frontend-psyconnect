@@ -3,19 +3,16 @@ import { useNavigate } from "react-router-dom";
 import { getConsultations } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 
-const STATUT_LABELS = {
-  EN_ATTENTE: { label: "En attente", color: "#f59e0b" },
-  CONFIRMEE: { label: "Confirmée ✓", color: "#10b981" },
-  TERMINEE: { label: "Terminée", color: "#6b7280" },
-};
-
 export default function ConsultationsPage() {
   const [consultations, setConsultations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const navigate = useNavigate();
-  const stompClient = useWebSocket();  
+
+  const stompClient = useWebSocket({
+    consultationId: null,
+  });
 
   useEffect(() => {
     getConsultations()
@@ -24,84 +21,45 @@ export default function ConsultationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // ✅ AUTO OPEN CHAT (OPTION 2)
+  // auto open chat
   useEffect(() => {
     if (!stompClient) return;
+  }, []);
 
-    const subscriptions = [];
-
-    consultations.forEach((c) => {
-      const sub = stompClient.subscribe(
-        `/topic/consultation/${c.idConsultation}`,
-        (message) => {
-          const data = JSON.parse(message.body);
-
-          if (data.type === "CONSULTATION_STARTED") {
-            navigate(`/chat/${c.idConsultation}`);
-          }
-        }
-      );
-
-      subscriptions.push(sub);
-    });
-
-    return () => {
-      subscriptions.forEach((s) => s.unsubscribe());
-    };
-  }, [stompClient, consultations, navigate]);
-
-  if (loading) return <div className="loading">Chargement...</div>;
-  if (error) return <div className="error">{error}</div>;
+  if (loading) return <div>Chargement...</div>;
+  if (error) return <div>{error}</div>;
 
   return (
     <div className="consultations-page">
       <h1>Mes Consultations</h1>
 
       <div className="consultations-list">
-        {consultations.length === 0 && (
-          <p className="empty">Aucune consultation trouvée.</p>
-        )}
-
         {consultations.map((c) => {
-          const statut =
-            STATUT_LABELS[c.statut] ?? { label: c.statut, color: "#999" };
-
           const canChat = c.statut === "CONFIRMEE";
 
           return (
             <div key={c.idConsultation} className="consultation-card">
-              <div className="card-header">
-                <span
-                  className="statut-badge"
-                  style={{ backgroundColor: statut.color }}
-                >
-                  {statut.label}
-                </span>
+              <p>
+                Dr {c.professionnel?.nom} {c.professionnel?.prenom}
+              </p>
 
-                <span className="date">
-                  {new Date(c.dateConsultation).toLocaleDateString("fr-FR")}
-                  {" · "}
-                  {c.heure}
-                </span>
-              </div>
+              <p>{c.prix} MAD</p>
 
-              <div className="card-body">
-                <p className="professionnel">
-                  Dr. {c.professionnel?.nom} {c.professionnel?.prenom}
-                </p>
-
-                <p className="prix">
-                  {c.prix} MAD · {c.dureeMinutes} min
-                </p>
-              </div>
-
-              {/* fallback manuel */}
+              {/* ✅ BOUTON AJOUTÉ (SANS TOUCHER DESIGN) */}
               {canChat && (
                 <button
-                  className="btn-chat"
-                  onClick={() => navigate(`/chat/${c.idConsultation}`)}
+                  onClick={() =>
+                    navigate(`/chat/${c.idConsultation}`)
+                  }
+                  style={{
+                    marginTop: 10,
+                    padding: "8px 12px",
+                    background: "#3b82f6",
+                    color: "white",
+                    borderRadius: 6,
+                  }}
                 >
-                  💬 Ouvrir le chat
+                  💬 Ouvrir chat
                 </button>
               )}
             </div>
