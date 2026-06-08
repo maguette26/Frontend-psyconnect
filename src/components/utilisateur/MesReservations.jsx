@@ -150,7 +150,7 @@ const MesReservations = () => {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <StatutBadge statut={res.statut} />
                     {res.prix != null && (
-                      <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix} MAD</span>
+                      <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix}€</span>
                     )}
                     {(isPassee(res.jourConsultation) || res.statut === 'ANNULEE' || res.statut === 'REFUSE') && (
                       <button onClick={e => { e.stopPropagation(); setConfirmDelete(res); }}
