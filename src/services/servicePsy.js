@@ -36,7 +36,7 @@ export const getDisponibilitesFiltrees = async (proId, date) => {
 
 // ─── Consultations ────────────────────────────────────────
 export const getConsultations = async () => {
-  const response = await api.get('/consultations/mes-consultations');
+ const response = await api.get('/consultations/mes-consultations/professionnel');
   return response.data;
 };
 
