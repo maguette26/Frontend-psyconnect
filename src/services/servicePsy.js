@@ -1,6 +1,6 @@
 import api from './api';
 
-// Disponibilités
+// ─── Disponibilités ───────────────────────────────────────
 export const getDisponibilites = async () => {
   const response = await api.get('/disponibilites');
   return response.data;
@@ -23,52 +23,52 @@ export const supprimerDisponibilite = async (id) => {
 
 export const getDisponibilitesByProId = async (proId) => {
   if (!proId) throw new Error("L'ID professionnel est requis.");
-  const response = await api.get(`/disponibilites/${proId}`);
+  const response = await api.get(`/disponibilites/pro/${proId}`);
   return response.data;
 };
 
 export const getDisponibilitesFiltrees = async (proId, date) => {
-  const response = await api.get(`/disponibilites/filtrees/${proId}?date=${date}`);
+  const response = await api.get(`/disponibilites/filtrees/${proId}`, {
+    params: { date },
+  });
   return response.data;
 };
 
-// Consultations
+// ─── Consultations ────────────────────────────────────────
 export const getConsultations = async () => {
-  const response = await api.get('/professionnels/mes-reservations');
+  const response = await api.get('/consultations');
   return response.data;
 };
 
 export const modifierConsultation = async (id, consultationData) => {
-  const response = await api.put(`/professionnel/consultations/${id}`, consultationData);
+  const response = await api.put(`/consultations/${id}`, consultationData);
   return response.data;
 };
 
-// Réservations
+// ─── Réservations ─────────────────────────────────────────
 export const getReservations = async (proId) => {
   if (!proId) throw new Error("L'ID professionnel est requis.");
   const response = await api.get(`/reservations/pro/${proId}`);
   return response.data;
 };
 
-export const updateReservationStatus = async (reservationId, newStatus) => {
-  const response = await api.put(`/reservations/statut/${reservationId}`, null, {
-    params: { statut: newStatus }
-  });
+export const updateReservationStatus = async (reservationId, statut) => {
+  const response = await api.put(`/reservations/${reservationId}/statut`, { statut });
   return response.data;
 };
 
-// Messagerie
+// ─── Messagerie ───────────────────────────────────────────
 export const envoyerMessage = async (messageData) => {
-  const response = await api.post('/professionnel/messages', messageData);
+  const response = await api.post('/messages', messageData);
   return response.data;
 };
 
 export const getMessages = async () => {
-  const response = await api.get('/professionnel/messages');
+  const response = await api.get('/messages');
   return response.data;
 };
 
-// Professionnels
+// ─── Professionnels ───────────────────────────────────────
 export const getAllProfessionnels = async () => {
   const response = await api.get('/professionnels/tous');
   return response.data;
