@@ -53,7 +53,9 @@ export const getReservations = async (proId) => {
 };
 
 export const updateReservationStatus = async (reservationId, statut) => {
-  const response = await api.put(`/reservations/${reservationId}/statut`, { statut });
+  const response = await api.put(`/reservations/${reservationId}/statut`, {
+    statut
+  });
   return response.data;
 };
 
