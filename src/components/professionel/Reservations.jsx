@@ -23,7 +23,6 @@ const ListeReservations = ({ proId }) => {
 
   const chargerReservations = async () => {
     try {
-      // ✅ FIX : utilisait axios direct sur localhost:9191
       const data = await getReservations(proId);
       setReservations(data);
     } catch (err) {
@@ -35,7 +34,6 @@ const ListeReservations = ({ proId }) => {
   const handleUpdateStatus = async (reservationId, status) => {
     if (!window.confirm(`Confirmer ${status === 'VALIDE' ? "l'acceptation" : 'le refus'} de cette réservation ?`)) return;
     try {
-      // ✅ FIX : utilisait axios direct sur localhost:9191
       await updateReservationStatus(reservationId, status);
       await chargerReservations();
     } catch (error) {
@@ -49,123 +47,166 @@ const ListeReservations = ({ proId }) => {
     try {
       const dt = new Date(`${dateString}T${timeString || '00:00'}:00`);
       return dt.toLocaleDateString('fr-FR', {
-        year: 'numeric', month: 'long', day: 'numeric',
-        hour: '2-digit', minute: '2-digit'
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
       });
-    } catch (e) {
+    } catch {
       return `${dateString} ${timeString || ''}`;
     }
   };
 
-  const reservationsFiltrees = filtreStatut === 'TOUS'
-    ? reservations
-    : reservations.filter(res => res.statut === filtreStatut);
-
-  if (error) return <p className="text-red-600 p-4">{error}</p>;
-  if (!reservations || reservations.length === 0) {
-    return <p className="text-gray-600 p-4 bg-gray-50 rounded-md">Aucune réservation trouvée pour le moment.</p>;
-  }
+  const reservationsFiltrees =
+    filtreStatut === 'TOUS'
+      ? reservations
+      : reservations.filter(res => res.statut === filtreStatut);
 
   return (
-    <div className="max-w-full overflow-x-auto shadow-lg rounded-lg bg-white p-4">
-      <div className="mb-4 flex items-center gap-4">
-        <label htmlFor="filtreStatut" className="font-semibold text-gray-700">Filtrer par statut :</label>
-        <select
-          id="filtreStatut"
-          value={filtreStatut}
-          onChange={e => setFiltreStatut(e.target.value)}
-          className="border border-gray-300 rounded-md px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          {STATUTS.map(statut => (
-            <option key={statut} value={statut}>{statut === 'TOUS' ? 'Tous' : statut}</option>
-          ))}
-        </select>
-        <span className="text-gray-600 italic text-sm">
-          {reservationsFiltrees.length} réservation{reservationsFiltrees.length > 1 ? 's' : ''}
-        </span>
+    <div className="min-h-screen bg-[#f6f7fb] p-4">
+
+      {/* HEADER */}
+      <div className="mb-4">
+        <h2 className="text-xl font-bold text-gray-800">📋 Réservations</h2>
+        <p className="text-sm text-gray-500">Gestion des demandes patients</p>
       </div>
 
-      <table className="min-w-full divide-y divide-gray-200 rounded-lg">
-        <thead className="bg-gray-50">
-          <tr>
-            {['ID', 'Utilisateur', 'Date & Heure', 'Statut', 'Consultation', 'Actions'].map(header => (
-              <th key={header} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                {header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {reservationsFiltrees.length === 0 ? (
-            <tr>
-              <td colSpan="6" className="text-center p-4 text-gray-500 italic">Aucune réservation correspondante.</td>
-            </tr>
-          ) : (
-            reservationsFiltrees.map((res) => (
-              <tr key={res.id} className="hover:bg-gray-50 transition-colors duration-150">
-                <td className="px-6 py-4 whitespace-nowrap">{res.id}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {res.utilisateur?.nom} {res.utilisateur?.prenom} ({res.utilisateur?.email})
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">{formatDateTime(res.dateReservation, res.heureDebut)}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full
-                    ${res.statut === 'EN_ATTENTE' ? 'bg-yellow-100 text-yellow-800' :
-                      res.statut === 'VALIDE' ? 'bg-green-100 text-green-800' :
-                      res.statut === 'REFUSE' ? 'bg-red-100 text-red-800' :
-                      'bg-gray-100 text-gray-800'}`}>
-                    <FontAwesomeIcon icon={
-                      res.statut === 'EN_ATTENTE' ? faClock :
-                      res.statut === 'VALIDE' ? faCheckCircle :
-                      res.statut === 'REFUSE' ? faTimesCircle : faInfoCircle
-                    } className="mr-1" />
-                    {res.statut}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {res.statut === 'VALIDE' && res.consultation ? (
-                    <>
-                      <p><FontAwesomeIcon icon={faCalendarCheck} className="mr-1" />
-                        {formatDateTime(res.consultation.dateConsultation, res.consultation.heure)}
-                      </p>
-                      {res.consultation.lienVisio && (
-                        <a href={res.consultation.lienVisio} target="_blank" rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline flex items-center mt-1">
-                          <FontAwesomeIcon icon={faVideo} className="mr-1" /> Rejoindre la visio
-                        </a>
-                      )}
-                    </>
-                  ) : (
-                    <p className="text-gray-500">N/A</p>
+      {/* ERROR */}
+      {error && (
+        <div className="mb-3 p-3 bg-red-50 text-red-600 rounded-xl text-sm">
+          {error}
+        </div>
+      )}
+
+      {/* FILTRES (mobile pills) */}
+      <div className="flex gap-2 overflow-x-auto pb-3 mb-3">
+        {STATUTS.map(statut => (
+          <button
+            key={statut}
+            onClick={() => setFiltreStatut(statut)}
+            className={`px-4 py-2 rounded-full text-sm whitespace-nowrap transition ${
+              filtreStatut === statut
+                ? 'bg-indigo-600 text-white shadow'
+                : 'bg-white text-gray-600'
+            }`}
+          >
+            {statut}
+          </button>
+        ))}
+      </div>
+
+      {/* LISTE */}
+      <div className="space-y-3">
+        {reservationsFiltrees.length === 0 ? (
+          <div className="text-center text-gray-500 mt-10">
+            Aucune réservation
+          </div>
+        ) : (
+          reservationsFiltrees.map(res => (
+            <div
+              key={res.id}
+              className="bg-white rounded-2xl shadow-sm p-4 border border-gray-100"
+            >
+
+              {/* TOP */}
+              <div className="flex justify-between items-start">
+                <div>
+                  <p className="font-semibold text-gray-800">
+                    {res.utilisateur?.prenom} {res.utilisateur?.nom}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    {res.utilisateur?.email}
+                  </p>
+                </div>
+
+                <span className={`text-xs px-3 py-1 rounded-full flex items-center gap-1
+                  ${res.statut === 'VALIDE'
+                    ? 'bg-green-100 text-green-700'
+                    : res.statut === 'REFUSE'
+                    ? 'bg-red-100 text-red-700'
+                    : 'bg-yellow-100 text-yellow-700'
+                  }`}
+                >
+                  <FontAwesomeIcon
+                    icon={
+                      res.statut === 'EN_ATTENTE'
+                        ? faClock
+                        : res.statut === 'VALIDE'
+                        ? faCheckCircle
+                        : faTimesCircle
+                    }
+                    className="text-xs"
+                  />
+                  {res.statut}
+                </span>
+              </div>
+
+              {/* DATE */}
+              <div className="flex items-center gap-2 mt-3 text-sm text-gray-500">
+                <FontAwesomeIcon icon={faCalendarCheck} />
+                {formatDateTime(res.dateReservation, res.heureDebut)}
+              </div>
+
+              {/* ACTIONS */}
+              <div className="flex gap-2 mt-4">
+
+                {res.statut === 'EN_ATTENTE' && (
+                  <>
+                    <button
+                      onClick={() => handleUpdateStatus(res.id, 'VALIDE')}
+                      className="flex-1 py-2 rounded-xl bg-green-500 text-white text-sm font-medium active:scale-95"
+                    >
+                      ✔ Accepter
+                    </button>
+
+                    <button
+                      onClick={() => handleUpdateStatus(res.id, 'REFUSE')}
+                      className="flex-1 py-2 rounded-xl bg-red-500 text-white text-sm font-medium active:scale-95"
+                    >
+                      ✖ Refuser
+                    </button>
+                  </>
+                )}
+
+                <button
+                  onClick={() =>
+                    alert(
+                      `Détails réservation ${res.id}\nUtilisateur: ${res.utilisateur?.nom} ${res.utilisateur?.prenom}\nStatut: ${res.statut}`
+                    )
+                  }
+                  className="px-3 py-2 rounded-xl bg-gray-100 text-gray-600"
+                >
+                  <FontAwesomeIcon icon={faInfoCircle} />
+                </button>
+              </div>
+
+              {/* CONSULTATION */}
+              {res.statut === 'VALIDE' && res.consultation && (
+                <div className="mt-3 p-3 bg-blue-50 rounded-xl text-sm text-blue-700">
+                  <div className="flex items-center gap-2">
+                    <FontAwesomeIcon icon={faCalendarCheck} />
+                    {formatDateTime(res.consultation.dateConsultation, res.consultation.heure)}
+                  </div>
+
+                  {res.consultation.lienVisio && (
+                    <a
+                      href={res.consultation.lienVisio}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 mt-2 text-blue-600 font-medium"
+                    >
+                      <FontAwesomeIcon icon={faVideo} />
+                      Rejoindre la visio
+                    </a>
                   )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right flex items-center justify-end gap-3">
-                  {res.statut === 'EN_ATTENTE' && (
-                    <>
-                      <button onClick={() => handleUpdateStatus(res.id, 'VALIDE')}
-                        className="text-green-600 hover:text-green-900 cursor-pointer bg-transparent border-0"
-                        title="Accepter" aria-label="Accepter la réservation">
-                        <FontAwesomeIcon icon={faCheckCircle} size="lg" />
-                      </button>
-                      <button onClick={() => handleUpdateStatus(res.id, 'REFUSE')}
-                        className="text-red-600 hover:text-red-900 cursor-pointer bg-transparent border-0"
-                        title="Refuser" aria-label="Refuser la réservation">
-                        <FontAwesomeIcon icon={faTimesCircle} size="lg" />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={() => alert(`Détails réservation ${res.id}\nUtilisateur: ${res.utilisateur?.nom} ${res.utilisateur?.prenom}\nStatut: ${res.statut}`)}
-                    className="text-blue-600 hover:text-blue-900 cursor-pointer bg-transparent border-0"
-                    title="Détails" aria-label="Voir les détails">
-                    <FontAwesomeIcon icon={faInfoCircle} size="lg" />
-                  </button>
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+                </div>
+              )}
+
+            </div>
+          ))
+        )}
+      </div>
     </div>
   );
 };
