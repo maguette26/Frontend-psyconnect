@@ -49,10 +49,11 @@ const MesConsultations = () => {
   const [error, setError]                 = useState(null);
   const [selected, setSelected]           = useState(null);
 
-  useEffect(() => {
+useEffect(() => {
     const fetchConsultations = async () => {
       try {
         const response = await api.get('/consultations/mes-consultations');
+        console.log('CONSULTATION DATA:', response.data[0]); // ← ajoute cette ligne
         setConsultations(response.data);
       } catch (err) {
         setError(err.message);
@@ -121,9 +122,8 @@ const MesConsultations = () => {
                       <p className="font-semibold text-gray-900 text-base">
                         Dr {c.professionnelPrenom} {c.professionnelNom}
                       </p>
-                      {/* ✅ CORRIGÉ : jourConsultation + heureConsultation */}
                       <p className="text-sm text-gray-500 mt-0.5">
-                        {formatDate(c.jourConsultation)} · {formatHeure(c.heureConsultation)}
+                        {formatDate(c.dateConsultation)} · {formatHeure(c.heure)}
                       </p>
                     </div>
                   </div>
@@ -177,10 +177,10 @@ const MesConsultations = () => {
                 <StatutBadge statut={selected.statut} />
               </div>
 
-              {/* ✅ CORRIGÉ : jourConsultation + heureConsultation dans le modal */}
+              {/* Infos */}
               <div className="space-y-1">
-                <InfoRow icon={<CalendarCheck size={16} />} label="Date"     value={formatDate(selected.jourConsultation)} />
-                <InfoRow icon={<Clock size={16} />}         label="Heure"    value={formatHeure(selected.heureConsultation)} />
+                <InfoRow icon={<CalendarCheck size={16} />} label="Date"     value={formatDate(selected.dateConsultation)} />
+                <InfoRow icon={<Clock size={16} />}         label="Heure"    value={formatHeure(selected.heure)} />
                 <InfoRow icon={<Info size={16} />}          label="Durée"    value={`${selected.dureeMinutes || 45} min`} />
                 <InfoRow icon={<Euro size={16} />}          label="Prix"     value={`${selected.prix?.toFixed(2) || '—'} €`} />
               </div>
