@@ -1,11 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   faCheckCircle,
   faTimesCircle,
+  faVideo,
+  faCalendarCheck,
   faInfoCircle,
-  faVideo
+  faClock,
+  faUser,
+  faEnvelope
 } from '@fortawesome/free-solid-svg-icons';
 
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
@@ -30,7 +35,7 @@ const ListeReservations = ({ proId }) => {
   };
 
   const handleUpdateStatus = async (id, status) => {
-    if (!window.confirm(`Confirmer cette action ?`)) return;
+    if (!window.confirm(`Confirmer ${status === 'VALIDE' ? "acceptation" : "refus"} ?`)) return;
     try {
       await updateReservationStatus(id, status);
       await chargerReservations();
@@ -39,59 +44,45 @@ const ListeReservations = ({ proId }) => {
     }
   };
 
-  // 🔥 FIX HEURE ROBUSTE
-  const getHeure = (c) =>
-    c?.heure ||
-    c?.heureConsultation ||
-    c?.heureDebut ||
-    null;
-
-  // 🔥 FORMAT PRO UI PSYCONNECT
-  const formatPro = (date, heure) => {
+  // ✅ FIX HEURE PROPRE
+  const formatDateTime = (date, heure) => {
     if (!date) return 'N/A';
+    const h = heure && heure !== "00:00" ? heure : null;
 
-    const safeHeure =
-      heure ||
-      date?.split('T')[1] ||
-      '00:00';
+    const dt = new Date(`${date}T${h || '00:00'}:00`);
 
-    const dt = new Date(`${date}T${safeHeure}`);
-
-    const h = dt.getHours().toString().padStart(2, '0');
-    const m = dt.getMinutes().toString().padStart(2, '0');
-
-    const jour = dt.toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-
-    return `${h}h${m} • ${jour}`;
+    return {
+      date: dt.toLocaleDateString('fr-FR', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }),
+      heure: h ? h : dt.toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      })
+    };
   };
 
-  const filtered =
+  const filtrees =
     filtreStatut === 'TOUS'
       ? reservations
       : reservations.filter(r => r.statut === filtreStatut);
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4">
+    <div className="p-4">
 
-      {/* HEADER */}
-      <h1 className="text-xl font-bold mb-3">
-        📅 Réservations
-      </h1>
-
-      {/* FILTRES */}
-      <div className="flex gap-2 flex-wrap mb-4">
+      {/* FILTRES (version propre comme avant) */}
+      <div className="flex gap-2 mb-4 flex-wrap">
         {STATUTS.map(s => (
           <button
             key={s}
             onClick={() => setFiltreStatut(s)}
-            className={`px-3 py-1 rounded-full text-xs ${
+            className={`px-3 py-1 rounded-full text-sm font-medium transition ${
               filtreStatut === s
-                ? 'bg-indigo-600 text-white'
-                : 'bg-white border'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
             {s}
@@ -101,40 +92,26 @@ const ListeReservations = ({ proId }) => {
 
       {error && <p className="text-red-500">{error}</p>}
 
-      {/* LISTE CARDS */}
+      {/* LISTE */}
       <div className="space-y-3">
-        {filtered.map(res => (
-          <div
-            key={res.id}
-            className="bg-white p-4 rounded-2xl shadow-sm border"
-          >
+        {filtrees.map(res => {
+          const dt = formatDateTime(res.dateReservation, res.heureDebut);
 
-            {/* TOP */}
-            <div className="flex justify-between">
+          return (
+            <div key={res.id} className="bg-white shadow rounded-lg p-4 flex justify-between items-center">
+
               <div>
                 <p className="font-semibold">
                   {res.utilisateur?.prenom} {res.utilisateur?.nom}
                 </p>
-                <p className="text-xs text-gray-400">#{res.id}</p>
+
+                <p className="text-sm text-gray-500">
+                  {dt.date} à {dt.heure}
+                </p>
               </div>
 
-              <span className="text-xs px-2 py-1 bg-gray-100 rounded-full">
-                {res.statut}
-              </span>
-            </div>
+              <div className="flex gap-2 items-center">
 
-            {/* DATE + HEURE PRO */}
-            <p className="mt-2 text-sm text-gray-700 font-medium">
-              🕒 {formatPro(
-                res.dateReservation,
-                getHeure(res.consultation)
-              )}
-            </p>
-
-            {/* ACTIONS */}
-            <div className="flex justify-between mt-4">
-
-              <div className="flex gap-2">
                 {res.statut === 'EN_ATTENTE' && (
                   <>
                     <button onClick={() => handleUpdateStatus(res.id, 'VALIDE')}>
@@ -142,73 +119,75 @@ const ListeReservations = ({ proId }) => {
                     </button>
 
                     <button onClick={() => handleUpdateStatus(res.id, 'REFUSE')}>
-                      <FontAwesomeIcon icon={faTimesCircle} className="text-red-500" />
+                      <FontAwesomeIcon icon={faTimesCircle} className="text-red-600" />
                     </button>
                   </>
                 )}
+
+                <button onClick={() => setSelectedRes(res)}>
+                  <FontAwesomeIcon icon={faInfoCircle} className="text-blue-600" />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ✅ MODAL CENTRÉ PRO */}
+      <AnimatePresence>
+        {selectedRes && (
+          <div
+            className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50"
+            onClick={() => setSelectedRes(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-md rounded-2xl shadow-xl p-6"
+            >
+
+              <h2 className="text-lg font-bold mb-4">
+                Détails de la réservation
+              </h2>
+
+              {/* USER */}
+              <div className="space-y-2 text-sm">
+
+                <p className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faUser} />
+                  {selectedRes.utilisateur?.prenom} {selectedRes.utilisateur?.nom}
+                </p>
+
+                <p className="flex items-center gap-2 text-gray-600">
+                  <FontAwesomeIcon icon={faEnvelope} />
+                  {selectedRes.utilisateur?.email || "Email non disponible"}
+                </p>
+
+                <p className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faCalendarCheck} />
+                  {formatDateTime(selectedRes.dateReservation, selectedRes.heureDebut).date}
+                </p>
+
+                <p className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faClock} />
+                  {formatDateTime(selectedRes.dateReservation, selectedRes.heureDebut).heure}
+                </p>
+
               </div>
 
               <button
-                onClick={() => setSelectedRes(res)}
-                className="text-indigo-600 text-sm font-semibold"
+                onClick={() => setSelectedRes(null)}
+                className="mt-6 w-full bg-blue-600 text-white py-2 rounded-lg"
               >
-                Détails
+                Fermer
               </button>
 
-            </div>
-
+            </motion.div>
           </div>
-        ))}
-      </div>
-
-      {/* MODAL DETAILS */}
-      {selectedRes && (
-        <div
-          className="fixed inset-0 bg-black/40 flex items-end justify-center"
-          onClick={() => setSelectedRes(null)}
-        >
-          <div
-            className="bg-white w-full max-w-md p-5 rounded-t-3xl"
-            onClick={e => e.stopPropagation()}
-          >
-
-            <h2 className="font-bold mb-3">Détails</h2>
-
-            <p className="text-sm mb-2">
-              👤 {selectedRes.utilisateur?.prenom} {selectedRes.utilisateur?.nom}
-            </p>
-
-            <p className="text-sm mb-2">
-              📧 {selectedRes.utilisateur?.email}
-            </p>
-
-            <p className="text-sm mb-2">
-              🕒 {formatPro(
-                selectedRes.dateReservation,
-                getHeure(selectedRes.consultation)
-              )}
-            </p>
-
-            {selectedRes.consultation?.lienVisio && (
-              <a
-                href={selectedRes.consultation.lienVisio}
-                target="_blank"
-                className="text-blue-600 text-sm"
-              >
-                🎥 Rejoindre la visio
-              </a>
-            )}
-
-            <button
-              onClick={() => setSelectedRes(null)}
-              className="w-full mt-4 bg-indigo-600 text-white py-2 rounded-xl"
-            >
-              Fermer
-            </button>
-
-          </div>
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
     </div>
   );
