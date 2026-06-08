@@ -1,55 +1,128 @@
 import React, { useEffect, useState } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-  faCheckCircle,
-  faTimesCircle,
-  faInfoCircle,
-  faClock,
-  faUser,
-  faCalendarDays
-} from '@fortawesome/free-solid-svg-icons';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
+const LABELS  = { EN_ATTENTE: 'En attente', VALIDE: 'Validé', REFUSE: 'Refusé' };
 
+const BADGE_COLORS = {
+  EN_ATTENTE: { bg: '#FAEEDA', color: '#633806' },
+  VALIDE:     { bg: '#EAF3DE', color: '#27500A' },
+  REFUSE:     { bg: '#FCEBEB', color: '#791F1F' },
+};
+
+const FILTER_ACTIVE = {
+  TOUS:       { background: '#1a1a2e', color: '#e8e4ff', borderColor: '#1a1a2e' },
+  EN_ATTENTE: { background: '#FAC775', color: '#412402', borderColor: '#FAC775' },
+  VALIDE:     { background: '#C0DD97', color: '#173404', borderColor: '#C0DD97' },
+  REFUSE:     { background: '#F7C1C1', color: '#501313', borderColor: '#F7C1C1' },
+};
+
+function initials(prenom, nom) {
+  return ((prenom?.[0] ?? '') + (nom?.[0] ?? '')).toUpperCase();
+}
+
+function fmtDate(dateReservation) {
+  if (!dateReservation) return 'N/A';
+  const dt = new Date(dateReservation + 'T12:00:00');
+  return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+}
+
+function fmtHeure(heure) {
+  if (!heure) return 'N/A';
+  return heure.replace(':', 'h');
+}
+
+/* ── Avatar ── */
+function Avatar({ prenom, nom, statut, size = 38 }) {
+  const s = BADGE_COLORS[statut] ?? BADGE_COLORS.EN_ATTENTE;
+  return (
+    <div style={{
+      width: size, height: size, borderRadius: '50%', flexShrink: 0,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      fontSize: size * 0.33, fontWeight: 600,
+      background: s.bg, color: s.color,
+    }}>
+      {initials(prenom, nom)}
+    </div>
+  );
+}
+
+/* ── Badge statut ── */
+function Badge({ statut }) {
+  const s = BADGE_COLORS[statut] ?? BADGE_COLORS.EN_ATTENTE;
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 500, padding: '3px 9px', borderRadius: 12,
+      whiteSpace: 'nowrap', background: s.bg, color: s.color,
+    }}>
+      {LABELS[statut] ?? statut}
+    </span>
+  );
+}
+
+/* ── Bouton icône ── */
+function IconBtn({ onClick, title, children, hoverBg, hoverBorder }) {
+  const [hover, setHover] = useState(false);
+  return (
+    <button
+      title={title}
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        width: 30, height: 30, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 16, fontWeight: 600, transition: 'background 0.12s',
+        border: `0.5px solid ${hover && hoverBorder ? hoverBorder : '#e0e0e0'}`,
+        background: hover && hoverBg ? hoverBg : 'transparent',
+        color: '#555',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── Ligne dans le modal ── */
+function ModalRow({ icon, label, children }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+      <span style={{ fontSize: 15, width: 20, textAlign: 'center', flexShrink: 0 }}>{icon}</span>
+      <span style={{ minWidth: 155, color: '#888', fontSize: 13 }}>{label}</span>
+      <span style={{ color: '#111', fontWeight: 500 }}>{children}</span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════
+   COMPOSANT PRINCIPAL
+══════════════════════════════════════════════════ */
 const ListeReservations = ({ proId }) => {
   const [reservations, setReservations] = useState([]);
+  const [error,        setError]        = useState('');
   const [filtreStatut, setFiltreStatut] = useState('TOUS');
-  const [selected, setSelected] = useState(null);
-  const [error, setError] = useState('');
+  const [selected,     setSelected]     = useState(null);
 
-  useEffect(() => {
-    if (proId) chargerReservations();
-  }, [proId]);
+  useEffect(() => { if (proId) chargerReservations(); }, [proId]);
 
   const chargerReservations = async () => {
     try {
       const data = await getReservations(proId);
       setReservations(data);
-    } catch (err) {
-      console.error(err);
-      setError("Erreur chargement réservations");
+    } catch {
+      setError('Erreur lors du chargement des réservations.');
     }
   };
 
-  const handleStatus = async (id, status) => {
-    if (!window.confirm("Confirmer cette action ?")) return;
-    await updateReservationStatus(id, status);
-    await chargerReservations();
-  };
-
-  const formatDate = (date) => {
-    if (!date) return "N/A";
-    return new Date(date).toLocaleDateString('fr-FR', {
-      day: '2-digit',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
-  const formatTime = (time) => {
-    if (!time) return "Non définie";
-    return time;
+  const handleUpdateStatus = async (id, statut) => {
+    if (!window.confirm('Confirmer cette action ?')) return;
+    try {
+      await updateReservationStatus(id, statut);
+      await chargerReservations();
+    } catch {
+      setError('Erreur lors de la mise à jour du statut.');
+    }
   };
 
   const filtered =
@@ -57,175 +130,250 @@ const ListeReservations = ({ proId }) => {
       ? reservations
       : reservations.filter(r => r.statut === filtreStatut);
 
-  const emptyMessage = () => {
-    if (filtreStatut === 'EN_ATTENTE') return "Aucune réservation en attente";
-    if (filtreStatut === 'VALIDE') return "Aucune réservation validée";
-    if (filtreStatut === 'REFUSE') return "Aucune réservation refusée";
-    return "Aucune réservation";
-  };
+  const countFor = (s) =>
+    s === 'TOUS' ? reservations.length : reservations.filter(r => r.statut === s).length;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div style={{
+      padding: '1.5rem',
+      maxWidth: 720,
+      margin: '0 auto',
+      fontFamily: "'Sora', 'Inter', sans-serif",
+    }}>
 
-      {/* FILTRES */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {STATUTS.map(s => (
-          <button
-            key={s}
-            onClick={() => setFiltreStatut(s)}
-            className={`px-4 py-2 rounded-full border text-sm transition ${
-              filtreStatut === s
-                ? 'bg-blue-600 text-white'
-                : 'bg-white hover:bg-gray-100'
-            }`}
+      {/* ── TITRE PAGE ── */}
+      <h1 style={{
+        fontSize: 22, fontWeight: 600, margin: '0 0 1.25rem',
+        color: '#111',
+      }}>
+        Réservations
+      </h1>
+
+      {/* ── HEADER (sous-titre + compteur) ── */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <span style={{ fontSize: 13, fontWeight: 500, color: '#888' }}>Gestion des séances</span>
+        <span style={{
+          fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: '#888',
+          background: '#f5f5f5', padding: '4px 10px', borderRadius: 20,
+          border: '0.5px solid #e5e5e5',
+        }}>
+          {filtered.length} session{filtered.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
+      {/* ── FILTRES ── */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+        {STATUTS.map(s => {
+          const active = filtreStatut === s;
+          return (
+            <button
+              key={s}
+              onClick={() => setFiltreStatut(s)}
+              style={{
+                padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                cursor: 'pointer', transition: 'all 0.15s',
+                border: '0.5px solid #ccc',
+                background: 'transparent', color: '#666',
+                ...(active ? FILTER_ACTIVE[s] : {}),
+              }}
+            >
+              {s === 'TOUS' ? 'Tous' : LABELS[s]}{' '}
+              <span style={{ opacity: 0.6 }}>{countFor(s)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {error && (
+        <p style={{ color: '#c0392b', fontSize: 13, marginBottom: 12 }}>{error}</p>
+      )}
+
+      {/* ── LISTE DES CARTES ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {filtered.length === 0 && (
+          <p style={{ textAlign: 'center', padding: '3rem 1rem', color: '#aaa', fontSize: 14 }}>
+            Aucune réservation
+          </p>
+        )}
+
+        {filtered.map(res => (
+          <div
+            key={res.id}
+            onClick={() => setSelected(res)}
+            style={{
+              background: '#fff', border: '0.5px solid #e8e8e8', borderRadius: 12,
+              padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14,
+              cursor: 'pointer', transition: 'border-color 0.15s, transform 0.1s',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = '#bbb';
+              e.currentTarget.style.transform = 'translateY(-1px)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#e8e8e8';
+              e.currentTarget.style.transform = 'none';
+            }}
           >
-            {s}
-          </button>
+            {/* Avatar */}
+            <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
+
+            {/* Infos */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{
+                margin: '0 0 4px', fontWeight: 600, fontSize: 14, color: '#111',
+                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+              }}>
+                {res.utilisateur?.prenom} {res.utilisateur?.nom}
+              </p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 11, color: '#999', flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span>📅</span>{fmtDate(res.dateReservation)}
+                </span>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#ddd', flexShrink: 0 }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span>🕐</span>Consultation {fmtHeure(res.heureDebut)}
+                </span>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <Badge statut={res.statut} />
+              {res.statut === 'EN_ATTENTE' && (
+                <>
+                  <IconBtn
+                    title="Valider"
+                    onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
+                    hoverBg="#EAF3DE" hoverBorder="#C0DD97"
+                  >✓</IconBtn>
+                  <IconBtn
+                    title="Refuser"
+                    onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
+                    hoverBg="#FCEBEB" hoverBorder="#F7C1C1"
+                  >✕</IconBtn>
+                </>
+              )}
+              <IconBtn title="Détails" onClick={e => { e.stopPropagation(); setSelected(res); }}>›</IconBtn>
+            </div>
+          </div>
         ))}
       </div>
 
-      {/* TABLE */}
-      <div className="bg-white shadow rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-100 text-gray-700">
-            <tr>
-              <th className="p-3">#</th>
-              <th>Patient</th>
-              <th>Date</th>
-              <th>Heure</th>
-              <th>Statut</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
+      {/* ── MODAL ── */}
+      <AnimatePresence>
+        {selected && (
+          <div
+            onClick={() => setSelected(null)}
+            style={{
+              position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              zIndex: 999, padding: '1rem',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.92, opacity: 0 }}
+              transition={{ duration: 0.18 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: '#fff', borderRadius: 16,
+                width: '100%', maxWidth: 400,
+                border: '0.5px solid #ddd', overflow: 'hidden',
+              }}
+            >
+              {/* Header modal */}
+              <div style={{
+                padding: '20px 20px 16px', borderBottom: '0.5px solid #eee',
+                display: 'flex', gap: 14, alignItems: 'center',
+              }}>
+                <Avatar
+                  prenom={selected.utilisateur?.prenom}
+                  nom={selected.utilisateur?.nom}
+                  statut={selected.statut}
+                  size={48}
+                />
+                <div>
+                  <p style={{ margin: '0 0 3px', fontWeight: 600, fontSize: 16, color: '#111' }}>
+                    {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
+                  </p>
+                  <p style={{ margin: 0, fontSize: 12, color: '#999' }}>
+                    {selected.utilisateur?.email ?? 'Email indisponible'}
+                  </p>
+                </div>
+              </div>
 
-          <tbody>
-            {filtered.length === 0 ? (
-              <tr>
-                <td colSpan="6" className="text-center p-6 text-gray-500">
-                  {emptyMessage()}
-                </td>
-              </tr>
-            ) : (
-              filtered.map(r => (
-                <tr key={r.id} className="border-t hover:bg-gray-50">
+              {/* Body modal */}
+              <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Section date & horaires */}
+                <p style={{
+                  margin: '0 0 4px', fontSize: 10, fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.08em', color: '#bbb',
+                }}>
+                  Date &amp; horaires
+                </p>
+                <ModalRow icon="📅" label="Date de réservation">
+                  {fmtDate(selected.dateReservation)}
+                </ModalRow>
+                <ModalRow icon="🕐" label="Heure de consultation">
+                  {fmtHeure(selected.heureDebut)}
+                </ModalRow>
 
-                  {/* ID */}
-                  <td className="p-3 font-semibold text-gray-700">
-                    #{r.id}
-                  </td>
+                <div style={{ height: 1, background: '#eee', margin: '4px 0' }} />
 
-                  {/* PATIENT */}
-                  <td className="p-3">
-                    <div className="flex flex-col">
-                      <span className="flex items-center gap-2 font-medium">
-                        <FontAwesomeIcon icon={faUser} className="text-blue-500" />
-                        {r.utilisateur?.prenom} {r.utilisateur?.nom}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {r.utilisateur?.email}
-                      </span>
-                    </div>
-                  </td>
+                {/* Section statut */}
+                <p style={{
+                  margin: '0 0 4px', fontSize: 10, fontWeight: 600,
+                  textTransform: 'uppercase', letterSpacing: '0.08em', color: '#bbb',
+                }}>
+                  Statut
+                </p>
+                <ModalRow icon="🏷" label="Statut de la réservation">
+                  <Badge statut={selected.statut} />
+                </ModalRow>
+              </div>
 
-                  {/* DATE */}
-                  <td className="p-3 flex items-center gap-2">
-                    <FontAwesomeIcon icon={faCalendarDays} className="text-gray-500" />
-                    {formatDate(r.dateReservation)}
-                  </td>
-
-                  {/* HEURE (FIX IMPORTANT) */}
-                  <td className="p-3 flex items-center gap-2">
-                    <FontAwesomeIcon icon={faClock} className="text-gray-500" />
-                    {formatTime(r.heureDebut)}
-                  </td>
-
-                  {/* STATUT */}
-                  <td className="p-3">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      r.statut === 'EN_ATTENTE'
-                        ? 'bg-yellow-100 text-yellow-700'
-                        : r.statut === 'VALIDE'
-                        ? 'bg-green-100 text-green-700'
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {r.statut}
-                    </span>
-                  </td>
-
-                  {/* ACTIONS */}
-                  <td className="p-3 flex gap-2">
-
-                    {r.statut === 'EN_ATTENTE' && (
-                      <>
-                        <button onClick={() => handleStatus(r.id, 'VALIDE')}>
-                          <FontAwesomeIcon icon={faCheckCircle} className="text-green-600 text-lg" />
-                        </button>
-
-                        <button onClick={() => handleStatus(r.id, 'REFUSE')}>
-                          <FontAwesomeIcon icon={faTimesCircle} className="text-red-600 text-lg" />
-                        </button>
-                      </>
-                    )}
-
-                    <button onClick={() => setSelected(r)}>
-                      <FontAwesomeIcon icon={faInfoCircle} className="text-blue-600 text-lg" />
-                    </button>
-
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      {/* MODAL CENTRÉ PRO */}
-      {selected && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-
-          <div className="bg-white w-[90%] max-w-md rounded-xl p-6 shadow-xl">
-
-            <h2 className="text-xl font-bold mb-4 text-blue-600">
-              Détails Réservation #{selected.id}
-            </h2>
-
-            <div className="space-y-2 text-sm">
-
-              <p>
-                <b>Patient :</b> {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
-              </p>
-
-              <p>
-                <b>Email :</b> {selected.utilisateur?.email}
-              </p>
-
-              <p>
-                <b>Date :</b> {formatDate(selected.dateReservation)}
-              </p>
-
-              <p>
-                <b>Heure :</b> {formatTime(selected.heureDebut)}
-              </p>
-
-              <p>
-                <b>Statut :</b> {selected.statut}
-              </p>
-
-            </div>
-
-            <div className="flex justify-end mt-5">
-              <button
-                onClick={() => setSelected(null)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg"
-              >
-                Fermer
-              </button>
-            </div>
-
+              {/* Footer modal */}
+              <div style={{
+                padding: '12px 20px', borderTop: '0.5px solid #eee',
+                display: 'flex', gap: 8,
+              }}>
+                {selected.statut === 'EN_ATTENTE' && (
+                  <>
+                    <button
+                      onClick={() => { handleUpdateStatus(selected.id, 'VALIDE'); setSelected(null); }}
+                      style={{
+                        flex: 1, padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                        cursor: 'pointer', border: '0.5px solid #C0DD97',
+                        background: '#EAF3DE', color: '#27500A',
+                      }}
+                    >✓ Valider</button>
+                    <button
+                      onClick={() => { handleUpdateStatus(selected.id, 'REFUSE'); setSelected(null); }}
+                      style={{
+                        flex: 1, padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                        cursor: 'pointer', border: '0.5px solid #F7C1C1',
+                        background: '#FCEBEB', color: '#791F1F',
+                      }}
+                    >✕ Refuser</button>
+                  </>
+                )}
+                <button
+                  onClick={() => setSelected(null)}
+                  style={{
+                    flex: selected.statut === 'EN_ATTENTE' ? 1 : 3,
+                    padding: 9, borderRadius: 8, fontSize: 13, fontWeight: 500,
+                    cursor: 'pointer', border: 'none',
+                    background: '#1a1a2e', color: '#e8e4ff',
+                  }}
+                >
+                  Fermer
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      )}
-
+        )}
+      </AnimatePresence>
     </div>
   );
 };
