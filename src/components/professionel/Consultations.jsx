@@ -22,7 +22,7 @@ const Consultations = () => {
       setLoading(false);
     }
   };
-
+console.log("CONSULTATIONS:", consultations);
   useEffect(() => {
     fetchConsultations();
   }, []);
