@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   faCheckCircle,
   faTimesCircle,
@@ -10,7 +9,7 @@ import {
   faInfoCircle,
   faClock,
   faUser,
-  faEnvelope
+  faIdBadge
 } from '@fortawesome/free-solid-svg-icons';
 
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
@@ -29,8 +28,9 @@ const ListeReservations = ({ proId }) => {
     try {
       const data = await getReservations(proId);
       setReservations(data);
-    } catch {
-      setError("Erreur lors du chargement");
+    } catch (err) {
+      console.error(err);
+      setError("Erreur lors du chargement des réservations");
     }
   };
 
@@ -40,40 +40,43 @@ const ListeReservations = ({ proId }) => {
     await chargerReservations();
   };
 
-  const formatDate = (date, heure) => {
+  const formatTime = (date, time) => {
     if (!date) return 'N/A';
-    const dt = new Date(`${date}T${heure || '00:00'}:00`);
-    return {
-      date: dt.toLocaleDateString('fr-FR', {
-        weekday: 'long',
-        day: 'numeric',
-        month: 'long'
-      }),
-      heure: dt.toLocaleTimeString('fr-FR', {
-        hour: '2-digit',
-        minute: '2-digit'
-      })
-    };
+    const dt = new Date(`${date}T${time || '00:00'}`);
+    return dt.toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
-  const filtered =
+  const reservationsFiltrees =
     filtreStatut === 'TOUS'
       ? reservations
       : reservations.filter(r => r.statut === filtreStatut);
 
-  return (
-    <div className="p-4 max-w-4xl mx-auto">
+  const getEmptyMessage = () => {
+    if (filtreStatut === 'EN_ATTENTE') return "Aucune réservation en attente";
+    if (filtreStatut === 'VALIDE') return "Aucune réservation validée";
+    if (filtreStatut === 'REFUSE') return "Aucune réservation refusée";
+    return "Aucune réservation disponible";
+  };
 
-      {/* FILTRES CLEAN */}
+  return (
+    <div className="p-4 bg-gray-50 min-h-screen">
+
+      {/* FILTRES */}
       <div className="flex gap-2 mb-4 flex-wrap">
         {STATUTS.map(s => (
           <button
             key={s}
             onClick={() => setFiltreStatut(s)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition ${
+            className={`px-4 py-2 rounded-full text-sm border transition ${
               filtreStatut === s
-                ? 'bg-indigo-600 text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                ? 'bg-blue-600 text-white'
+                : 'bg-white hover:bg-gray-100'
             }`}
           >
             {s}
@@ -81,117 +84,122 @@ const ListeReservations = ({ proId }) => {
         ))}
       </div>
 
-      {error && <p className="text-red-500">{error}</p>}
+      {/* TABLE */}
+      <div className="bg-white rounded-xl shadow overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-100">
+            <tr>
+              <th className="p-3">#</th>
+              <th>Patient</th>
+              <th>Date & Heure</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
 
-      {/* LISTE CARD STYLE */}
-      <div className="space-y-3">
-        {filtered.map(res => {
-          const dt = formatDate(res.dateReservation, res.heureDebut);
+          <tbody>
+            {reservationsFiltrees.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center p-6 text-gray-500">
+                  {getEmptyMessage()}
+                </td>
+              </tr>
+            ) : (
+              reservationsFiltrees.map((r, index) => (
+                <tr key={r.id} className="border-t hover:bg-gray-50">
+                  <td className="p-3 flex items-center gap-2">
+                    <FontAwesomeIcon icon={faIdBadge} />
+                    #{r.id}
+                  </td>
 
-          return (
-            <div
-              key={res.id}
-              className="bg-white rounded-2xl shadow p-4 flex justify-between items-center"
-            >
-              <div>
-                <p className="font-semibold">
-                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
-                </p>
+                  <td className="p-3">
+                    <div className="flex flex-col">
+                      <span className="font-medium flex items-center gap-1">
+                        <FontAwesomeIcon icon={faUser} />
+                        {r.utilisateur?.nom} {r.utilisateur?.prenom}
+                      </span>
+                      <span className="text-gray-500 text-xs">
+                        {r.utilisateur?.email}
+                      </span>
+                    </div>
+                  </td>
 
-                <p className="text-sm text-gray-500">
-                  {dt.date} à {dt.heure}
-                </p>
-              </div>
+                  <td className="p-3">
+                    <FontAwesomeIcon icon={faCalendarCheck} className="mr-1" />
+                    {formatTime(r.dateReservation, r.heureReservation)}
+                  </td>
 
-              <div className="flex gap-2 items-center">
+                  <td className="p-3">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      r.statut === 'EN_ATTENTE'
+                        ? 'bg-yellow-100 text-yellow-700'
+                        : r.statut === 'VALIDE'
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-red-100 text-red-700'
+                    }`}>
+                      {r.statut}
+                    </span>
+                  </td>
 
-                {res.statut === 'EN_ATTENTE' && (
-                  <>
-                    <button onClick={() => handleUpdateStatus(res.id, 'VALIDE')}>
-                      <FontAwesomeIcon icon={faCheckCircle} className="text-green-500" />
+                  <td className="p-3 flex gap-2">
+                    {r.statut === 'EN_ATTENTE' && (
+                      <>
+                        <button onClick={() => handleUpdateStatus(r.id, 'VALIDE')}>
+                          <FontAwesomeIcon icon={faCheckCircle} className="text-green-600" />
+                        </button>
+                        <button onClick={() => handleUpdateStatus(r.id, 'REFUSE')}>
+                          <FontAwesomeIcon icon={faTimesCircle} className="text-red-600" />
+                        </button>
+                      </>
+                    )}
+
+                    <button onClick={() => setSelected(r)}>
+                      <FontAwesomeIcon icon={faInfoCircle} className="text-blue-600" />
                     </button>
-
-                    <button onClick={() => handleUpdateStatus(res.id, 'REFUSE')}>
-                      <FontAwesomeIcon icon={faTimesCircle} className="text-red-500" />
-                    </button>
-                  </>
-                )}
-
-                <button onClick={() => setSelected(res)}>
-                  <FontAwesomeIcon icon={faInfoCircle} className="text-blue-500" />
-                </button>
-              </div>
-            </div>
-          );
-        })}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
-      {/* MODAL PRO CENTRÉ */}
-      <AnimatePresence>
-        {selected && (
-          <div
-            className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50"
-            onClick={() => setSelected(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={e => e.stopPropagation()}
-              className="bg-white w-full max-w-md rounded-2xl p-6 shadow-xl"
-            >
+      {/* MODAL DETAILS */}
+      {selected && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white w-[90%] max-w-md rounded-xl p-6 shadow-lg">
 
-              <h2 className="text-lg font-bold mb-4">
-                Détails de la réservation
-              </h2>
+            <h2 className="text-lg font-bold mb-4">
+              Détails réservation #{selected.id}
+            </h2>
 
-              <div className="space-y-3 text-sm">
+            <p><b>Patient:</b> {selected.utilisateur?.nom} {selected.utilisateur?.prenom}</p>
+            <p><b>Email:</b> {selected.utilisateur?.email}</p>
 
-                <p className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faUser} />
-                  {selected.utilisateur?.prenom} {selected.utilisateur?.nom}
-                </p>
+            <p className="mt-2">
+              <b>Date:</b> {selected.dateReservation}
+            </p>
 
-                <p className="flex items-center gap-2 text-gray-600">
-                  <FontAwesomeIcon icon={faEnvelope} />
-                  {selected.utilisateur?.email || "Email indisponible"}
-                </p>
+            <p>
+              <b>Heure:</b> {selected.heureReservation || 'Non définie'}
+            </p>
 
-                <p className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faCalendarCheck} />
-                  {formatDate(selected.dateReservation, selected.heureDebut).date}
-                </p>
+            <p>
+              <b>Statut:</b> {selected.statut}
+            </p>
 
-                <p className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faClock} />
-                  {formatDate(selected.dateReservation, selected.heureDebut).heure}
-                </p>
-
-                {selected.consultation?.lienVisio && (
-                  <a
-                    href={selected.consultation.lienVisio}
-                    target="_blank"
-                    className="text-indigo-600 flex items-center gap-2 mt-2"
-                  >
-                    <FontAwesomeIcon icon={faVideo} />
-                    Rejoindre la visio
-                  </a>
-                )}
-
-              </div>
-
+            <div className="flex justify-end mt-4">
               <button
                 onClick={() => setSelected(null)}
-                className="mt-5 w-full bg-indigo-600 text-white py-2 rounded-lg"
+                className="px-4 py-2 bg-blue-600 text-white rounded"
               >
                 Fermer
               </button>
+            </div>
 
-            </motion.div>
           </div>
-        )}
-      </AnimatePresence>
-
+        </div>
+      )}
     </div>
   );
 };
