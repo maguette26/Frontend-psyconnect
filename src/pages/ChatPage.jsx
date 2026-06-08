@@ -4,7 +4,7 @@ import { getConsultation, getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 
 export default function ChatPage(props) {
-  const { consultationId } = useParams(); // ✅ SAFE
+  const { consultationId } = useParams();
   const navigate = useNavigate();
 
   const [consultation, setConsultation] = useState(null);
@@ -17,7 +17,9 @@ export default function ChatPage(props) {
       setMessages((prev) => [...prev, msg]);
     },
   });
-console.log("CONSULTATION ID =", consultationId);
+
+  console.log("CONSULTATION ID =", consultationId);
+
   // ❌ SAFE GUARD
   if (!consultationId) {
     return (
@@ -28,23 +30,59 @@ console.log("CONSULTATION ID =", consultationId);
   }
 
   useEffect(() => {
-    if (!consultationId) return;
+    let isMounted = true;
 
-    Promise.all([
-      getConsultation(consultationId),
-      getChatHistory(consultationId),
-    ])
-      .then(([c, history]) => {
-        setConsultation(c);
-        setMessages(history);
+    async function loadData() {
+      try {
+        const [consultationRes, chatRes] = await Promise.allSettled([
+          getConsultation(consultationId),
+          getChatHistory(consultationId),
+        ]);
 
-        if (c.statut !== "CONFIRMEE") {
+        if (!isMounted) return;
+
+        // =====================
+        // CONSULTATION (OBLIGATOIRE)
+        // =====================
+        if (consultationRes.status === "fulfilled") {
+          const c = consultationRes.value;
+          setConsultation(c);
+
+          // accès autorisé seulement si CONFIRMEE
+          if (c.statut !== "CONFIRMEE") {
+            navigate("/consultations");
+            return;
+          }
+        } else {
+          console.error("Consultation error:", consultationRes.reason);
           navigate("/consultations");
+          return;
         }
-      })
-      .catch((err) => console.error("API ERROR:", err))
-      .finally(() => setLoading(false));
-  }, [consultationId]);
+
+        // =====================
+        // CHAT (OPTIONNEL)
+        // =====================
+        if (chatRes.status === "fulfilled") {
+          setMessages(chatRes.value || []);
+        } else {
+          console.warn("Chat history inaccessible:", chatRes.reason);
+          setMessages([]);
+        }
+
+      } catch (err) {
+        console.error("ChatPage fatal error:", err);
+        navigate("/consultations");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    }
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [consultationId, navigate]);
 
   if (loading) return <p>Chargement...</p>;
 
@@ -52,6 +90,7 @@ console.log("CONSULTATION ID =", consultationId);
     <div className="p-4">
       <h2>Chat consultation #{consultationId}</h2>
 
+      {/* MESSAGES */}
       <div className="border p-3 h-96 overflow-auto">
         {messages.map((m, i) => (
           <div key={m.id || i}>
@@ -60,7 +99,7 @@ console.log("CONSULTATION ID =", consultationId);
         ))}
       </div>
 
-      {/* SIMPLE INPUT (sans changer design) */}
+      {/* TEST SEND BUTTON */}
       <div style={{ marginTop: 10 }}>
         <button
           onClick={() =>
@@ -71,6 +110,7 @@ console.log("CONSULTATION ID =", consultationId);
         </button>
       </div>
 
+      {/* STATUS */}
       {error && <p style={{ color: "red" }}>{error}</p>}
       {connected ? <p>🟢 Connecté</p> : <p>🔴 Déconnecté</p>}
     </div>

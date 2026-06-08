@@ -54,7 +54,8 @@ api.interceptors.request.use(config => {
 
 export const getConsultations = () => api.get('/consultations').then(r => r.data);
 export const getConsultation = (id) => api.get(`/consultations/${id}`).then(r => r.data);
-export const getChatHistory = (id) => api.get(`/chat/${id}/history`).then(r => r.data);
+export const getChatHistory = (id) =>
+  api.get(`/chat/${id}/history`).then(r => r.data);
 export const getMe = () => api.get('/auth/me').then(r => r.data);
 export const logout = () => api.post('/auth/logout');
 
