@@ -160,15 +160,18 @@ const ListeReservations = ({ proId }) => {
   const [loadingIds,     setLoadingIds]     = useState(new Set());
   // ✅ masquage des entrées passées/refusées
   const [masquerAnciens, setMasquerAnciens] = useState(true);
+const chargerReservations = useCallback(async () => {
+  try {
+    const data = await getReservations(proId);
 
-  const chargerReservations = useCallback(async () => {
-    try {
-      const data = await getReservations(proId);
-      setReservations(data);
-    } catch {
-      showToast('Erreur lors du chargement des réservations.', 'error');
-    }
-  }, [proId]);
+    console.log("RESERVATIONS :", data);
+    console.log("STATUTS :", data.map(r => r.statut));
+
+    setReservations(data);
+  } catch {
+    showToast('Erreur lors du chargement des réservations.', 'error');
+  }
+}, [proId]);
 
   useEffect(() => { if (proId) chargerReservations(); }, [proId, chargerReservations]);
 

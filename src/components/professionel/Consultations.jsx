@@ -152,18 +152,21 @@ const Consultations = () => {
 
   useEffect(() => { fetchConsultations(); }, []);
 
-  const fetchConsultations = async () => {
-    try {
-      const data = await getConsultations();
-      setConsultations(data);
-      setError('');
-    } catch (e) {
-      console.error('Erreur :', e);
-      setError('Erreur lors du chargement des consultations.');
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchConsultations = async () => {
+  try {
+    const data = await getConsultations();
+
+    console.log("CONSULTATIONS :", data);
+    console.log("STATUTS :", data.map(c => c.statut));
+
+    setConsultations(data);
+    setError('');
+  } catch (e) {
+    console.error('Erreur :', e);
+  } finally {
+    setLoading(false);
+  }
+};
 
   const filtered =
     filtreStatut === 'TOUTES'
