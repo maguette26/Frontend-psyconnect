@@ -294,11 +294,11 @@ const ListeReservations = ({ proId }) => {
                   </span>
                   <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
                   <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <ClockIcon />Résa. {fmtHeure(res.heureReservation)}
+                    <ClockIcon />HeureRéservation:{(res.heureReservation)}
                   </span>
                   <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
                   <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <StethIcon />Consult. {fmtHeure(res.heureConsultation)}
+                    <StethIcon /> HeureConsultation:{(res.heureConsultation)}
                   </span>
                 </div>
               </div>
