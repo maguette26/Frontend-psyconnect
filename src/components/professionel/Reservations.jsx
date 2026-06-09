@@ -157,13 +157,16 @@ const ListeReservations = ({ proId }) => {
   useEffect(() => { if (proId) chargerReservations(); }, [proId]);
 
   const chargerReservations = async () => {
-    try {
-      const data = await getReservations(proId);
-      setReservations(data);
-    } catch {
-      setError('Erreur lors du chargement des réservations.');
-    }
-  };
+  try {
+    const data = await getReservations(proId);
+
+    console.log("RESERVATIONS :", data);
+
+    setReservations(data);
+  } catch {
+    setError('Erreur lors du chargement des réservations.');
+  }
+};
 
   const handleUpdateStatus = async (id, statut) => {
     if (!window.confirm('Confirmer cette action ?')) return;
@@ -255,8 +258,6 @@ const ListeReservations = ({ proId }) => {
         )}
 
         <AnimatePresence>
-
-    console.log(res);
           {filtered.map(res => (
             <motion.div
               key={res.id}
@@ -275,7 +276,7 @@ const ListeReservations = ({ proId }) => {
               }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
               onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
-            > 
+            >
               {/* Avatar */}
               <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
 
