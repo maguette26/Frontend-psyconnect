@@ -409,10 +409,10 @@ const ListeReservations = ({ proId }) => {
                   {fmtDate(selected.dateReservation)}
                 </ModalRow>
                 <ModalRow icon={<ClockIcon />} label="Heure de réservation">
-                  {fmtHeure(selected.heureReservation ?? selected.heureDebut)}
+                  {fmtHeure(selected.heureReservation ?? selected.heureReservation)}
                 </ModalRow>
                 <ModalRow icon={<StethIcon />} label="Heure de consultation">
-                  {fmtHeure(selected.heureDebut)}
+                  {fmtHeure(selected.heureConsultation)}
                 </ModalRow>
 
                 <div style={{ height: 1, background: '#F1F5F9', margin: '6px 0' }} />
