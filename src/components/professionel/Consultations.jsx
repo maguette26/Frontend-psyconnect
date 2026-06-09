@@ -184,7 +184,7 @@ const fetchConsultations = async () => {
       fontFamily: "'DM Sans', 'Inter', sans-serif",
       boxSizing: 'border-box',
     }}>
-     //link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── TITRE ── */}
       <div style={{ marginBottom: '2rem' }}>
@@ -269,7 +269,11 @@ const fetchConsultations = async () => {
               onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
             >
               {/* Avatar */}
-              <div>TEST</div>
+              <Avatar
+                prenom={consult.utilisateurPrenom}
+                nom={consult.utilisateurNom}
+                statut={consult.statut}
+              />
 
               {/* Infos */}
               <div style={{ flex: 1, minWidth: 0 }}>
