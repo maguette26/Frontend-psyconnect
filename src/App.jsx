@@ -3,7 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import Chatbot from './components/Chatbot';
-import Header from './components/commun/header'; // ✅ ton Header réel
+import Header from './components/commun/header';
 
 import Accueil from './pages/Accueil';
 import Inscription from './pages/Inscription';
@@ -27,43 +27,41 @@ import ListeControleBienEtre from './pages/ListeControleBienEtre';
 import Page404 from './pages/Page404';
 import ScrollToTop from './ScrollToTop';
 import { RessourceProvider } from './pages/RessourceContext';
- 
 
- 
 import ChatPage from "./pages/ChatPage";
- 
 import ConsultationsPage from './pages/ConsultationsPage';
 import { getMe } from './services/api';
+import ConsultationAccessPage from './pages/ConsultationAccessPage';
+
+// ⚠️ Importe ces deux si tu les utilises, sinon supprime-les
+ import { useBackendWarmup } from './hooks/useBackendWarmup';
+ import WarmupScreen from './components/WarmupScreen';
 
 function AppWrapper() {
   const location = useLocation();
 
-  // ✅ état pour contrôler l'ouverture du Chatbot
   const [chatOpen, setChatOpen] = useState(false);
-
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
+  // ⚠️ useEffect doit être AVANT tout return conditionnel
   useEffect(() => {
-  getMe()
-    .then(setCurrentUser)
-    .catch(() => setCurrentUser(null))
-    .finally(() => setAuthLoading(false));
-}, []);
+    getMe()
+      .then(setCurrentUser)
+      .catch(() => setCurrentUser(null))
+      .finally(() => setAuthLoading(false));
+  }, []);
 
+  // ✅ Ces returns conditionnels viennent APRÈS les hooks
   if (authLoading) return <div>Chargement...</div>;
 
   return (
     <RessourceProvider>
-      {/* ✅ Header avec bouton PsyBot */}
       <Header onOpenChat={() => setChatOpen(true)} />
 
-      
-
       <Routes>
-       
-        <Route path="/chatbot" element={<Chatbot  />} />
         <Route path="/" element={<Accueil />} />
+        <Route path="/chatbot" element={<Chatbot />} />
         <Route path="/inscription" element={<Inscription />} />
         <Route path="/inscription/utilisateur" element={<InscriptionUser />} />
         <Route path="/inscription/professionnel" element={<InscriptionProfessionnel />} />
@@ -82,19 +80,19 @@ function AppWrapper() {
         <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
         <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
         <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
-        <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<Page404 />} />
-
-         <Route path="/consultations" element={<ConsultationsPage />} />
+        <Route path="/consultations" element={<ConsultationsPage />} />
+        <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
         <Route
           path="/chat/:consultationId"
           element={
             currentUser
               ? <ChatPage currentUser={currentUser} />
-              : <Navigate to="/login" />
+              : <Navigate to="/connexion" />
           }
         />
-        <Route path="*" element={<Navigate to="/consultations" />} />
+        <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
+        {/* ✅ Un seul catch-all à la fin */}
+        <Route path="*" element={<Page404 />} />
       </Routes>
     </RessourceProvider>
   );
