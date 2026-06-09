@@ -3,9 +3,6 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import { motion, AnimatePresence } from 'framer-motion';
 
-/* ══════════════════════════════════════════
-   CONFIG STATUTS
-══════════════════════════════════════════ */
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
 const LABELS  = { EN_ATTENTE: 'En attente', VALIDE: 'Validé', REFUSE: 'Refusé' };
 
@@ -22,9 +19,6 @@ const FILTER_ACTIVE = {
   REFUSE:     { background: '#E2E8F0', color: '#334155', borderColor: '#CBD5E1' },
 };
 
-/* ══════════════════════════════════════════
-   HELPERS
-══════════════════════════════════════════ */
 function initials(prenom, nom) {
   return ((prenom?.[0] ?? '') + (nom?.[0] ?? '')).toUpperCase();
 }
@@ -38,9 +32,6 @@ function fmtHeure(h) {
   return h ? h.replace(':', 'h') : '—';
 }
 
-/* ══════════════════════════════════════════
-   SOUS-COMPOSANTS
-══════════════════════════════════════════ */
 function Avatar({ prenom, nom, statut, size = 40 }) {
   const cfg = STATUT_CONFIG[statut] ?? STATUT_CONFIG.EN_ATTENTE;
   return (
@@ -70,7 +61,6 @@ function StatutBadge({ statut }) {
   );
 }
 
-/** Spinner SVG inline — pas de dépendance externe */
 function Spinner({ size = 14, color = '#64748B' }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5"
@@ -148,9 +138,6 @@ function ModalRow({ icon, label, children }) {
   );
 }
 
-/* ══════════════════════════════════════════
-   ICÔNES SVG
-══════════════════════════════════════════ */
 const CalIcon   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
 const ClockIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>;
 const StethIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 6.5a5 5 0 0 0 5 5v3a3.5 3.5 0 0 0 7 0v-1a2 2 0 1 1 0-4 2 2 0 0 1 0 4"/><path d="M4.5 6.5H7m-2.5 0A2.5 2.5 0 0 1 7 4h3a2.5 2.5 0 0 1 0 5H7"/></svg>;
@@ -159,22 +146,13 @@ const EyeIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="no
 const CheckIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const XIcon     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 
-/* ══════════════════════════════════════════
-   COMPOSANT PRINCIPAL
-══════════════════════════════════════════ */
 const ListeReservations = ({ proId }) => {
   const [reservations, setReservations] = useState([]);
   const [filtreStatut, setFiltreStatut] = useState('TOUS');
   const [selected,     setSelected]     = useState(null);
-  const [toast,        setToast]        = useState(null); // { message, type }
+  const [toast,        setToast]        = useState(null);
+  const [loadingIds,   setLoadingIds]   = useState(new Set());
 
-  /**
-   * loadingIds : Set des IDs en cours de traitement.
-   * Empêche le double-clic et permet un loading state par carte.
-   */
-  const [loadingIds, setLoadingIds] = useState(new Set());
-
-  /* ── Chargement initial ─────────────────────────────── */
   const chargerReservations = useCallback(async () => {
     try {
       const data = await getReservations(proId);
@@ -186,45 +164,22 @@ const ListeReservations = ({ proId }) => {
 
   useEffect(() => { if (proId) chargerReservations(); }, [proId, chargerReservations]);
 
-  /* ── Toast helper ───────────────────────────────────── */
   const showToast = (message, type = 'info') => setToast({ message, type });
 
-  /* ══════════════════════════════════════════════════════
-     MISE À JOUR STATUT — Optimistic UI + Rollback
-     1. On met à jour l'état local immédiatement (optimistic)
-     2. On désactive les boutons de cette réservation (loadingIds)
-     3. On appelle l'API (avec retry automatique via intercepteur)
-     4a. Succès → on recharge pour être en sync avec le serveur
-     4b. Échec  → on rollback l'état local + toast d'erreur
-  ══════════════════════════════════════════════════════ */
   const handleUpdateStatus = async (id, statut) => {
-    // Garde anti-double-clic
     if (loadingIds.has(id)) return;
-
-    // 1. Snapshot pour rollback
     const snapshot = reservations.map((r) => ({ ...r }));
-
-    // 2. Optimistic update
-    setReservations((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, statut } : r))
-    );
-
-    // Sync modal si elle est ouverte
+    setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, statut } : r)));
     if (selected?.id === id) setSelected((s) => ({ ...s, statut }));
-
-    // 3. Verrouiller les boutons
     setLoadingIds((prev) => new Set([...prev, id]));
-
     try {
       await updateReservationStatus(id, statut);
       showToast(
         statut === 'VALIDE' ? '✓ Réservation validée' : '✕ Réservation refusée',
         statut === 'VALIDE' ? 'success' : 'info'
       );
-      // Resync discret (pas de flash UI car optimistic déjà en place)
       await chargerReservations();
     } catch (err) {
-      // 4b. Rollback
       setReservations(snapshot);
       if (selected?.id === id) {
         const original = snapshot.find((r) => r.id === id);
@@ -235,7 +190,6 @@ const ListeReservations = ({ proId }) => {
         : err?.message ?? 'Erreur lors de la mise à jour.';
       showToast(msg, 'error');
     } finally {
-      // 5. Déverrouiller
       setLoadingIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
@@ -244,15 +198,13 @@ const ListeReservations = ({ proId }) => {
     }
   };
 
-  /* ── Filtres ────────────────────────────────────────── */
-  const filtered  = filtreStatut === 'TOUS'
+  const filtered = filtreStatut === 'TOUS'
     ? reservations
     : reservations.filter((r) => r.statut === filtreStatut);
 
-  const countFor  = (s) =>
+  const countFor = (s) =>
     s === 'TOUS' ? reservations.length : reservations.filter((r) => r.statut === s).length;
 
-  /* ── Render ─────────────────────────────────────────── */
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '2rem 1.25rem', fontFamily: "'DM Sans', 'Inter', sans-serif", boxSizing: 'border-box' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -298,15 +250,18 @@ const ListeReservations = ({ proId }) => {
           </div>
         )}
 
-        <AnimatePresence>
+        {/* ✅ FIX: mode="popLayout" + layout sur chaque carte */}
+        <AnimatePresence mode="popLayout">
           {filtered.map((res) => {
             const isLoading = loadingIds.has(res.id);
             return (
               <motion.div
                 key={res.id}
+                layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
                 style={{
                   background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14,
                   padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
@@ -318,10 +273,8 @@ const ListeReservations = ({ proId }) => {
                 onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
                 onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }}
               >
-                {/* Avatar — change de couleur selon le statut (optimistic) */}
                 <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
 
-                {/* Infos */}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 14, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {res.utilisateur?.prenom} {res.utilisateur?.nom}
@@ -335,32 +288,34 @@ const ListeReservations = ({ proId }) => {
                   </div>
                 </div>
 
-                {/* Actions */}
+                {/* ✅ FIX: conteneur stable pour les boutons conditionnels */}
                 <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                   <StatutBadge statut={res.statut} />
 
-                  {res.statut === 'EN_ATTENTE' && (
-                    <>
-                      <IconBtn
-                        title="Valider"
-                        disabled={isLoading}
-                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
-                        onHoverStyle={{ background: '#F0FDF4', color: '#166534' }}
-                      >
-                        {isLoading ? <Spinner color="#22C55E" /> : <CheckIcon />}
-                        {isLoading ? 'En cours…' : 'Valider'}
-                      </IconBtn>
-                      <IconBtn
-                        title="Refuser"
-                        disabled={isLoading}
-                        onClick={(e) => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
-                        onHoverStyle={{ background: '#FFF1F2', color: '#BE123C' }}
-                      >
-                        {isLoading ? <Spinner color="#F43F5E" /> : <XIcon />}
-                        {isLoading ? '' : 'Refuser'}
-                      </IconBtn>
-                    </>
-                  )}
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {res.statut === 'EN_ATTENTE' ? (
+                      <>
+                        <IconBtn
+                          title="Valider"
+                          disabled={isLoading}
+                          onClick={(e) => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
+                          onHoverStyle={{ background: '#F0FDF4', color: '#166534' }}
+                        >
+                          {isLoading ? <Spinner color="#22C55E" /> : <CheckIcon />}
+                          {isLoading ? 'En cours…' : 'Valider'}
+                        </IconBtn>
+                        <IconBtn
+                          title="Refuser"
+                          disabled={isLoading}
+                          onClick={(e) => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
+                          onHoverStyle={{ background: '#FFF1F2', color: '#BE123C' }}
+                        >
+                          {isLoading ? <Spinner color="#F43F5E" /> : <XIcon />}
+                          {isLoading ? '' : 'Refuser'}
+                        </IconBtn>
+                      </>
+                    ) : null}
+                  </div>
 
                   <IconBtn
                     title="Voir les détails"
@@ -377,7 +332,7 @@ const ListeReservations = ({ proId }) => {
         </AnimatePresence>
       </div>
 
-      {/* ── MODAL ──────────────────────────────────────── */}
+      {/* MODAL */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -397,7 +352,6 @@ const ListeReservations = ({ proId }) => {
               onClick={(e) => e.stopPropagation()}
               style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, border: '1px solid #E2E8F0', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }}
             >
-              {/* Header modal */}
               <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', gap: 14, alignItems: 'center' }}>
                 <Avatar prenom={selected.utilisateur?.prenom} nom={selected.utilisateur?.nom} statut={selected.statut} size={50} />
                 <div style={{ minWidth: 0, flex: 1 }}>
@@ -419,7 +373,6 @@ const ListeReservations = ({ proId }) => {
                 </button>
               </div>
 
-              {/* Body modal */}
               <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#CBD5E1' }}>
                   Date &amp; horaires
@@ -436,7 +389,6 @@ const ListeReservations = ({ proId }) => {
                 </ModalRow>
               </div>
 
-              {/* Footer modal */}
               <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9', display: 'flex', gap: 8 }}>
                 {selected.statut === 'EN_ATTENTE' && (() => {
                   const isLoading = loadingIds.has(selected.id);
@@ -473,7 +425,6 @@ const ListeReservations = ({ proId }) => {
         )}
       </AnimatePresence>
 
-      {/* ── TOAST ─────────────────────────────────────── */}
       <AnimatePresence>
         {toast && (
           <Toast
