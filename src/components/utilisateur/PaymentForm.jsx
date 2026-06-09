@@ -9,36 +9,68 @@ const stripePromise = loadStripe("pk_test_51RXnftAc9vHWOsmYRgXSBdNEne7MxfObedkDB
 // =========================
 // CHECKOUT FORM
 // =========================
-const CheckoutForm = ({ clientSecret, onSuccess, onError }) => {
+const CheckoutForm = ({ clientSecret, reservationId, onSuccess, onError }) => {
   const stripe = useStripe();
   const elements = useElements();
   const [loading, setLoading] = useState(false);
+const interval = setInterval(async () => {
+  const res = await api.get(`/reservations/${reservationId}`);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) {
-      onError("Stripe n'est pas prêt.");
+  if (res.data.statut === "PAYE") {
+    clearInterval(interval);
+    window.location.reload();
+  }
+}, 2000);
+ const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!stripe || !elements) {
+    onError("Stripe n'est pas prêt.");
+    return;
+  }
+
+  setLoading(true);
+
+  const cardElement = elements.getElement(CardElement);
+
+  try {
+    const result = await stripe.confirmCardPayment(clientSecret, {
+      payment_method: { card: cardElement },
+    });
+
+    if (result.error) {
+      onError(result.error.message);
       return;
     }
-    setLoading(true);
-    const cardElement = elements.getElement(CardElement);
-    try {
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElement },
-      });
-      if (result.error) {
-        onError(result.error.message);
-      } else if (result.paymentIntent?.status === 'succeeded') {
-        onSuccess('Paiement réussi.');
-      } else {
-        onError('Paiement échoué.');
+
+    if (result.paymentIntent?.status === 'succeeded') {
+
+      // ⚠️ OPTIONNEL (mais ton backend webhook doit suffire)
+      try {
+        await api.post('/payments/confirm', {
+          reservationId,
+        });
+      } catch (err) {
+        console.log("confirm error:", err);
       }
-    } catch (err) {
-      onError('Erreur : ' + err.message);
-    } finally {
-      setLoading(false);
+
+      onSuccess('Paiement réussi.');
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+
+      return;
     }
-  };
+
+    onError('Paiement échoué.');
+
+  } catch (err) {
+    onError('Erreur : ' + err.message);
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -196,10 +228,11 @@ const PaymentForm = ({ reservationId, onClose }) => {
           {clientSecret && (
             <Elements stripe={stripePromise} options={{ clientSecret }} key={clientSecret}>
               <CheckoutForm
-                clientSecret={clientSecret}
-                onSuccess={(msg) => setMessage({ type: 'success', text: msg })}
-                onError={(msg) => setMessage({ type: 'error', text: msg })}
-              />
+  clientSecret={clientSecret}
+  reservationId={reservationId}
+  onSuccess={(msg) => setMessage({ type: 'success', text: msg })}
+  onError={(msg) => setMessage({ type: 'error', text: msg })}
+/>
             </Elements>
           )}
         </>
