@@ -269,11 +269,7 @@ const fetchConsultations = async () => {
               onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
             >
               {/* Avatar */}
-              <Avatar
-                prenom={consult.utilisateurPrenom}
-                nom={consult.utilisateurNom}
-                statut={consult.statut}
-              />
+              <div>TEST</div>
 
               {/* Infos */}
               <div style={{ flex: 1, minWidth: 0 }}>
