@@ -29,7 +29,16 @@ function fmtDate(dateStr) {
   });
 }
 function fmtHeure(h) {
-  return h ? h.replace(':', 'h') : '—';
+  return h ? String(h).replace(':', 'h') : '—';
+}
+
+// Vérifie si une réservation est "passée" (date < aujourd'hui)
+function isPassee(dateStr) {
+  if (!dateStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateStr + 'T00:00:00');
+  return d < today;
 }
 
 function Avatar({ prenom, nom, statut, size = 40 }) {
@@ -84,8 +93,8 @@ function IconBtn({ onClick, title, children, onHoverStyle, style: extraStyle, di
         height: 32, borderRadius: 8, cursor: disabled ? 'not-allowed' : 'pointer', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
         border: '1px solid #E2E8F0',
-        background: hovered && !disabled && onHoverStyle ? onHoverStyle.background : '#fff',
-        color:      hovered && !disabled && onHoverStyle ? onHoverStyle.color : '#475569',
+        background: hovered && !disabled && onHoverStyle ? onHoverStyle.background : (extraStyle?.background ?? '#fff'),
+        color:      hovered && !disabled && onHoverStyle ? onHoverStyle.color : (extraStyle?.color ?? '#475569'),
         opacity: disabled ? 0.5 : 1,
         transition: 'all 0.15s', padding: '0 10px', fontSize: 12, fontWeight: 500,
         ...extraStyle,
@@ -101,19 +110,15 @@ function Toast({ message, type, onClose }) {
     const t = setTimeout(onClose, 4000);
     return () => clearTimeout(t);
   }, [onClose]);
-
   const colors = {
     success: { bg: '#F0FDF4', border: '#BBF7D0', color: '#166534' },
     error:   { bg: '#FFF1F2', border: '#FECACA', color: '#BE123C' },
     info:    { bg: '#EFF6FF', border: '#BFDBFE', color: '#1D4ED8' },
   };
   const c = colors[type] ?? colors.info;
-
   return (
     <motion.div
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: 16 }}
+      initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 16 }}
       style={{
         position: 'fixed', bottom: 24, right: 24, zIndex: 9999,
         padding: '10px 16px', borderRadius: 12, fontSize: 13, fontWeight: 500,
@@ -131,7 +136,7 @@ function Toast({ message, type, onClose }) {
 function ModalRow({ icon, label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
-      <span style={{ width: 18, color: '#94A3B8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink: 0 }}>{icon}</span>
+      <span style={{ width: 18, color: '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
       <span style={{ width: 165, flexShrink: 0, color: '#64748B' }}>{label}</span>
       <span style={{ color: '#0F172A', fontWeight: 600 }}>{children}</span>
     </div>
@@ -145,13 +150,16 @@ const TagIcon   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="no
 const EyeIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
 const CheckIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>;
 const XIcon     = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
+const EyeOffIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
 
 const ListeReservations = ({ proId }) => {
-  const [reservations, setReservations] = useState([]);
-  const [filtreStatut, setFiltreStatut] = useState('TOUS');
-  const [selected,     setSelected]     = useState(null);
-  const [toast,        setToast]        = useState(null);
-  const [loadingIds,   setLoadingIds]   = useState(new Set());
+  const [reservations,   setReservations]   = useState([]);
+  const [filtreStatut,   setFiltreStatut]   = useState('TOUS');
+  const [selected,       setSelected]       = useState(null);
+  const [toast,          setToast]          = useState(null);
+  const [loadingIds,     setLoadingIds]     = useState(new Set());
+  // ✅ masquage des entrées passées/refusées
+  const [masquerAnciens, setMasquerAnciens] = useState(true);
 
   const chargerReservations = useCallback(async () => {
     try {
@@ -168,10 +176,10 @@ const ListeReservations = ({ proId }) => {
 
   const handleUpdateStatus = async (id, statut) => {
     if (loadingIds.has(id)) return;
-    const snapshot = reservations.map((r) => ({ ...r }));
-    setReservations((prev) => prev.map((r) => (r.id === id ? { ...r, statut } : r)));
-    if (selected?.id === id) setSelected((s) => ({ ...s, statut }));
-    setLoadingIds((prev) => new Set([...prev, id]));
+    const snapshot = reservations.map(r => ({ ...r }));
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, statut } : r));
+    if (selected?.id === id) setSelected(s => ({ ...s, statut }));
+    setLoadingIds(prev => new Set([...prev, id]));
     try {
       await updateReservationStatus(id, statut);
       showToast(
@@ -182,7 +190,7 @@ const ListeReservations = ({ proId }) => {
     } catch (err) {
       setReservations(snapshot);
       if (selected?.id === id) {
-        const original = snapshot.find((r) => r.id === id);
+        const original = snapshot.find(r => r.id === id);
         if (original) setSelected(original);
       }
       const msg = err?.response?.status === 503
@@ -190,7 +198,7 @@ const ListeReservations = ({ proId }) => {
         : err?.message ?? 'Erreur lors de la mise à jour.';
       showToast(msg, 'error');
     } finally {
-      setLoadingIds((prev) => {
+      setLoadingIds(prev => {
         const next = new Set(prev);
         next.delete(id);
         return next;
@@ -198,16 +206,65 @@ const ListeReservations = ({ proId }) => {
     }
   };
 
-  const filtered = filtreStatut === 'TOUS'
-    ? reservations
-    : reservations.filter((r) => r.statut === filtreStatut);
+  // ✅ filtrage : statut + masquage anciens/refusés
+  const applyFilters = (list) => {
+    let result = filtreStatut === 'TOUS'
+      ? list
+      : list.filter(r => r.statut === filtreStatut);
 
-  const countFor = (s) =>
-    s === 'TOUS' ? reservations.length : reservations.filter((r) => r.statut === s).length;
+    if (masquerAnciens) {
+      result = result.filter(r => {
+        // masquer si refusé OU si passé et pas en attente
+        if (r.statut === 'REFUSE') return false;
+        if (isPassee(r.dateReservation) && r.statut !== 'EN_ATTENTE') return false;
+        return true;
+      });
+    }
+    return result;
+  };
+
+  const filtered = applyFilters(reservations);
+
+  const countFor = (s) => {
+    const base = s === 'TOUS' ? reservations : reservations.filter(r => r.statut === s);
+    return masquerAnciens
+      ? base.filter(r => {
+          if (r.statut === 'REFUSE') return false;
+          if (isPassee(r.dateReservation) && r.statut !== 'EN_ATTENTE') return false;
+          return true;
+        }).length
+      : base.length;
+  };
+
+  const nbMasques = reservations.filter(r =>
+    r.statut === 'REFUSE' || (isPassee(r.dateReservation) && r.statut !== 'EN_ATTENTE')
+  ).length;
 
   return (
     <div style={{ maxWidth: 760, margin: '0 auto', padding: '2rem 1.25rem', fontFamily: "'DM Sans', 'Inter', sans-serif", boxSizing: 'border-box' }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .resa-card {
+          animation: fadeIn 0.18s ease both;
+          background: #fff;
+          border: 1px solid #E2E8F0;
+          border-radius: 14px;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          box-sizing: border-box;
+          min-width: 0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          transition: box-shadow 0.15s;
+        }
+        .resa-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        .resa-card.loading { box-shadow: 0 0 0 2px #BFDBFE; opacity: 0.85; }
+      `}</style>
 
       {/* TITRE */}
       <div style={{ marginBottom: '2rem' }}>
@@ -215,10 +272,10 @@ const ListeReservations = ({ proId }) => {
         <p style={{ margin: 0, fontSize: 13, color: '#94A3B8' }}>Gestion des séances · {reservations.length} au total</p>
       </div>
 
-      {/* FILTRES */}
+      {/* FILTRES + TOGGLE MASQUAGE */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-          {STATUTS.map((s) => {
+          {STATUTS.map(s => {
             const active = filtreStatut === s;
             return (
               <button key={s} onClick={() => setFiltreStatut(s)} style={{
@@ -234,12 +291,32 @@ const ListeReservations = ({ proId }) => {
             );
           })}
         </div>
-        <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B', background: '#F1F5F9', padding: '4px 12px', borderRadius: 20 }}>
-          {filtered.length} session{filtered.length !== 1 ? 's' : ''}
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {/* Toggle masquer anciens */}
+          {nbMasques > 0 && (
+            <button
+              onClick={() => setMasquerAnciens(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                cursor: 'pointer', transition: 'all 0.15s',
+                border: '1px solid #E2E8F0',
+                background: masquerAnciens ? '#F1F5F9' : '#FEF9EC',
+                color: masquerAnciens ? '#64748B' : '#92400E',
+              }}
+            >
+              <EyeOffIcon />
+              {masquerAnciens ? `${nbMasques} masqué${nbMasques > 1 ? 's' : ''}` : 'Masquer anciens'}
+            </button>
+          )}
+          <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B', background: '#F1F5F9', padding: '4px 12px', borderRadius: 20 }}>
+            {filtered.length} session{filtered.length !== 1 ? 's' : ''}
+          </span>
+        </div>
       </div>
 
-      {/* LISTE */}
+      {/* LISTE — pas d'AnimatePresence ici, CSS only pour éviter le bug DOM */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 && (
           <div style={{ textAlign: 'center', padding: '4rem 1rem', background: '#fff', borderRadius: 16, border: '1px solid #F1F5F9' }}>
@@ -250,86 +327,63 @@ const ListeReservations = ({ proId }) => {
           </div>
         )}
 
-        {/* ✅ FIX: mode="popLayout" + layout sur chaque carte */}
-        <AnimatePresence mode="popLayout">
-          {filtered.map((res) => {
-            const isLoading = loadingIds.has(res.id);
-            return (
-              <motion.div
-                key={res.id}
-                layout
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18 }}
-                style={{
-                  background: '#fff', border: '1px solid #E2E8F0', borderRadius: 14,
-                  padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12,
-                  boxSizing: 'border-box', minWidth: 0,
-                  boxShadow: isLoading ? '0 0 0 2px #BFDBFE' : '0 1px 3px rgba(0,0,0,0.04)',
-                  transition: 'box-shadow 0.15s',
-                  opacity: isLoading ? 0.85 : 1,
-                }}
-                onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'; }}
-                onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'; }}
-              >
-                <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
+        {filtered.map(res => {
+          const isLoading = loadingIds.has(res.id);
+          return (
+            <div key={res.id} className={`resa-card${isLoading ? ' loading' : ''}`}>
+              <Avatar prenom={res.utilisateur?.prenom} nom={res.utilisateur?.nom} statut={res.statut} />
 
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 14, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {res.utilisateur?.prenom} {res.utilisateur?.nom}
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', flexWrap: 'wrap' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><CalIcon />{fmtDate(res.dateReservation)}</span>
-                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><ClockIcon />Réservé à {fmtHeure(res.heureReservation)}</span>
-                    <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><StethIcon />Consultation à {fmtHeure(res.heureConsultation)}</span>
-                  </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 14, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
+                </p>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', flexWrap: 'wrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><CalIcon />{fmtDate(res.dateReservation)}</span>
+                  <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><ClockIcon />Réservé à {fmtHeure(res.heureReservation)}</span>
+                  <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><StethIcon />Consultation à {fmtHeure(res.heureConsultation)}</span>
                 </div>
+              </div>
 
-                {/* ✅ FIX: conteneur stable pour les boutons conditionnels */}
-                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                  <StatutBadge statut={res.statut} />
-
-                  <div style={{ display: 'flex', gap: 6 }}>
-                    {res.statut === 'EN_ATTENTE' ? (
-                      <>
-                        <IconBtn
-                          title="Valider"
-                          disabled={isLoading}
-                          onClick={(e) => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
-                          onHoverStyle={{ background: '#F0FDF4', color: '#166534' }}
-                        >
-                          {isLoading ? <Spinner color="#22C55E" /> : <CheckIcon />}
-                          {isLoading ? 'En cours…' : 'Valider'}
-                        </IconBtn>
-                        <IconBtn
-                          title="Refuser"
-                          disabled={isLoading}
-                          onClick={(e) => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
-                          onHoverStyle={{ background: '#FFF1F2', color: '#BE123C' }}
-                        >
-                          {isLoading ? <Spinner color="#F43F5E" /> : <XIcon />}
-                          {isLoading ? '' : 'Refuser'}
-                        </IconBtn>
-                      </>
-                    ) : null}
-                  </div>
-
-                  <IconBtn
-                    title="Voir les détails"
-                    onClick={(e) => { e.stopPropagation(); setSelected(res); }}
-                    onHoverStyle={{ background: '#EFF6FF', color: '#1D4ED8' }}
-                    style={{ border: '1px solid #BFDBFE', color: '#2563EB', background: '#EFF6FF' }}
-                  >
-                    <EyeIcon /> Détails
-                  </IconBtn>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+                <StatutBadge statut={res.statut} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {res.statut === 'EN_ATTENTE' && (
+                    <>
+                      <IconBtn
+                        title="Valider"
+                        disabled={isLoading}
+                        onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'VALIDE'); }}
+                        onHoverStyle={{ background: '#F0FDF4', color: '#166534' }}
+                      >
+                        {isLoading ? <Spinner color="#22C55E" /> : <CheckIcon />}
+                        {isLoading ? 'En cours…' : 'Valider'}
+                      </IconBtn>
+                      <IconBtn
+                        title="Refuser"
+                        disabled={isLoading}
+                        onClick={e => { e.stopPropagation(); handleUpdateStatus(res.id, 'REFUSE'); }}
+                        onHoverStyle={{ background: '#FFF1F2', color: '#BE123C' }}
+                      >
+                        {isLoading ? <Spinner color="#F43F5E" /> : <XIcon />}
+                        {isLoading ? '' : 'Refuser'}
+                      </IconBtn>
+                    </>
+                  )}
                 </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
+                <IconBtn
+                  title="Voir les détails"
+                  onClick={e => { e.stopPropagation(); setSelected(res); }}
+                  onHoverStyle={{ background: '#EFF6FF', color: '#1D4ED8' }}
+                  style={{ border: '1px solid #BFDBFE', color: '#2563EB', background: '#EFF6FF' }}
+                >
+                  <EyeIcon /> Détails
+                </IconBtn>
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* MODAL */}
@@ -349,7 +403,7 @@ const ListeReservations = ({ proId }) => {
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 32 }}
               transition={{ duration: 0.2 }}
-              onClick={(e) => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
               style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, border: '1px solid #E2E8F0', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }}
             >
               <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', gap: 14, alignItems: 'center' }}>
@@ -364,8 +418,8 @@ const ListeReservations = ({ proId }) => {
                 </div>
                 <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: 4, borderRadius: 6, flexShrink: 0 }}
-                  onMouseEnter={(e) => e.currentTarget.style.color = '#64748B'}
-                  onMouseLeave={(e) => e.currentTarget.style.color = '#CBD5E1'}
+                  onMouseEnter={e => e.currentTarget.style.color = '#64748B'}
+                  onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
@@ -394,30 +448,19 @@ const ListeReservations = ({ proId }) => {
                   const isLoading = loadingIds.has(selected.id);
                   return (
                     <>
-                      <button
-                        disabled={isLoading}
+                      <button disabled={isLoading}
                         onClick={() => { handleUpdateStatus(selected.id, 'VALIDE'); setSelected(null); }}
                         style={{ flex: 1, padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: isLoading ? 'not-allowed' : 'pointer', border: '1px solid #BBF7D0', background: '#F0FDF4', color: '#166534', opacity: isLoading ? 0.6 : 1 }}
-                      >
-                        {isLoading ? '…' : '✓ Valider'}
-                      </button>
-                      <button
-                        disabled={isLoading}
+                      >{isLoading ? '…' : '✓ Valider'}</button>
+                      <button disabled={isLoading}
                         onClick={() => { handleUpdateStatus(selected.id, 'REFUSE'); setSelected(null); }}
                         style={{ flex: 1, padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: isLoading ? 'not-allowed' : 'pointer', border: '1px solid #FECACA', background: '#FFF1F2', color: '#BE123C', opacity: isLoading ? 0.6 : 1 }}
-                      >
-                        {isLoading ? '…' : '✕ Refuser'}
-                      </button>
+                      >{isLoading ? '…' : '✕ Refuser'}</button>
                     </>
                   );
                 })()}
-                <button
-                  onClick={() => setSelected(null)}
-                  style={{
-                    flex: selected.statut === 'EN_ATTENTE' ? 1 : 3,
-                    padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600,
-                    cursor: 'pointer', border: 'none', background: '#1e3a8a', color: '#fff',
-                  }}
+                <button onClick={() => setSelected(null)}
+                  style={{ flex: selected.statut === 'EN_ATTENTE' ? 1 : 3, padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#1e3a8a', color: '#fff' }}
                 >Fermer</button>
               </div>
             </motion.div>
@@ -427,12 +470,7 @@ const ListeReservations = ({ proId }) => {
 
       <AnimatePresence>
         {toast && (
-          <Toast
-            key={toast.message}
-            message={toast.message}
-            type={toast.type}
-            onClose={() => setToast(null)}
-          />
+          <Toast key={toast.message} message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
       </AnimatePresence>
     </div>

@@ -21,16 +21,19 @@ const FILTER_ACTIVE = {
 function initials(prenom, nom) {
   return ((prenom?.[0] ?? '') + (nom?.[0] ?? '')).toUpperCase();
 }
-
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
-  const dt = new Date(dateStr + 'T12:00:00');
-  return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  return new Date(dateStr + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
-
 function fmtHeure(h) {
   if (!h) return '—';
   return String(h).replace(':', 'h');
+}
+function isPassee(dateStr) {
+  if (!dateStr) return false;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return new Date(dateStr + 'T00:00:00') < today;
 }
 
 function Avatar({ prenom, nom, statut, size = 40 }) {
@@ -40,8 +43,7 @@ function Avatar({ prenom, nom, statut, size = 40 }) {
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.33, fontWeight: 700,
-      background: cfg.bg, color: cfg.color,
-      border: `1.5px solid ${cfg.border}`,
+      background: cfg.bg, color: cfg.color, border: `1.5px solid ${cfg.border}`,
     }}>
       {initials(prenom, nom)}
     </div>
@@ -66,17 +68,14 @@ function StatutBadge({ statut }) {
 function IconBtn({ onClick, title, children, onHoverStyle, style: extraStyle }) {
   const [hovered, setHovered] = useState(false);
   return (
-    <button
-      title={title}
-      onClick={onClick}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+    <button title={title} onClick={onClick}
+      onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)}
       style={{
         height: 32, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
         border: '1px solid #E2E8F0',
-        background: hovered && onHoverStyle ? onHoverStyle.background : '#fff',
-        color: hovered && onHoverStyle ? onHoverStyle.color : '#475569',
+        background: hovered && onHoverStyle ? onHoverStyle.background : (extraStyle?.background ?? '#fff'),
+        color:      hovered && onHoverStyle ? onHoverStyle.color      : (extraStyle?.color ?? '#475569'),
         transition: 'all 0.15s', padding: '0 10px', fontSize: 12, fontWeight: 500,
         ...extraStyle,
       }}
@@ -96,44 +95,22 @@ function ModalRow({ icon, label, children }) {
   );
 }
 
-const CalIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-  </svg>
-);
-const ClockIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/>
-  </svg>
-);
-const UserIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-  </svg>
-);
-const MailIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/>
-  </svg>
-);
-const TagIcon = () => (
-  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 2H7a2 2 0 0 0-2 2v5l9 9 7-7-9-9Z"/><circle cx="6.5" cy="8.5" r="1.5"/>
-  </svg>
-);
-const EyeIcon = () => (
-  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/>
-    <circle cx="12" cy="12" r="3"/>
-  </svg>
-);
+const CalIcon   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>;
+const ClockIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 15"/></svg>;
+const UserIcon  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>;
+const MailIcon  = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>;
+const TagIcon   = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2H7a2 2 0 0 0-2 2v5l9 9 7-7-9-9Z"/><circle cx="6.5" cy="8.5" r="1.5"/></svg>;
+const EyeIcon   = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>;
+const EyeOffIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
 
 const Consultations = () => {
-  const [consultations, setConsultations] = useState([]);
-  const [filtreStatut, setFiltreStatut]   = useState('TOUTES');
-  const [loading, setLoading]             = useState(true);
-  const [error, setError]                 = useState('');
-  const [selected, setSelected]           = useState(null);
+  const [consultations,  setConsultations]  = useState([]);
+  const [filtreStatut,   setFiltreStatut]   = useState('TOUTES');
+  const [loading,        setLoading]        = useState(true);
+  const [error,          setError]          = useState('');
+  const [selected,       setSelected]       = useState(null);
+  // ✅ masquage des consultations terminées passées
+  const [masquerAnciens, setMasquerAnciens] = useState(true);
 
   useEffect(() => { fetchConsultations(); }, []);
 
@@ -150,13 +127,31 @@ const Consultations = () => {
     }
   };
 
-  const filtered =
-    filtreStatut === 'TOUTES'
-      ? consultations
-      : consultations.filter(c => c.statut === filtreStatut);
+  const applyFilters = (list) => {
+    let result = filtreStatut === 'TOUTES'
+      ? list
+      : list.filter(c => c.statut === filtreStatut);
 
-  const countFor = (s) =>
-    s === 'TOUTES' ? consultations.length : consultations.filter(c => c.statut === s).length;
+    if (masquerAnciens) {
+      result = result.filter(c => {
+        // masquer si terminée ET passée
+        if (c.statut === 'TERMINEE' && isPassee(c.date)) return false;
+        return true;
+      });
+    }
+    return result;
+  };
+
+  const filtered = applyFilters(consultations);
+
+  const countFor = (s) => {
+    const base = s === 'TOUTES' ? consultations : consultations.filter(c => c.statut === s);
+    return masquerAnciens
+      ? base.filter(c => !(c.statut === 'TERMINEE' && isPassee(c.date))).length
+      : base.length;
+  };
+
+  const nbMasques = consultations.filter(c => c.statut === 'TERMINEE' && isPassee(c.date)).length;
 
   return (
     <div style={{
@@ -166,16 +161,35 @@ const Consultations = () => {
       boxSizing: 'border-box',
     }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .consult-card {
+          animation: fadeIn 0.18s ease both;
+          background: #fff;
+          border: 1px solid #E2E8F0;
+          border-radius: 14px;
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          box-sizing: border-box;
+          min-width: 0;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+          transition: box-shadow 0.15s;
+        }
+        .consult-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+      `}</style>
 
+      {/* TITRE */}
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 4px', color: '#0F172A' }}>
-          Consultations
-        </h1>
-        <p style={{ margin: 0, fontSize: 13, color: '#94A3B8' }}>
-          Suivi des séances · {consultations.length} au total
-        </p>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 4px', color: '#0F172A' }}>Consultations</h1>
+        <p style={{ margin: 0, fontSize: 13, color: '#94A3B8' }}>Suivi des séances · {consultations.length} au total</p>
       </div>
 
+      {/* FILTRES + TOGGLE */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {STATUTS.map(s => {
@@ -195,12 +209,28 @@ const Consultations = () => {
             );
           })}
         </div>
-        <span style={{
-          fontFamily: 'monospace', fontSize: 12, color: '#64748B',
-          background: '#F1F5F9', padding: '4px 12px', borderRadius: 20,
-        }}>
-          {filtered.length} session{filtered.length !== 1 ? 's' : ''}
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {nbMasques > 0 && (
+            <button
+              onClick={() => setMasquerAnciens(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5,
+                padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 500,
+                cursor: 'pointer', transition: 'all 0.15s',
+                border: '1px solid #E2E8F0',
+                background: masquerAnciens ? '#F1F5F9' : '#FEF9EC',
+                color: masquerAnciens ? '#64748B' : '#92400E',
+              }}
+            >
+              <EyeOffIcon />
+              {masquerAnciens ? `${nbMasques} masquée${nbMasques > 1 ? 's' : ''}` : 'Masquer terminées'}
+            </button>
+          )}
+          <span style={{ fontFamily: 'monospace', fontSize: 12, color: '#64748B', background: '#F1F5F9', padding: '4px 12px', borderRadius: 20 }}>
+            {filtered.length} session{filtered.length !== 1 ? 's' : ''}
+          </span>
+        </div>
       </div>
 
       {error && (
@@ -209,88 +239,47 @@ const Consultations = () => {
         </div>
       )}
 
+      {/* LISTE — CSS only, pas d'AnimatePresence */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 && (
-          <div style={{
-            textAlign: 'center', padding: '4rem 1rem',
-            background: '#fff', borderRadius: 16, border: '1px solid #F1F5F9',
-          }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: 14,
-              background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 12px',
-            }}>
+          <div style={{ textAlign: 'center', padding: '4rem 1rem', background: '#fff', borderRadius: 16, border: '1px solid #F1F5F9' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 14, background: '#F8FAFC', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
               <CalIcon />
             </div>
             <p style={{ color: '#94A3B8', fontSize: 14, margin: 0 }}>Aucune consultation</p>
           </div>
         )}
 
-        {/* ✅ FIX: mode="popLayout" + layout */}
-        <AnimatePresence mode="popLayout">
-          {filtered.map(consult => (
-            <motion.div
-              key={consult.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-              style={{
-                background: '#fff',
-                border: '1px solid #E2E8F0',
-                borderRadius: 14,
-                padding: '12px 14px',
-                display: 'flex', alignItems: 'center', gap: 12,
-                boxSizing: 'border-box', minWidth: 0,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                transition: 'box-shadow 0.15s',
-              }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.08)'}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.04)'}
-            >
-              <Avatar
-                prenom={consult.utilisateurPrenom}
-                nom={consult.utilisateurNom}
-                statut={consult.statut}
-              />
+        {filtered.map(consult => (
+          <div key={consult.id} className="consult-card">
+            <Avatar prenom={consult.utilisateurPrenom} nom={consult.utilisateurNom} statut={consult.statut} />
 
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{
-                  margin: '0 0 4px', fontWeight: 700, fontSize: 14, color: '#0F172A',
-                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                }}>
-                  {consult.utilisateurPrenom} {consult.utilisateurNom}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', flexWrap: 'wrap' }}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <CalIcon />{fmtDate(consult.date)}
-                  </span>
-                  <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <ClockIcon />{fmtHeure(consult.heure)}
-                  </span>
-                  <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <MailIcon />{consult.utilisateurEmail ?? 'Email inconnu'}
-                  </span>
-                </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 14, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {consult.utilisateurPrenom} {consult.utilisateurNom}
+              </p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', flexWrap: 'wrap' }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><CalIcon />{fmtDate(consult.date)}</span>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><ClockIcon />{fmtHeure(consult.heure)}</span>
+                <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
+                <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><MailIcon />{consult.utilisateurEmail ?? 'Email inconnu'}</span>
               </div>
+            </div>
 
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
-                <StatutBadge statut={consult.statut} />
-                <IconBtn
-                  title="Voir les détails"
-                  onClick={e => { e.stopPropagation(); setSelected(consult); }}
-                  onHoverStyle={{ background: '#EFF6FF', color: '#1D4ED8' }}
-                  style={{ border: '1px solid #BFDBFE', color: '#2563EB', background: '#EFF6FF' }}
-                >
-                  <EyeIcon /> Détails
-                </IconBtn>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              <StatutBadge statut={consult.statut} />
+              <IconBtn
+                title="Voir les détails"
+                onClick={e => { e.stopPropagation(); setSelected(consult); }}
+                onHoverStyle={{ background: '#EFF6FF', color: '#1D4ED8' }}
+                style={{ border: '1px solid #BFDBFE', color: '#2563EB', background: '#EFF6FF' }}
+              >
+                <EyeIcon /> Détails
+              </IconBtn>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* MODAL */}
@@ -301,9 +290,8 @@ const Consultations = () => {
             onClick={() => setSelected(null)}
             style={{
               position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.45)',
-              backdropFilter: 'blur(4px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              zIndex: 999, padding: '1rem',
+              backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', zIndex: 999, padding: '1rem',
             }}
           >
             <motion.div
@@ -312,25 +300,10 @@ const Consultations = () => {
               exit={{ opacity: 0, y: 32 }}
               transition={{ duration: 0.2 }}
               onClick={e => e.stopPropagation()}
-              style={{
-                background: '#fff', borderRadius: 20,
-                width: '100%', maxWidth: 420,
-                border: '1px solid #E2E8F0',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-                overflow: 'hidden',
-              }}
+              style={{ background: '#fff', borderRadius: 20, width: '100%', maxWidth: 420, border: '1px solid #E2E8F0', boxShadow: '0 20px 60px rgba(0,0,0,0.15)', overflow: 'hidden' }}
             >
-              <div style={{
-                padding: '20px 20px 16px',
-                borderBottom: '1px solid #F1F5F9',
-                display: 'flex', gap: 14, alignItems: 'center',
-              }}>
-                <Avatar
-                  prenom={selected.utilisateurPrenom}
-                  nom={selected.utilisateurNom}
-                  statut={selected.statut}
-                  size={50}
-                />
+              <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F1F5F9', display: 'flex', gap: 14, alignItems: 'center' }}>
+                <Avatar prenom={selected.utilisateurPrenom} nom={selected.utilisateurNom} statut={selected.statut} size={50} />
                 <div style={{ minWidth: 0, flex: 1 }}>
                   <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#0F172A' }}>
                     {selected.utilisateurPrenom} {selected.utilisateurNom}
@@ -339,8 +312,7 @@ const Consultations = () => {
                     {selected.utilisateurEmail ?? 'Email indisponible'}
                   </p>
                 </div>
-                <button
-                  onClick={() => setSelected(null)}
+                <button onClick={() => setSelected(null)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#CBD5E1', padding: 4, borderRadius: 6, flexShrink: 0 }}
                   onMouseEnter={e => e.currentTarget.style.color = '#64748B'}
                   onMouseLeave={e => e.currentTarget.style.color = '#CBD5E1'}
@@ -355,27 +327,15 @@ const Consultations = () => {
                 <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#CBD5E1' }}>
                   Date &amp; horaire
                 </p>
-                <ModalRow icon={<CalIcon />} label="Date">
-                  {fmtDate(selected.date)}
-                </ModalRow>
-                <ModalRow icon={<ClockIcon />} label="Heure">
-                  {fmtHeure(selected.heure)}
-                </ModalRow>
-
+                <ModalRow icon={<CalIcon />} label="Date">{fmtDate(selected.date)}</ModalRow>
+                <ModalRow icon={<ClockIcon />} label="Heure">{fmtHeure(selected.heure)}</ModalRow>
                 <div style={{ height: 1, background: '#F1F5F9', margin: '6px 0' }} />
-
                 <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#CBD5E1' }}>
                   Patient
                 </p>
-                <ModalRow icon={<UserIcon />} label="Nom complet">
-                  {selected.utilisateurPrenom} {selected.utilisateurNom}
-                </ModalRow>
-                <ModalRow icon={<MailIcon />} label="Email">
-                  {selected.utilisateurEmail ?? 'Email indisponible'}
-                </ModalRow>
-
+                <ModalRow icon={<UserIcon />} label="Nom complet">{selected.utilisateurPrenom} {selected.utilisateurNom}</ModalRow>
+                <ModalRow icon={<MailIcon />} label="Email">{selected.utilisateurEmail ?? 'Email indisponible'}</ModalRow>
                 <div style={{ height: 1, background: '#F1F5F9', margin: '6px 0' }} />
-
                 <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#CBD5E1' }}>
                   Statut
                 </p>
@@ -385,13 +345,8 @@ const Consultations = () => {
               </div>
 
               <div style={{ padding: '12px 20px', borderTop: '1px solid #F1F5F9' }}>
-                <button
-                  onClick={() => setSelected(null)}
-                  style={{
-                    width: '100%', padding: '9px 0', borderRadius: 10,
-                    fontSize: 13, fontWeight: 600, cursor: 'pointer',
-                    border: 'none', background: '#1e3a8a', color: '#fff',
-                  }}
+                <button onClick={() => setSelected(null)}
+                  style={{ width: '100%', padding: '9px 0', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', background: '#1e3a8a', color: '#fff' }}
                 >Fermer</button>
               </div>
             </motion.div>
