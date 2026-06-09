@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getConsultations } from '../../services/servicePsy';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 
 /* ══════════════════════════════════════════
    CONFIG STATUTS
@@ -145,6 +146,7 @@ const EyeIcon = () => (
 ══════════════════════════════════════════ */
 const Consultations = () => {
   const [consultations, setConsultations] = useState([]);
+  const navigate = useNavigate();
   const [filtreStatut, setFiltreStatut]   = useState('TOUTES');
   const [loading, setLoading]             = useState(true);
   const [error, setError]                 = useState('');
@@ -301,14 +303,35 @@ const fetchConsultations = async () => {
               {/* Actions */}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                 <StatutBadge statut={consult.statut} />
-                <IconBtn
-                  title="Voir les détails"
-                  onClick={e => { e.stopPropagation(); setSelected(consult); }}
-                  onHoverStyle={{ background: '#EFF6FF', color: '#1D4ED8' }}
-                  style={{ border: '1px solid #BFDBFE', color: '#2563EB', background: '#EFF6FF' }}
-                >
-                  <EyeIcon /> Détails
-                </IconBtn>
+
+{/* 🔵 CHAT BUTTON (SEULEMENT SI CONFIRMÉE) */}
+{consult.statut === 'CONFIRMEE' && (
+  <IconBtn
+    title="Ouvrir le chat"
+    onClick={e => {
+      e.stopPropagation();
+      navigate(`/chat/${consult.id}`);
+    }}
+    onHoverStyle={{ background: '#EEF2FF', color: '#4F46E5' }}
+    style={{
+      border: '1px solid #C7D2FE',
+      color: '#4F46E5',
+      background: '#EEF2FF'
+    }}
+  >
+    💬 Chat
+  </IconBtn>
+)}
+
+{/* 👁 Détails */}
+<IconBtn
+  title="Voir les détails"
+  onClick={e => { e.stopPropagation(); setSelected(consult); }}
+  onHoverStyle={{ background: '#EFF6FF', color: '#1D4ED8' }}
+  style={{ border: '1px solid #BFDBFE', color: '#2563EB', background: '#EFF6FF' }}
+>
+  <EyeIcon /> Détails
+</IconBtn>
               </div>
             </motion.div>
           ))}
