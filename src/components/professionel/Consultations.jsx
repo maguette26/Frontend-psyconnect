@@ -184,7 +184,7 @@ const fetchConsultations = async () => {
       fontFamily: "'DM Sans', 'Inter', sans-serif",
       boxSizing: 'border-box',
     }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+     //link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── TITRE ── */}
       <div style={{ marginBottom: '2rem' }}>
