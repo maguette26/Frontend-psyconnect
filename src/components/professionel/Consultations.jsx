@@ -158,6 +158,7 @@ const fetchConsultations = async () => {
 
     console.log("CONSULTATIONS :", data);
     console.log("STATUTS :", data.map(c => c.statut));
+    console.log("IDS :", data.map(r => r.id));
 
     setConsultations(data);
     setError('');
