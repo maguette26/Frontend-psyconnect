@@ -3,7 +3,7 @@ import { getReservations, updateReservationStatus } from '../../services/service
 import { motion, AnimatePresence } from 'framer-motion';
 
 /* ══════════════════════════════════════════
-   CONFIG STATUTS — même style que MesReservations
+   CONFIG STATUTS
 ══════════════════════════════════════════ */
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
 const LABELS  = { EN_ATTENTE: 'En attente', VALIDE: 'Validé', REFUSE: 'Refusé' };
@@ -36,7 +36,7 @@ function fmtDate(dateStr) {
 
 function fmtHeure(h) {
   if (!h) return '—';
-  return h.replace(':', 'h');
+  return String(h).replace(':', 'h');
 }
 
 /* ══════════════════════════════════════════
@@ -83,7 +83,8 @@ function IconBtn({ onClick, title, children, onHoverStyle, style: extraStyle }) 
       style={{
         height: 32, borderRadius: 8, cursor: 'pointer', flexShrink: 0,
         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-        border: '1px solid #E2E8F0', background: hovered && onHoverStyle ? onHoverStyle.background : '#fff',
+        border: '1px solid #E2E8F0',
+        background: hovered && onHoverStyle ? onHoverStyle.background : '#fff',
         color: hovered && onHoverStyle ? onHoverStyle.color : '#475569',
         transition: 'all 0.15s', padding: '0 10px', fontSize: 12, fontWeight: 500,
         ...extraStyle,
@@ -97,7 +98,7 @@ function IconBtn({ onClick, title, children, onHoverStyle, style: extraStyle }) 
 function ModalRow({ icon, label, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
-      <span style={{ width: 18, color: '#94A3B8', display:'flex', alignItems:'center', justifyContent:'center', flexShrink: 0 }}>{icon}</span>
+      <span style={{ width: 18, color: '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
       <span style={{ width: 165, flexShrink: 0, color: '#64748B' }}>{label}</span>
       <span style={{ color: '#0F172A', fontWeight: 600 }}>{children}</span>
     </div>
@@ -291,11 +292,13 @@ const ListeReservations = ({ proId }) => {
                   </span>
                   <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
                   <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <ClockIcon />Résa. {fmtHeure(res.heureReservation ?? res.heureDebut)}
+                    {/* ✅ CORRIGÉ : heureReservation (quand le patient a réservé) */}
+                    <ClockIcon />Résa. {fmtHeure(res.heureReservation)}
                   </span>
                   <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#CBD5E1', flexShrink: 0 }} />
                   <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                    <StethIcon />Consult. {fmtHeure(res.heureDebut)}
+                    {/* ✅ CORRIGÉ : heureConsultation (l'heure du rdv médical) */}
+                    <StethIcon />Consult. {fmtHeure(res.heureConsultation)}
                   </span>
                 </div>
               </div>
@@ -405,11 +408,15 @@ const ListeReservations = ({ proId }) => {
                 <ModalRow icon={<CalIcon />} label="Date de réservation">
                   {fmtDate(selected.dateReservation)}
                 </ModalRow>
+
+                {/* ✅ CORRIGÉ : heureReservation */}
                 <ModalRow icon={<ClockIcon />} label="Heure de réservation">
-                  {fmtHeure(selected.heureReservation ?? selected.heureDebut)}
+                  {fmtHeure(selected.heureReservation)}
                 </ModalRow>
+
+                {/* ✅ CORRIGÉ : heureConsultation */}
                 <ModalRow icon={<StethIcon />} label="Heure de consultation">
-                  {fmtHeure(selected.heureDebut)}
+                  {fmtHeure(selected.heureConsultation)}
                 </ModalRow>
 
                 <div style={{ height: 1, background: '#F1F5F9', margin: '6px 0' }} />
