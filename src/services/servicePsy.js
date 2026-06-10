@@ -12,7 +12,7 @@ export const pingBackend = async (maxWait = 12000) => {
 
   while (Date.now() - start < maxWait) {
     try {
-      await api.get('/health', { timeout: 3000, _retryCount: MAX_RETRIES }); // skip retry loop
+      await api.get('/health', { timeout: 3000, _retryCount: MAX_RETRIES });
       return true;
     } catch {
       await new Promise((r) => setTimeout(r, INTERVAL));
@@ -21,8 +21,7 @@ export const pingBackend = async (maxWait = 12000) => {
   throw new Error('Backend indisponible après ' + maxWait / 1000 + 's');
 };
 
-// Réutilisation de la constante (cohérence avec api.js)
-const MAX_RETRIES = 99; // valeur sentinelle pour désactiver le retry sur le ping lui-même
+const MAX_RETRIES = 99;
 
 /* ── Disponibilités ──────────────────────────────────────── */
 export const getDisponibilites = async () => {
@@ -30,14 +29,44 @@ export const getDisponibilites = async () => {
   return res.data;
 };
 
-export const ajouterDisponibilite = async (dispoData) => {
-  const res = await api.post('/disponibilites', dispoData);
-  return res.data;
+export const ajouterDisponibilite = async (dispoData, attempt = 0) => {
+  try {
+    const res = await api.post('/disponibilites', dispoData, { timeout: 35000 });
+    return res.data;
+  } catch (err) {
+    const isNetworkError = !err.response;
+    const hasRetries = attempt < RETRY_DELAYS.length;
+
+    if (isNetworkError && hasRetries) {
+      console.warn(
+        `[ajouterDisponibilite] Tentative ${attempt + 1} échouée, retry dans ${RETRY_DELAYS[attempt] / 1000}s...`
+      );
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      return ajouterDisponibilite(dispoData, attempt + 1);
+    }
+
+    throw err;
+  }
 };
 
-export const modifierDisponibilite = async (id, dispoData) => {
-  const res = await api.put(`/disponibilites/${id}`, dispoData);
-  return res.data;
+export const modifierDisponibilite = async (id, dispoData, attempt = 0) => {
+  try {
+    const res = await api.put(`/disponibilites/${id}`, dispoData, { timeout: 35000 });
+    return res.data;
+  } catch (err) {
+    const isNetworkError = !err.response;
+    const hasRetries = attempt < RETRY_DELAYS.length;
+
+    if (isNetworkError && hasRetries) {
+      console.warn(
+        `[modifierDisponibilite] Tentative ${attempt + 1} échouée, retry dans ${RETRY_DELAYS[attempt] / 1000}s...`
+      );
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      return modifierDisponibilite(id, dispoData, attempt + 1);
+    }
+
+    throw err;
+  }
 };
 
 export const supprimerDisponibilite = async (id) => {
@@ -76,17 +105,40 @@ export const getReservations = async (proId) => {
 
 /**
  * Met à jour le statut d'une réservation.
- * Validation côté client avant l'appel réseau.
+ * Retry automatique en cas d'échec réseau (ex: Railway en veille).
+ * - 3 tentatives max
+ * - délai exponentiel : 2s, 4s, 8s
+ * - timeout étendu à 35s pour laisser le temps à Railway de se réveiller
  */
 const STATUTS_VALIDES = ['EN_ATTENTE', 'VALIDE', 'REFUSE'];
+const RETRY_DELAYS = [2000, 4000, 8000];
 
-export const updateReservationStatus = async (reservationId, statut) => {
+export const updateReservationStatus = async (reservationId, statut, attempt = 0) => {
   if (!reservationId) throw new Error('reservationId manquant.');
   if (!STATUTS_VALIDES.includes(statut))
     throw new Error(`Statut invalide : ${statut}. Valeurs attendues : ${STATUTS_VALIDES.join(', ')}`);
 
-  const res = await api.put(`/reservations/${reservationId}/statut`, { statut });
-  return res.data;
+  try {
+    const res = await api.put(
+      `/reservations/${reservationId}/statut`,
+      { statut },
+      { timeout: 35000 }
+    );
+    return res.data;
+  } catch (err) {
+    const isNetworkError = !err.response; // pas de réponse = Railway en veille ou coupure réseau
+    const hasRetries = attempt < RETRY_DELAYS.length;
+
+    if (isNetworkError && hasRetries) {
+      console.warn(
+        `[updateReservationStatus] Tentative ${attempt + 1} échouée, retry dans ${RETRY_DELAYS[attempt] / 1000}s...`
+      );
+      await new Promise((r) => setTimeout(r, RETRY_DELAYS[attempt]));
+      return updateReservationStatus(reservationId, statut, attempt + 1);
+    }
+
+    throw err; // erreur HTTP (4xx/5xx) ou retries épuisés → on remonte
+  }
 };
 
 /* ── Messagerie ─────────────────────────────────────────── */
