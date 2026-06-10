@@ -1,40 +1,31 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import api from "../services/api";
 import { getChatHistory } from "../services/api";
-import { getConsultations } from "../services/servicePsy";
 import { useWebSocket } from "../hooks/useWebSocket";
-import {
-  Send,
-  ArrowLeft,
-  Clock,
-  CheckCircle
-} from "lucide-react";
+import { Send, ArrowLeft, Clock, CheckCircle } from "lucide-react";
 
 /* =========================
    HELPERS
 ========================= */
 
-const isConsultationStarted = (consultation) => {
-  if (!consultation) return false;
+const isStarted = (c) => {
+  if (!c) return false;
+  const date = c.date || c.dateConsultation;
+  const heure = c.heure || c.heureConsultation;
 
-  const dateStr = consultation.jourConsultation || consultation.dateConsultation;
-  const heureStr = consultation.heureConsultation;
-
-  if (!dateStr || !heureStr) return true;
+  if (!date || !heure) return true;
 
   try {
-    const heure = heureStr.replace("H", ":").replace("h", ":").substring(0, 5);
-    const dt = new Date(`${dateStr}T${heure}:00`);
-    return new Date() >= dt;
+    const h = heure.replace("H", ":").substring(0, 5);
+    return new Date() >= new Date(`${date}T${h}:00`);
   } catch {
     return true;
   }
 };
 
-const isConsultationTerminee = (consultation) => {
-  if (!consultation) return false;
-  return consultation.statut === "TERMINEE" || consultation.statut === "ANNULEE";
-};
+const isFinished = (c) =>
+  c?.statut === "TERMINEE" || c?.statut === "ANNULEE";
 
 /* =========================
    CHAT PAGE
@@ -45,37 +36,32 @@ export default function ChatPage() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const consultationFromState = location.state?.consultation;
+  const [consultation, setConsultation] = useState(
+    location.state?.consultation || null
+  );
 
-  const [consultation, setConsultation] = useState(consultationFromState || null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [inputValue, setInputValue] = useState("");
+  const [input, setInput] = useState("");
+
+  const role = localStorage.getItem("role");
+
+  const backRoute =
+    role === "PROFESSIONNEL"
+      ? "/consultations"
+      : "/consultations";
 
   const messagesEndRef = useRef(null);
 
-  const handleNewMessage = useRef((msg) => {
-    setMessages((prev) => [...prev, msg]);
-  });
-
   const { connected, sendMessage } = useWebSocket({
     consultationId,
-    onMessage: handleNewMessage.current,
+    onMessage: (msg) => {
+      setMessages((p) => [...p, msg]);
+    },
   });
 
   /* =========================
-     ROLE SAFE
-  ========================= */
-
-  const role = (localStorage.getItem("role") || "").toUpperCase();
-
-  const getBackRoute = () => {
-    if (role.includes("PROFESSIONNEL")) return "/consultations/pro";
-    return "/consultations";
-  };
-
-  /* =========================
-     SCROLL AUTO
+     AUTO SCROLL
   ========================= */
 
   useEffect(() => {
@@ -83,68 +69,46 @@ export default function ChatPage() {
   }, [messages]);
 
   /* =========================
-     LOAD DATA SAFE
+     LOAD CONSULTATION + CHAT
   ========================= */
 
   useEffect(() => {
-    let isMounted = true;
+    let mounted = true;
 
     const load = async () => {
       try {
         setLoading(true);
 
-        let data = consultationFromState;
+        let data = consultation;
 
-        // 🔥 FIX IMPORTANT : fallback si refresh (state perdu)
+        // ✅ FIX IMPORTANT : si refresh → on récupère depuis backend
         if (!data) {
-          const all = await getConsultations();
-          data = all.find(
-            (c) => String(c.idConsultation) === String(consultationId)
-          );
-
-          if (!data) {
-            navigate(getBackRoute());
-            return;
-          }
-
+          const res = await api.get(`/consultations/${consultationId}`);
+          data = res.data;
           setConsultation(data);
         }
 
-        // sécurité statut
-        if (
-          data.statut !== "CONFIRMEE" &&
-          data.statut !== "TERMINEE"
-        ) {
-          navigate(getBackRoute());
-          return;
+        const chat = await getChatHistory(consultationId).catch(() => []);
+
+        if (mounted) {
+          setMessages(
+            (chat || []).map((m) => ({
+              ...m,
+              moi: m.moi ?? m.estMoi ?? false,
+              contenu: m.contenu ?? m.message ?? "",
+            }))
+          );
         }
-
-        const chatRes = await getChatHistory(consultationId).catch(() => []);
-
-        if (isMounted) {
-          const normalized = (chatRes || []).map((m) => ({
-            ...m,
-            moi: m.moi ?? m.estMoi ?? false,
-            contenu: m.contenu ?? m.message ?? "",
-            expediteurNom: m.expediteurNom ?? m.senderName ?? "",
-          }));
-
-          setMessages(normalized);
-        }
-
-      } catch (err) {
-        console.error("Chat error:", err);
-        if (isMounted) navigate(getBackRoute());
+      } catch (e) {
+        console.error(e);
+        navigate(backRoute); // fallback propre
       } finally {
-        if (isMounted) setLoading(false);
+        if (mounted) setLoading(false);
       }
     };
 
     load();
-
-    return () => {
-      isMounted = false;
-    };
+    return () => (mounted = false);
   }, [consultationId]);
 
   /* =========================
@@ -152,18 +116,13 @@ export default function ChatPage() {
   ========================= */
 
   const handleSend = () => {
-    const text = inputValue.trim();
-    if (!text || !connected) return;
+    if (!input.trim() || !connected) return;
 
-    sendMessage({ contenu: text, anonymat: false });
-    setInputValue("");
-  };
+    sendMessage({
+      contenu: input,
+    });
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    setInput("");
   };
 
   /* =========================
@@ -172,51 +131,51 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p>Chargement...</p>
+      <div style={{ padding: 20 }}>
+        Chargement...
       </div>
     );
   }
 
   /* =========================
-     NO CONSULTATION
+     NO DATA
   ========================= */
 
   if (!consultation) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <p>Consultation introuvable</p>
+      <div style={{ padding: 20 }}>
+        Consultation introuvable
       </div>
     );
   }
 
   /* =========================
-     TERMINÉE
+     STATUS TERMINEE
   ========================= */
 
-  if (isConsultationTerminee(consultation)) {
+  if (isFinished(consultation)) {
     return (
-      <div style={{ padding: 20 }}>
+      <div style={{ textAlign: "center", padding: 50 }}>
         <CheckCircle />
         <p>Consultation terminée</p>
-        <button onClick={() => navigate(getBackRoute())}>
-          Retour aux consultations
+        <button onClick={() => navigate(backRoute)}>
+          Retour
         </button>
       </div>
     );
   }
 
   /* =========================
-     PAS COMMENCÉE
+     STATUS PAS COMMENCÉE
   ========================= */
 
-  if (!isConsultationStarted(consultation)) {
+  if (!isStarted(consultation)) {
     return (
-      <div style={{ padding: 20 }}>
+      <div style={{ textAlign: "center", padding: 50 }}>
         <Clock />
         <p>Pas encore commencée</p>
-        <button onClick={() => navigate(getBackRoute())}>
-          Retour aux consultations
+        <button onClick={() => navigate(backRoute)}>
+          Retour
         </button>
       </div>
     );
@@ -224,14 +183,14 @@ export default function ChatPage() {
 
   /* =========================
      UI CHAT
-========================= */
+  ========================= */
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
 
       {/* HEADER */}
-      <div style={{ display: "flex", alignItems: "center", padding: 10 }}>
-        <button onClick={() => navigate(getBackRoute())}>
+      <div style={{ display: "flex", padding: 10, alignItems: "center" }}>
+        <button onClick={() => navigate(backRoute)}>
           <ArrowLeft />
         </button>
 
@@ -241,45 +200,25 @@ export default function ChatPage() {
       </div>
 
       {/* MESSAGES */}
-      <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
+      <div style={{ flex: 1, overflowY: "auto" }}>
         {messages.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              textAlign: m.moi ? "right" : "left",
-              marginBottom: 8
-            }}
-          >
-            <div
-              style={{
-                display: "inline-block",
-                padding: 10,
-                borderRadius: 10,
-                background: m.moi ? "#4f46e5" : "#e5e7eb",
-                color: m.moi ? "#fff" : "#000",
-              }}
-            >
-              {m.contenu}
-            </div>
+          <div key={i} style={{ textAlign: m.moi ? "right" : "left" }}>
+            {m.contenu}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
       {/* INPUT */}
-      <div style={{ display: "flex", padding: 10, gap: 8 }}>
+      <div style={{ display: "flex", padding: 10 }}>
         <textarea
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          onKeyDown={handleKeyDown}
-          style={{ flex: 1 }}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
         />
-
         <button onClick={handleSend}>
           <Send />
         </button>
       </div>
-
     </div>
   );
 }
