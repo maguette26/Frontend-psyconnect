@@ -166,7 +166,7 @@ const MesConsultations = () => {
               <div className="px-6 py-4">
                 <InfoRow label="Date" value={formatDate(selected.date)} />
                 <InfoRow label="Heure" value={formatHeure(selected.heure)} />
-                {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} MAD`} />}
+                {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} €`} />}
               </div>
               <div className="px-6 pb-6 flex flex-col gap-2">
                 {selected.statut === 'CONFIRMEE' && (

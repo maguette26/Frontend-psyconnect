@@ -200,7 +200,7 @@ const MesReservations = () => {
                 <InfoRow label="Heure réservation"  value={formatHeure(selected.heureReservation)} />
                 <InfoRow label="Date consultation"  value={formatDate(selected.jourConsultation)} />
                 <InfoRow label="Heure consultation" value={formatHeure(selected.heureConsultation)} />
-                {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} MAD`} />}
+                {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} €`} />}
               </div>
 
               {/* Modal actions */}

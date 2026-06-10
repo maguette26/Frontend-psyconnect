@@ -69,10 +69,12 @@ export default function ChatPage() {
           setMessages(chatRes.value || []);
         }
 
-      } catch (err) {
-        console.error("ChatPage error:", err);
-        navigate("/consultations");
-      } finally {
+     } catch (err) {
+  console.error("ChatPage error status:", err?.response?.status);
+  console.error("ChatPage error message:", err?.response?.data);
+  console.error("ChatPage error full:", err);
+  navigate("/consultations");
+}finally {
         if (isMounted) setLoading(false);
       }
     }
