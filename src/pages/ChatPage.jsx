@@ -1,20 +1,17 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { getConsultation, getChatHistory } from "../services/api";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
-import {
-  Send,
-  Video,
-  ArrowLeft,
-  Wifi,
-  WifiOff
-} from "lucide-react";
+import { Send, Video, ArrowLeft, Wifi, WifiOff } from "lucide-react";
 
 export default function ChatPage() {
   const { consultationId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [consultation, setConsultation] = useState(null);
+  const consultationFromState = location.state?.consultation;
+
+  const [consultation, setConsultation] = useState(consultationFromState || null);
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
@@ -22,18 +19,15 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef(null);
 
-  const { connected, error, sendMessage } = useWebSocket({
+  const { connected, sendMessage } = useWebSocket({
     consultationId,
-    onMessage: (msg) =>
-      setMessages((prev) => [...prev, msg]),
+    onMessage: (msg) => setMessages((prev) => [...prev, msg]),
   });
 
-  // scroll auto
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // load data
   useEffect(() => {
     let isMounted = true;
 
@@ -41,41 +35,29 @@ export default function ChatPage() {
       try {
         setLoading(true);
 
-        const [consultationRes, chatRes] = await Promise.allSettled([
-          getConsultation(consultationId),
-          getChatHistory(consultationId),
-        ]);
-
-        if (!isMounted) return;
-
-        // ❌ consultation obligatoire
-        if (consultationRes.status !== "fulfilled") {
-          console.error("Consultation 404 ou erreur");
+        if (!consultationFromState) {
           navigate("/consultations");
           return;
         }
 
-        const c = consultationRes.value;
-        setConsultation(c);
-
-        // sécurité statut
-        if (c.statut !== "CONFIRMEE") {
+        if (consultationFromState.statut !== "CONFIRMEE") {
           navigate("/consultations");
           return;
         }
 
-        // chat history (optionnel)
-        if (chatRes.status === "fulfilled") {
-          setMessages(chatRes.value || []);
+        const chatRes = await getChatHistory(consultationId).catch(() => []);
+        if (isMounted) {
+          setMessages(chatRes || []);
         }
-
-     } catch (err) {
-  console.error("ChatPage error status:", err?.response?.status);
-  console.error("ChatPage error message:", err?.response?.data);
-  console.error("ChatPage error full:", err);
-  navigate("/consultations");
-}finally {
-        if (isMounted) setLoading(false);
+      } catch (err) {
+        console.error("ChatPage error:", err);
+        if (isMounted) {
+          navigate("/consultations");
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     }
 
@@ -84,18 +66,12 @@ export default function ChatPage() {
     return () => {
       isMounted = false;
     };
-  }, [consultationId, navigate]);
+  }, [consultationId]);
 
-  // envoyer message
   const handleSend = () => {
     const text = inputValue.trim();
     if (!text) return;
-
-    sendMessage({
-      contenu: text,
-      anonymat,
-    });
-
+    sendMessage({ contenu: text, anonymat });
     setInputValue("");
   };
 
@@ -106,7 +82,6 @@ export default function ChatPage() {
     }
   };
 
-  // loading
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -115,14 +90,19 @@ export default function ChatPage() {
     );
   }
 
-  // ❌ FIX IMPORTANT : mapping backend flat fields
-  const pro = consultation
-    ? {
-        prenom: consultation.professionnelPrenom,
-        nom: consultation.professionnelNom,
-        specialite: consultation.specialite,
-      }
-    : null;
+  if (!consultation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="text-slate-500">Consultation introuvable.</div>
+      </div>
+    );
+  }
+
+  const pro = {
+    prenom: consultation.professionnelPrenom,
+    nom: consultation.professionnelNom,
+    specialite: consultation.specialite,
+  };
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col">
@@ -138,82 +118,83 @@ export default function ChatPage() {
 
         <div className="flex-1">
           <p className="font-semibold">
-            Dr {pro?.prenom} {pro?.nom}
+            Dr {pro.prenom} {pro.nom}
           </p>
-          <p className="text-xs text-slate-400">
-            {pro?.specialite}
-          </p>
+          {pro.specialite && (
+            <p className="text-xs text-slate-400">{pro.specialite}</p>
+          )}
         </div>
 
-        {consultation?.lienVisio && (
+        {consultation.lienVisio && (
           <a
             href={consultation.lienVisio}
             target="_blank"
             rel="noopener noreferrer"
-            className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm"
+            className="flex items-center gap-1 px-3 py-1 bg-green-100 text-green-700 rounded text-sm"
           >
-            <Video size={14} /> Visio
+            <Video size={14} />
+            Visio
           </a>
         )}
 
-        <div className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
-          connected ? "bg-green-100 text-green-600" : "bg-red-100 text-red-500"
-        }`}>
+        <div
+          className={`flex items-center gap-1 text-xs px-2 py-1 rounded ${
+            connected
+              ? "bg-green-100 text-green-600"
+              : "bg-red-100 text-red-500"
+          }`}
+        >
           {connected ? <Wifi size={12} /> : <WifiOff size={12} />}
-          {connected ? "OK" : "OFF"}
+          {connected ? "Connecté" : "Déconnecté"}
         </div>
       </div>
 
-      {/* CHAT */}
+      {/* MESSAGES */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
         {messages.length === 0 ? (
-          <p className="text-center text-slate-400">
-            Aucun message
+          <p className="text-center text-slate-400 mt-10">
+            Aucun message pour l'instant.
           </p>
         ) : (
-          messages.map((m, i) => {
-            const isMe = m.moi;
-
-            return (
+          messages.map((m, i) => (
+            <div
+              key={m.id || i}
+              className={`flex ${m.moi ? "justify-end" : "justify-start"}`}
+            >
               <div
-                key={m.id || i}
-                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
+                className={`px-3 py-2 rounded-xl max-w-xs text-sm ${
+                  m.moi
+                    ? "bg-blue-600 text-white"
+                    : "bg-white text-slate-800 shadow-sm"
+                }`}
               >
-                <div
-                  className={`px-3 py-2 rounded-xl max-w-xs ${
-                    isMe
-                      ? "bg-blue-600 text-white"
-                      : "bg-white"
-                  }`}
-                >
-                  {!isMe && (
-                    <p className="text-xs text-blue-500 font-semibold">
-                      {m.anonymat ? "Anonyme" : m.expediteurNom}
-                    </p>
-                  )}
-                  <p>{m.contenu}</p>
-                </div>
+                {!m.moi && (
+                  <p className="text-xs text-blue-500 font-semibold mb-0.5">
+                    {m.anonymat ? "Anonyme" : m.expediteurNom}
+                  </p>
+                )}
+                <p>{m.contenu}</p>
               </div>
-            );
-          })
+            </div>
+          ))
         )}
         <div ref={messagesEndRef} />
       </div>
 
       {/* INPUT */}
-      <div className="p-3 bg-white border-t flex gap-2">
+      <div className="p-3 bg-white border-t flex gap-2 items-end">
         <textarea
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
-          className="flex-1 border rounded p-2 text-sm"
-          placeholder="Écrire..."
+          rows={1}
+          className="flex-1 border border-slate-200 rounded-xl p-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-300"
+          placeholder="Écrire un message..."
         />
-
         <button
           onClick={handleSend}
           disabled={!inputValue.trim() || !connected}
-          className="bg-blue-600 text-white px-4 rounded disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-700 text-white p-2.5 rounded-xl disabled:opacity-40 transition"
         >
           <Send size={16} />
         </button>

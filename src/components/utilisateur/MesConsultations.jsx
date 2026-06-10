@@ -119,7 +119,7 @@ const MesConsultations = () => {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <StatutBadge statut={c.statut} />
                     {c.statut === 'CONFIRMEE' && (
-                      <button onClick={e => { e.stopPropagation(); navigate(`/chat/${c.id}`); }}
+                      <button onClick={e => { e.stopPropagation(); navigate(`/chat/${c.id}`, { state: { consultation: c } }); }}
                         className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition">
                         <MessageSquare size={12} /> Chat
                       </button>
