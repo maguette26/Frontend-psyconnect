@@ -66,6 +66,11 @@ const MesConsultations = () => {
     } catch { toast.error('Erreur lors de la suppression.'); }
   };
 
+  // ✅ Helper pour naviguer vers le chat avec le state complet
+  const ouvrirChat = (c) => {
+    navigate(`/chat/${c.id}`, { state: { consultation: c } });
+  };
+
   const filtered = consultations.filter(c => statut ? c.statut === statut : true);
 
   return (
@@ -119,7 +124,8 @@ const MesConsultations = () => {
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <StatutBadge statut={c.statut} />
                     {c.statut === 'CONFIRMEE' && (
-                      <button onClick={e => { e.stopPropagation(); navigate(`/chat/${c.id}`, { state: { consultation: c } }); }}
+                      <button
+                        onClick={e => { e.stopPropagation(); ouvrirChat(c); }}
                         className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-semibold transition">
                         <MessageSquare size={12} /> Chat
                       </button>
@@ -170,7 +176,9 @@ const MesConsultations = () => {
               </div>
               <div className="px-6 pb-6 flex flex-col gap-2">
                 {selected.statut === 'CONFIRMEE' && (
-                  <button onClick={() => navigate(`/chat/${selected.id}`)}
+                  // ✅ Corrigé : state complet passé au navigate
+                  <button
+                    onClick={() => { setSelected(null); ouvrirChat(selected); }}
                     className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
                     <MessageSquare size={16} /> Ouvrir le chat
                   </button>

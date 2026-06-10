@@ -64,6 +64,13 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef(null);
 
+  // ✅ role et getBackRoute déclarés ICI, avant tout retour anticipé
+  const role = localStorage.getItem("role");
+  const getBackRoute = () => {
+    if (role === "PROFESSIONNEL") return "/consultations/pro";
+    return "/consultations";
+  };
+
   const handleNewMessage = useRef((msg) => {
     setMessages((prev) => [...prev, msg]);
   });
@@ -85,12 +92,12 @@ export default function ChatPage() {
         setLoading(true);
 
         if (!consultationFromState) {
-          navigate("/consultations");
+          navigate(getBackRoute());
           return;
         }
 
         if (consultationFromState.statut !== "CONFIRMEE" && consultationFromState.statut !== "TERMINEE") {
-          navigate("/consultations");
+          navigate(getBackRoute());
           return;
         }
 
@@ -100,7 +107,6 @@ export default function ChatPage() {
         });
 
         if (isMounted) {
-          // ✅ Normaliser le format si besoin
           const normalized = (chatRes || []).map((m) => ({
             ...m,
             moi: m.moi ?? m.estMoi ?? false,
@@ -111,7 +117,7 @@ export default function ChatPage() {
         }
       } catch (err) {
         console.error("ChatPage error:", err);
-        if (isMounted) navigate("/consultations");
+        if (isMounted) navigate(getBackRoute());
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -120,11 +126,7 @@ export default function ChatPage() {
     loadData();
     return () => { isMounted = false; };
   }, [consultationId]);
-const role = localStorage.getItem("role"); 
-const getBackRoute = () => {
-  if (role === "PROFESSIONNEL") return "/consultations/pro";
-  return "/consultations";
-};
+
   const handleSend = () => {
     const text = inputValue.trim();
     if (!text || !connected) return;
