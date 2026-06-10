@@ -81,6 +81,7 @@ function AppWrapper() {
         <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
         <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
         <Route path="/consultations" element={<ConsultationsPage />} />
+        <Route path="/consultations/pro" element={<TableauProfessionnel />} />
         <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
         <Route
           path="/chat/:consultationId"
