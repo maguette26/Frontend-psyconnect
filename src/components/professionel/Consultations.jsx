@@ -310,14 +310,21 @@ const fetchConsultations = async () => {
     title="Ouvrir le chat"
     onClick={e => {
       e.stopPropagation();
-      navigate(`/chat/${consult.id}`);
+      navigate(`/chat/${consult.id}`, {
+        state: {
+          consultation: {
+            ...consult,
+            // mapping des champs pour ChatPage
+            professionnelPrenom: consult.utilisateurPrenom, 
+            professionnelNom: consult.utilisateurNom,
+            jourConsultation: consult.date,
+            heureConsultation: consult.heure,
+          }
+        }
+      });
     }}
     onHoverStyle={{ background: '#EEF2FF', color: '#4F46E5' }}
-    style={{
-      border: '1px solid #C7D2FE',
-      color: '#4F46E5',
-      background: '#EEF2FF'
-    }}
+    style={{ border: '1px solid #C7D2FE', color: '#4F46E5', background: '#EEF2FF' }}
   >
     💬 Chat
   </IconBtn>
