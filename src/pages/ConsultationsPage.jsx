@@ -203,7 +203,9 @@ export default function ConsultationsPage() {
                 </h2>
                 <div className="space-y-3">
                   {confirmees.map(c => (
-                    <ConsultationCard key={c.idConsultation} c={c} onChat={(id) => navigate(`/chat/${id}`)} />
+                    <ConsultationCard key={c.idConsultation} c={c}  onChat={(c) => navigate(`/chat/${c.idConsultation}`, {
+  state: { consultation: c }
+})} />
                   ))}
                 </div>
               </section>
@@ -216,7 +218,9 @@ export default function ConsultationsPage() {
                 </h2>
                 <div className="space-y-3">
                   {autres.map(c => (
-                    <ConsultationCard key={c.idConsultation} c={c} onChat={(id) => navigate(`/chat/${id}`)} />
+                    <ConsultationCard key={c.idConsultation} c={c} onChat={(c) => navigate(`/chat/${c.idConsultation}`, {
+  state: { consultation: c }
+})} />
                   ))}
                 </div>
               </section>

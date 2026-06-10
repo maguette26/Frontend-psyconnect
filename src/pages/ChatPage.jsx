@@ -1,16 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getChatHistory } from "../services/api";
+import { getConsultations } from "../services/servicePsy";
 import { useWebSocket } from "../hooks/useWebSocket";
 import {
   Send,
-  Video,
   ArrowLeft,
-  Wifi,
-  WifiOff,
   Clock,
-  CheckCircle,
-  MessageCircle
+  CheckCircle
 } from "lucide-react";
 
 /* =========================
@@ -40,60 +37,6 @@ const isConsultationTerminee = (consultation) => {
 };
 
 /* =========================
-   STATUS SCREEN
-========================= */
-
-function StatusScreen({ icon: Icon, color, title, subtitle, onBack }) {
-  return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #f8fafc 0%, #eff6ff 100%)",
-      display: "flex",
-      flexDirection: "column",
-      fontFamily: "'DM Sans', sans-serif"
-    }}>
-      <div style={{
-        background: "#fff",
-        borderBottom: "1px solid #e2e8f0",
-        padding: "12px 16px",
-        display: "flex",
-        alignItems: "center",
-        gap: 12
-      }}>
-        <button onClick={onBack} style={{ background: "none", border: "none" }}>
-          <ArrowLeft size={20} />
-        </button>
-        <span style={{ fontWeight: 600 }}>Consultation</span>
-      </div>
-
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <div style={{ textAlign: "center", maxWidth: 340 }}>
-          <div style={{
-            width: 80,
-            height: 80,
-            borderRadius: 20,
-            background: color,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            margin: "0 auto 20px"
-          }}>
-            <Icon size={36} color="#fff" />
-          </div>
-
-          <h2 style={{ fontSize: 20, fontWeight: 700 }}>{title}</h2>
-          <p style={{ fontSize: 14, color: "#64748b" }}>{subtitle}</p>
-
-          <button onClick={onBack}>
-            Retour
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* =========================
    CHAT PAGE
 ========================= */
 
@@ -108,7 +51,6 @@ export default function ChatPage() {
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
   const [inputValue, setInputValue] = useState("");
-  const [anonymat] = useState(false);
 
   const messagesEndRef = useRef(null);
 
@@ -122,19 +64,18 @@ export default function ChatPage() {
   });
 
   /* =========================
-     ROLE + BACK ROUTE (FIX IMPORTANT)
+     ROLE SAFE
   ========================= */
 
-  const role = localStorage.getItem("role");
+  const role = (localStorage.getItem("role") || "").toUpperCase();
 
   const getBackRoute = () => {
-    return role === "PROFESSIONNEL"
-      ? "/consultations/pro"
-      : "/consultations";
+    if (role.includes("PROFESSIONNEL")) return "/consultations/pro";
+    return "/consultations";
   };
 
   /* =========================
-     AUTO SCROLL
+     SCROLL AUTO
   ========================= */
 
   useEffect(() => {
@@ -142,26 +83,39 @@ export default function ChatPage() {
   }, [messages]);
 
   /* =========================
-     LOAD DATA
+     LOAD DATA SAFE
   ========================= */
 
   useEffect(() => {
     let isMounted = true;
 
-    async function loadData() {
+    const load = async () => {
       try {
         setLoading(true);
 
-        if (!consultationFromState) {
-          navigate(getBackRoute());
-          return;
+        let data = consultationFromState;
+
+        // 🔥 FIX IMPORTANT : fallback si refresh (state perdu)
+        if (!data) {
+          const all = await getConsultations();
+          data = all.find(
+            (c) => String(c.idConsultation) === String(consultationId)
+          );
+
+          if (!data) {
+            navigate(getBackRoute());
+            return;
+          }
+
+          setConsultation(data);
         }
 
+        // sécurité statut
         if (
-          consultationFromState.statut !== "CONFIRMEE" &&
-          consultationFromState.statut !== "TERMINEE"
+          data.statut !== "CONFIRMEE" &&
+          data.statut !== "TERMINEE"
         ) {
-          navigate("/consultations");
+          navigate(getBackRoute());
           return;
         }
 
@@ -177,15 +131,17 @@ export default function ChatPage() {
 
           setMessages(normalized);
         }
+
       } catch (err) {
-        console.error(err);
-        if (isMounted) navigate("/consultations");
+        console.error("Chat error:", err);
+        if (isMounted) navigate(getBackRoute());
       } finally {
         if (isMounted) setLoading(false);
       }
-    }
+    };
 
-    loadData();
+    load();
+
     return () => {
       isMounted = false;
     };
@@ -199,7 +155,7 @@ export default function ChatPage() {
     const text = inputValue.trim();
     if (!text || !connected) return;
 
-    sendMessage({ contenu: text, anonymat });
+    sendMessage({ contenu: text, anonymat: false });
     setInputValue("");
   };
 
@@ -240,13 +196,13 @@ export default function ChatPage() {
 
   if (isConsultationTerminee(consultation)) {
     return (
-      <StatusScreen
-        icon={CheckCircle}
-        color="#22c55e"
-        title="Consultation terminée"
-        subtitle="Chat fermé"
-        onBack={() => navigate(getBackRoute())}
-      />
+      <div style={{ padding: 20 }}>
+        <CheckCircle />
+        <p>Consultation terminée</p>
+        <button onClick={() => navigate(getBackRoute())}>
+          Retour aux consultations
+        </button>
+      </div>
     );
   }
 
@@ -256,29 +212,19 @@ export default function ChatPage() {
 
   if (!isConsultationStarted(consultation)) {
     return (
-      <StatusScreen
-        icon={Clock}
-        color="#f59e0b"
-        title="Pas encore commencée"
-        subtitle="Revenez plus tard"
-        onBack={() => navigate(getBackRoute())}
-      />
+      <div style={{ padding: 20 }}>
+        <Clock />
+        <p>Pas encore commencée</p>
+        <button onClick={() => navigate(getBackRoute())}>
+          Retour aux consultations
+        </button>
+      </div>
     );
   }
 
   /* =========================
-     DATA PRO
-  ========================= */
-
-  const pro = {
-    prenom: consultation.professionnelPrenom,
-    nom: consultation.professionnelNom,
-    specialite: consultation.specialite,
-  };
-
-  /* =========================
      UI CHAT
-  ========================= */
+========================= */
 
   return (
     <div style={{ height: "100vh", display: "flex", flexDirection: "column" }}>
@@ -290,27 +236,45 @@ export default function ChatPage() {
         </button>
 
         <div style={{ marginLeft: 10 }}>
-          Dr {pro.prenom} {pro.nom}
+          Consultation #{consultationId}
         </div>
       </div>
 
       {/* MESSAGES */}
-      <div style={{ flex: 1, overflowY: "auto" }}>
+      <div style={{ flex: 1, overflowY: "auto", padding: 10 }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ textAlign: m.moi ? "right" : "left" }}>
-            <div>{m.contenu}</div>
+          <div
+            key={i}
+            style={{
+              textAlign: m.moi ? "right" : "left",
+              marginBottom: 8
+            }}
+          >
+            <div
+              style={{
+                display: "inline-block",
+                padding: 10,
+                borderRadius: 10,
+                background: m.moi ? "#4f46e5" : "#e5e7eb",
+                color: m.moi ? "#fff" : "#000",
+              }}
+            >
+              {m.contenu}
+            </div>
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
       {/* INPUT */}
-      <div style={{ display: "flex", padding: 10 }}>
+      <div style={{ display: "flex", padding: 10, gap: 8 }}>
         <textarea
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleKeyDown}
+          style={{ flex: 1 }}
         />
+
         <button onClick={handleSend}>
           <Send />
         </button>
