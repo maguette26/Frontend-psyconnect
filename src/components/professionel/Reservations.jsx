@@ -1,235 +1,393 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { getReservations, updateReservationStatus } from '../../services/servicePsy';
-import { motion, AnimatePresence } from 'framer-motion';
+// src/components/psy/ListeReservations.jsx
+import React, { useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { getReservations, updateReservationStatus } from "../../services/servicePsy";
 
-const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
+/* ================= STATUTS BACKEND ================= */
 
-const LABELS = {
-  EN_ATTENTE: 'En attente',
-  VALIDE: 'Validées',
-  REFUSE: 'Refusées',
+const STATUTS = [
+  "TOUS",
+  "EN_ATTENTE",
+  "EN_ATTENTE_PAIEMENT",
+  "PAYEE",
+  "REFUSE",
+  "ANNULEE",
+];
+
+const STATUS_UI = {
+  EN_ATTENTE: { label: "En attente", color: "#f59e0b", bg: "#fff7ed" },
+  EN_ATTENTE_PAIEMENT: { label: "Paiement requis", color: "#3b82f6", bg: "#eff6ff" },
+  PAYEE: { label: "Payée", color: "#22c55e", bg: "#ecfdf5" },
+  REFUSE: { label: "Refusée", color: "#ef4444", bg: "#fef2f2" },
+  ANNULEE: { label: "Annulée", color: "#6b7280", bg: "#f8fafc" },
 };
 
-const COLORS = {
-  EN_ATTENTE: '#F59E0B',
-  VALIDE: '#22C55E',
-  REFUSE: '#EF4444',
-};
+/* ================= HELPERS ================= */
 
-function isPassee(dateStr) {
-  if (!dateStr) return false;
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  return new Date(dateStr + 'T00:00:00') < today;
+const formatDate = (d) =>
+  new Date(d).toLocaleDateString("fr-FR", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+  });
+
+const formatTime = (t) => (t ? t.replace(":", "h") : "—");
+
+/* ================= TOAST ================= */
+
+const Toast = ({ toast, onClose }) => (
+  <motion.div
+    initial={{ y: 30, opacity: 0 }}
+    animate={{ y: 0, opacity: 1 }}
+    exit={{ y: 30, opacity: 0 }}
+    style={{
+      position: "fixed",
+      bottom: 20,
+      right: 20,
+      background: "#0f172a",
+      color: "#fff",
+      padding: "12px 16px",
+      borderRadius: 12,
+      fontSize: 13,
+      zIndex: 9999,
+      display: "flex",
+      gap: 10,
+      alignItems: "center",
+      boxShadow: "0 20px 40px rgba(0,0,0,0.25)",
+    }}
+  >
+    {toast.message}
+    <button onClick={onClose} style={{ background: "transparent", border: 0, color: "#fff" }}>
+      ✕
+    </button>
+  </motion.div>
+);
+
+/* ================= CARD ================= */
+
+function Card({ r, onOpen, onAction, loading }) {
+  const status = STATUS_UI[r.statut] || {
+    label: r.statut,
+    color: "#64748b",
+    bg: "#f1f5f9",
+  };
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      className="card"
+    >
+      {/* LEFT */}
+      <div className="left">
+        <div className="avatar">
+          {r.utilisateur?.prenom?.[0]}
+          {r.utilisateur?.nom?.[0]}
+        </div>
+
+        <div className="info">
+          <div className="name">
+            {r.utilisateur?.prenom} {r.utilisateur?.nom}
+          </div>
+
+          <div className="meta">
+            📅 {formatDate(r.dateReservation)}
+            <span>•</span>
+            ⏰ {formatTime(r.heureReservation)}
+            <span>•</span>
+            🧠 {formatTime(r.heureConsultation)}
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT */}
+      <div className="right">
+
+        <span
+          className="badge"
+          style={{
+            background: status.bg,
+            color: status.color,
+          }}
+        >
+          ● {status.label}
+        </span>
+
+        <button className="btn" onClick={() => onOpen(r)}>
+          Détails
+        </button>
+
+        {r.statut === "EN_ATTENTE" && (
+          <>
+            <button
+              className="btn success"
+              disabled={loading === r.id}
+              onClick={() => onAction(r.id, "PAYEE")}
+            >
+              Valider
+            </button>
+
+            <button
+              className="btn danger"
+              disabled={loading === r.id}
+              onClick={() => onAction(r.id, "REFUSE")}
+            >
+              Refuser
+            </button>
+          </>
+        )}
+
+        {r.statut === "EN_ATTENTE_PAIEMENT" && (
+          <button className="btn primary">
+            💳 Paiement
+          </button>
+        )}
+      </div>
+    </motion.div>
+  );
 }
 
-export default function ListeReservations({ proId }) {
+/* ================= MAIN ================= */
 
-  const [reservations, setReservations] = useState([]);
-  const [filter, setFilter] = useState('TOUS');
+export default function ListeReservations({ proId }) {
+  const [data, setData] = useState([]);
+  const [filter, setFilter] = useState("TOUS");
+  const [toast, setToast] = useState(null);
+  const [loading, setLoading] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
 
   const load = useCallback(async () => {
-    const data = await getReservations(proId);
-    setReservations(data);
+    try {
+      const res = await getReservations(proId);
+      setData(res);
+    } catch {
+      setToast({ message: "Erreur chargement données" });
+    }
   }, [proId]);
 
   useEffect(() => {
     if (proId) load();
-  }, [proId, load]);
+  }, [proId]);
 
-  const updateStatus = async (id, statut) => {
-    setLoadingId(id);
+  const filtered =
+    filter === "TOUS"
+      ? data
+      : data.filter((r) => r.statut === filter);
 
-    const backup = [...reservations];
-
-    setReservations(prev =>
-      prev.map(r => r.id === id ? { ...r, statut } : r)
-    );
-
+  const action = async (id, statut) => {
+    setLoading(id);
     try {
       await updateReservationStatus(id, statut);
       await load();
+      setToast({
+        message:
+          statut === "PAYEE"
+            ? "Réservation validée"
+            : "Réservation refusée",
+      });
     } catch {
-      setReservations(backup);
-    } finally {
-      setLoadingId(null);
+      setToast({ message: "Erreur serveur" });
     }
-  };
-
-  // FILTER LOGIC
-  const filtered = reservations.filter(r => {
-    if (filter === 'TOUS') return true;
-    return r.statut === filter;
-  });
-
-  const emptyMessage = () => {
-    if (filter === 'TOUS') return "Aucune réservation";
-    if (filter === 'EN_ATTENTE') return "Aucune réservation en attente";
-    if (filter === 'VALIDE') return "Aucune réservation validée";
-    if (filter === 'REFUSE') return "Aucune réservation refusée";
+    setLoading(null);
   };
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
+    <div className="page">
 
       {/* HEADER */}
-      <h2 style={{ fontSize: 22, fontWeight: 700 }}>
-        Réservations
-      </h2>
+      <div className="header">
+        <h1>📅 Réservations</h1>
+        <p>Gestion des consultations</p>
+      </div>
 
       {/* FILTERS */}
-      <div style={{ display: 'flex', gap: 10, margin: '15px 0' }}>
-        {STATUTS.map(s => (
+      <div className="filters">
+        {STATUTS.map((s) => (
           <button
             key={s}
+            className={filter === s ? "active" : ""}
             onClick={() => setFilter(s)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: 20,
-              border: '1px solid #E5E7EB',
-              background: filter === s ? '#111827' : '#fff',
-              color: filter === s ? '#fff' : '#6B7280',
-              cursor: 'pointer',
-              fontSize: 13,
-            }}
           >
-            {s === 'TOUS' ? 'Tous' : LABELS[s]}
+            {s === "TOUS" ? "Tous" : STATUS_UI[s]?.label || s}
           </button>
         ))}
       </div>
 
       {/* LIST */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="list">
 
         {filtered.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            padding: 40,
-            border: '1px dashed #D1D5DB',
-            borderRadius: 12,
-            color: '#6B7280'
-          }}>
-            {emptyMessage()}
+          <div className="empty">
+            Aucune réservation dans cette catégorie
           </div>
         )}
 
-        {filtered.map(r => (
-          <div
-            key={r.id}
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              padding: 14,
-              border: '1px solid #E5E7EB',
-              borderRadius: 12,
-              background: '#fff'
-            }}
-          >
-
-            {/* LEFT */}
-            <div>
-              <div style={{ fontWeight: 600 }}>
-                {r.utilisateur?.prenom} {r.utilisateur?.nom}
-              </div>
-
-              <div style={{ fontSize: 12, color: '#6B7280' }}>
-                {r.dateReservation} • {r.heureReservation}
-              </div>
-
-              <div style={{
-                fontSize: 12,
-                marginTop: 4,
-                color: COLORS[r.statut]
-              }}>
-                ● {r.statut}
-              </div>
-            </div>
-
-            {/* ACTIONS */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-
-              {r.statut === 'EN_ATTENTE' && (
-                <>
-                  <button
-                    onClick={() => updateStatus(r.id, 'VALIDE')}
-                    disabled={loadingId === r.id}
-                  >
-                    Valider
-                  </button>
-
-                  <button
-                    onClick={() => updateStatus(r.id, 'REFUSE')}
-                    disabled={loadingId === r.id}
-                  >
-                    Refuser
-                  </button>
-                </>
-              )}
-
-              <button onClick={() => setSelected(r)}>
-                Détails
-              </button>
-            </div>
-          </div>
-        ))}
+        <AnimatePresence>
+          {filtered.map((r) => (
+            <Card
+              key={r.id}
+              r={r}
+              onOpen={setSelected}
+              onAction={action}
+              loading={loading}
+            />
+          ))}
+        </AnimatePresence>
       </div>
 
-      {/* MODAL DETAILS */}
+      {/* MODAL */}
       <AnimatePresence>
         {selected && (
           <motion.div
+            className="modalBg"
+            onClick={() => setSelected(null)}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setSelected(null)}
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
           >
             <motion.div
+              className="modal"
+              onClick={(e) => e.stopPropagation()}
               initial={{ scale: 0.9 }}
               animate={{ scale: 1 }}
               exit={{ scale: 0.9 }}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: '#fff',
-                padding: 24,
-                borderRadius: 14,
-                width: 400
-              }}
             >
+              <h2>Détails</h2>
 
-              <h3 style={{ marginBottom: 10 }}>
-                Détails réservation
-              </h3>
+              <p>👤 {selected.utilisateur?.prenom} {selected.utilisateur?.nom}</p>
+              <p>📅 {formatDate(selected.dateReservation)}</p>
+              <p>⏰ Réservation : {formatTime(selected.heureReservation)}</p>
+              <p>🧠 Consultation : {formatTime(selected.heureConsultation)}</p>
 
-              <div style={{ lineHeight: 1.8 }}>
-                <div><b>Nom:</b> {selected.utilisateur?.prenom} {selected.utilisateur?.nom}</div>
-                <div><b>Email:</b> {selected.utilisateur?.email}</div>
-                <div><b>Date:</b> {selected.dateReservation}</div>
-                <div><b>Heure:</b> {selected.heureReservation}</div>
-                <div><b>Statut:</b> {selected.statut}</div>
-              </div>
-
-              <button
-                style={{ marginTop: 15 }}
-                onClick={() => setSelected(null)}
-              >
-                Fermer
-              </button>
-
+              <button onClick={() => setSelected(null)}>Fermer</button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
+      {/* TOAST */}
+      <AnimatePresence>
+        {toast && <Toast toast={toast} onClose={() => setToast(null)} />}
+      </AnimatePresence>
+
+      {/* STYLE PREMIUM */}
+      <style>{`
+        .page{
+          max-width: 1100px;
+          margin:auto;
+          padding:30px;
+          font-family: Inter;
+          background:#f8fafc;
+          min-height:100vh;
+        }
+
+        .header h1{margin:0;font-size:28px}
+        .header p{color:#64748b;margin-bottom:20px}
+
+        .filters{
+          display:flex;
+          gap:10px;
+          flex-wrap:wrap;
+          margin-bottom:20px;
+        }
+
+        .filters button{
+          padding:8px 14px;
+          border-radius:999px;
+          border:1px solid #e2e8f0;
+          background:white;
+          cursor:pointer;
+        }
+
+        .filters .active{
+          background:#0f172a;
+          color:white;
+        }
+
+        .list{
+          display:flex;
+          flex-direction:column;
+          gap:12px;
+        }
+
+        .card{
+          display:flex;
+          justify-content:space-between;
+          align-items:center;
+          padding:16px;
+          background:white;
+          border-radius:16px;
+          border:1px solid #e2e8f0;
+          transition:.2s;
+        }
+
+        .card:hover{
+          transform:translateY(-2px);
+          box-shadow:0 10px 30px rgba(0,0,0,0.06);
+        }
+
+        .left{display:flex;gap:12px;align-items:center}
+
+        .avatar{
+          width:44px;height:44px;
+          border-radius:50%;
+          background:#e2e8f0;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          font-weight:600;
+        }
+
+        .name{font-weight:600}
+        .meta{font-size:12px;color:#64748b;display:flex;gap:6px;flex-wrap:wrap}
+
+        .right{display:flex;gap:8px;align-items:center}
+
+        .badge{
+          font-size:12px;
+          padding:4px 10px;
+          border-radius:999px;
+          font-weight:600;
+        }
+
+        .btn{
+          padding:6px 10px;
+          border-radius:10px;
+          border:1px solid #e2e8f0;
+          background:white;
+          cursor:pointer;
+        }
+
+        .success{background:#dcfce7}
+        .danger{background:#fee2e2}
+        .primary{background:#dbeafe}
+
+        .empty{
+          padding:40px;
+          text-align:center;
+          color:#64748b;
+          background:white;
+          border-radius:12px;
+        }
+
+        .modalBg{
+          position:fixed;
+          inset:0;
+          background:rgba(0,0,0,0.4);
+          display:flex;
+          align-items:center;
+          justify-content:center;
+        }
+
+        .modal{
+          background:white;
+          padding:20px;
+          border-radius:12px;
+          width:360px;
+        }
+      `}</style>
     </div>
   );
 }
