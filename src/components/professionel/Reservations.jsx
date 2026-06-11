@@ -390,7 +390,7 @@ const chargerReservations = useCallback(async () => {
       </div>
 
       {/* MODAL */}
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {selected && (
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -471,7 +471,7 @@ const chargerReservations = useCallback(async () => {
         )}
       </AnimatePresence>
 
-      <AnimatePresence>
+      <AnimatePresence mode="wait">
         {toast && (
           <Toast key={toast.message} message={toast.message} type={toast.type} onClose={() => setToast(null)} />
         )}
