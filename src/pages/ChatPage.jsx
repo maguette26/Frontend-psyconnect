@@ -64,12 +64,11 @@ export default function ChatPage({ currentUser }) {
 
   const messagesEndRef = useRef(null);
 
-  // ✅ role détecté depuis localStorage ET depuis currentUser en fallback
-  // Valeurs possibles stockées : "PROFESSIONNEL", "UTILISATEUR", "USER", etc.
+  // ✅ Rôles réels : "USER" → tableauUtilisateur, "PSYCHOLOGUE"/"PSYCHIATRE" → tableauProfessionnel
   const role = localStorage.getItem("role") || currentUser?.role || "";
   const getBackRoute = () => {
-    if (role === "PROFESSIONNEL") return "/consultations/pro";
-    return "/consultations";
+    if (role === "PSYCHOLOGUE" || role === "PSYCHIATRE") return "/tableauProfessionnel";
+    return "/tableauUtilisateur";
   };
 
   const handleNewMessage = useRef((msg) => {
