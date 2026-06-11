@@ -1,38 +1,85 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { getReservations, updateReservationStatus } from '../../services/servicePsy';
-import { motion, AnimatePresence } from 'framer-motion';
+// src/components/psy/ListeReservations.jsx
+import React, { useEffect, useState, useCallback } from "react";
+import { getReservations, updateReservationStatus } from "../../services/servicePsy";
+import { motion } from "framer-motion";
 
-const STATUTS = ['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'];
+/* ================= STATUT BACKEND ================= */
+const STATUTS = [
+  "TOUS",
+  "EN_ATTENTE",
+  "EN_ATTENTE_PAIEMENT",
+  "PAYEE",
+  "REFUSE",
+  "ANNULEE",
+];
 
 const LABELS = {
-  EN_ATTENTE: 'En attente',
-  VALIDE: 'Validées',
-  REFUSE: 'Refusées',
+  EN_ATTENTE: "En attente",
+  EN_ATTENTE_PAIEMENT: "Paiement",
+  PAYEE: "Payée",
+  REFUSE: "Refusée",
+  ANNULEE: "Annulée",
 };
 
-const COLORS = {
-  EN_ATTENTE: '#F59E0B',
-  VALIDE: '#22C55E',
-  REFUSE: '#EF4444',
-};
+/* ================= HELPERS ================= */
+const fmtDate = (d) =>
+  d
+    ? new Date(d + "T12:00:00").toLocaleDateString("fr-FR", {
+        weekday: "short",
+        day: "2-digit",
+        month: "short",
+      })
+    : "—";
 
-function isPassee(dateStr) {
-  if (!dateStr) return false;
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  return new Date(dateStr + 'T00:00:00') < today;
+const fmtHeure = (h) => (h ? h.replace(":", "h") : "—");
+
+const isEmpty = (list) => !list || list.length === 0;
+
+/* ================= ICONS ================= */
+const Calendar = () => <span>📅</span>;
+const Clock = () => <span>⏰</span>;
+const User = () => <span>👤</span>;
+const Eye = () => <span>👁</span>;
+const Check = () => <span>✔</span>;
+const X = () => <span>✖</span>;
+
+/* ================= TOAST ================= */
+function Toast({ msg, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        bottom: 20,
+        right: 20,
+        background:
+          type === "error" ? "#fee2e2" : type === "success" ? "#dcfce7" : "#dbeafe",
+        padding: "12px 16px",
+        borderRadius: 12,
+        boxShadow: "0 10px 25px rgba(0,0,0,0.1)",
+        fontSize: 13,
+        zIndex: 9999,
+      }}
+    >
+      {msg}
+    </div>
+  );
 }
 
+/* ================= MAIN ================= */
 export default function ListeReservations({ proId }) {
-
-  const [reservations, setReservations] = useState([]);
-  const [filter, setFilter] = useState('TOUS');
+  const [data, setData] = useState([]);
+  const [filter, setFilter] = useState("TOUS");
   const [selected, setSelected] = useState(null);
-  const [loadingId, setLoadingId] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const load = useCallback(async () => {
-    const data = await getReservations(proId);
-    setReservations(data);
+    const res = await getReservations(proId);
+    setData(res);
   }, [proId]);
 
   useEffect(() => {
@@ -40,196 +87,144 @@ export default function ListeReservations({ proId }) {
   }, [proId, load]);
 
   const updateStatus = async (id, statut) => {
-    setLoadingId(id);
-
-    const backup = [...reservations];
-
-    setReservations(prev =>
-      prev.map(r => r.id === id ? { ...r, statut } : r)
-    );
-
     try {
       await updateReservationStatus(id, statut);
-      await load();
+      setToast({ msg: "Statut mis à jour", type: "success" });
+      load();
     } catch {
-      setReservations(backup);
-    } finally {
-      setLoadingId(null);
+      setToast({ msg: "Erreur serveur", type: "error" });
     }
   };
 
-  // FILTER LOGIC
-  const filtered = reservations.filter(r => {
-    if (filter === 'TOUS') return true;
-    return r.statut === filter;
-  });
-
-  const emptyMessage = () => {
-    if (filter === 'TOUS') return "Aucune réservation";
-    if (filter === 'EN_ATTENTE') return "Aucune réservation en attente";
-    if (filter === 'VALIDE') return "Aucune réservation validée";
-    if (filter === 'REFUSE') return "Aucune réservation refusée";
-  };
+  const filtered =
+    filter === "TOUS" ? data : data.filter((r) => r.statut === filter);
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto', padding: 20 }}>
-
-      {/* HEADER */}
-      <h2 style={{ fontSize: 22, fontWeight: 700 }}>
-        Réservations
-      </h2>
+    <div style={{ padding: 20, maxWidth: 900, margin: "auto" }}>
+      <h2>📋 Réservations</h2>
 
       {/* FILTERS */}
-      <div style={{ display: 'flex', gap: 10, margin: '15px 0' }}>
-        {STATUTS.map(s => (
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 15 }}>
+        {STATUTS.map((s) => (
           <button
             key={s}
             onClick={() => setFilter(s)}
             style={{
-              padding: '6px 14px',
+              padding: "6px 12px",
               borderRadius: 20,
-              border: '1px solid #E5E7EB',
-              background: filter === s ? '#111827' : '#fff',
-              color: filter === s ? '#fff' : '#6B7280',
-              cursor: 'pointer',
-              fontSize: 13,
+              border: "1px solid #ddd",
+              background: filter === s ? "#111827" : "#fff",
+              color: filter === s ? "#fff" : "#111",
+              cursor: "pointer",
+              fontSize: 12,
             }}
           >
-            {s === 'TOUS' ? 'Tous' : LABELS[s]}
+            {s === "TOUS" ? "Tous" : LABELS[s] || s}
           </button>
         ))}
       </div>
 
+      {/* EMPTY STATE */}
+      {isEmpty(filtered) && (
+        <div style={{ textAlign: "center", padding: 40, color: "#6b7280" }}>
+          Aucune réservation pour ce filtre
+        </div>
+      )}
+
       {/* LIST */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-        {filtered.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            padding: 40,
-            border: '1px dashed #D1D5DB',
-            borderRadius: 12,
-            color: '#6B7280'
-          }}>
-            {emptyMessage()}
-          </div>
-        )}
-
-        {filtered.map(r => (
-          <div
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {filtered.map((r) => (
+          <motion.div
             key={r.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
             style={{
-              display: 'flex',
-              justifyContent: 'space-between',
+              background: "#fff",
+              border: "1px solid #eee",
+              borderRadius: 14,
               padding: 14,
-              border: '1px solid #E5E7EB',
-              borderRadius: 12,
-              background: '#fff'
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
             }}
           >
-
             {/* LEFT */}
             <div>
-              <div style={{ fontWeight: 600 }}>
-                {r.utilisateur?.prenom} {r.utilisateur?.nom}
+              <div style={{ fontWeight: "bold" }}>
+                <User /> {r.utilisateur?.prenom} {r.utilisateur?.nom}
               </div>
 
-              <div style={{ fontSize: 12, color: '#6B7280' }}>
-                {r.dateReservation} • {r.heureReservation}
-              </div>
-
-              <div style={{
-                fontSize: 12,
-                marginTop: 4,
-                color: COLORS[r.statut]
-              }}>
-                ● {r.statut}
+              <div style={{ fontSize: 12, color: "#666", marginTop: 5 }}>
+                <Calendar /> {fmtDate(r.dateReservation)} •{" "}
+                <Clock /> {fmtHeure(r.heureReservation)} →{" "}
+                {fmtHeure(r.heureConsultation)}
               </div>
             </div>
 
             {/* ACTIONS */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <div style={{ display: "flex", gap: 8 }}>
+              <button onClick={() => setSelected(r)}>
+                <Eye /> Détails
+              </button>
 
-              {r.statut === 'EN_ATTENTE' && (
+              {r.statut === "EN_ATTENTE" && (
                 <>
-                  <button
-                    onClick={() => updateStatus(r.id, 'VALIDE')}
-                    disabled={loadingId === r.id}
-                  >
-                    Valider
+                  <button onClick={() => updateStatus(r.id, "PAYEE")}>
+                    <Check /> Valider
                   </button>
-
-                  <button
-                    onClick={() => updateStatus(r.id, 'REFUSE')}
-                    disabled={loadingId === r.id}
-                  >
-                    Refuser
+                  <button onClick={() => updateStatus(r.id, "REFUSE")}>
+                    <X /> Refuser
                   </button>
                 </>
               )}
-
-              <button onClick={() => setSelected(r)}>
-                Détails
-              </button>
             </div>
-          </div>
+          </motion.div>
         ))}
       </div>
 
-      {/* MODAL DETAILS */}
-      <AnimatePresence>
-        {selected && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setSelected(null)}
+      {/* MODAL SIMPLE */}
+      {selected && (
+        <div
+          onClick={() => setSelected(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.4)",
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
             style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(0,0,0,0.5)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
+              background: "#fff",
+              padding: 20,
+              borderRadius: 12,
+              width: 400,
             }}
           >
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              exit={{ scale: 0.9 }}
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: '#fff',
-                padding: 24,
-                borderRadius: 14,
-                width: 400
-              }}
-            >
+            <h3>Détails réservation</h3>
 
-              <h3 style={{ marginBottom: 10 }}>
-                Détails réservation
-              </h3>
+            <p>👤 {selected.utilisateur?.prenom}</p>
+            <p>📅 {fmtDate(selected.dateReservation)}</p>
+            <p>⏰ {fmtHeure(selected.heureReservation)}</p>
+            <p>💬 Consultation: {fmtHeure(selected.heureConsultation)}</p>
+            <p>📌 Statut: {selected.statut}</p>
 
-              <div style={{ lineHeight: 1.8 }}>
-                <div><b>Nom:</b> {selected.utilisateur?.prenom} {selected.utilisateur?.nom}</div>
-                <div><b>Email:</b> {selected.utilisateur?.email}</div>
-                <div><b>Date:</b> {selected.dateReservation}</div>
-                <div><b>Heure:</b> {selected.heureReservation}</div>
-                <div><b>Statut:</b> {selected.statut}</div>
-              </div>
+            <button onClick={() => setSelected(null)}>Fermer</button>
+          </div>
+        </div>
+      )}
 
-              <button
-                style={{ marginTop: 15 }}
-                onClick={() => setSelected(null)}
-              >
-                Fermer
-              </button>
-
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
+      {/* TOAST */}
+      {toast && (
+        <Toast
+          msg={toast.msg}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
     </div>
   );
 }
