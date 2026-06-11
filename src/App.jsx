@@ -30,10 +30,11 @@ import { RessourceProvider } from './pages/RessourceContext';
 
 import ChatPage from "./pages/ChatPage";
 import ConsultationsPage from './pages/ConsultationsPage';
-import { getMe } from './services/api';
 import ConsultationAccessPage from './pages/ConsultationAccessPage';
 
-// Routes sur lesquelles le Header ne doit PAS apparaître
+import { getMe } from './services/api';
+
+// Routes sans header
 const ROUTES_SANS_HEADER = ['/chat/'];
 
 function AppWrapper() {
@@ -44,15 +45,41 @@ function AppWrapper() {
   const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     getMe()
-      .then(setCurrentUser)
-      .catch(() => setCurrentUser(null))
-      .finally(() => setAuthLoading(false));
+      .then((user) => {
+        if (mounted) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (mounted) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (mounted) setAuthLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  const afficherHeader = !ROUTES_SANS_HEADER.some(r => location.pathname.startsWith(r));
+  const afficherHeader = !ROUTES_SANS_HEADER.some(r =>
+    location.pathname.startsWith(r)
+  );
 
-  if (authLoading) return <div>Chargement...</div>;
+  // ⭐ SPLASH SCREEN MODERNE
+  if (authLoading) {
+    return (
+      <div className="splash-container">
+        <div className="splash-content">
+          <div className="pulse-circle"></div>
+
+          <h1 className="app-title">PsyConnect</h1>
+          <p className="subtitle">Connexion sécurisée en cours...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <RessourceProvider>
@@ -84,16 +111,23 @@ function AppWrapper() {
           path="/consultations"
           element={currentUser ? <ConsultationsPage /> : <Navigate to="/connexion" />}
         />
+
         <Route
           path="/consultations/pro"
           element={currentUser ? <TableauProfessionnel /> : <Navigate to="/connexion" />}
         />
 
         <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
+
         <Route
           path="/chat/:consultationId"
-          element={currentUser ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" />}
+          element={
+            currentUser
+              ? <ChatPage currentUser={currentUser} />
+              : <Navigate to="/connexion" />
+          }
         />
+
         <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Page404 />} />
       </Routes>
