@@ -33,9 +33,8 @@ import ConsultationsPage from './pages/ConsultationsPage';
 import { getMe } from './services/api';
 import ConsultationAccessPage from './pages/ConsultationAccessPage';
 
-// ⚠️ Importe ces deux si tu les utilises, sinon supprime-les
- import { useBackendWarmup } from './hooks/useBackendWarmup';
- import WarmupScreen from './components/WarmupScreen';
+import { useBackendWarmup } from './hooks/useBackendWarmup';
+import WarmupScreen from './components/WarmupScreen';
 
 function AppWrapper() {
   const location = useLocation();
@@ -44,7 +43,6 @@ function AppWrapper() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
 
-  // ⚠️ useEffect doit être AVANT tout return conditionnel
   useEffect(() => {
     getMe()
       .then(setCurrentUser)
@@ -52,7 +50,6 @@ function AppWrapper() {
       .finally(() => setAuthLoading(false));
   }, []);
 
-  // ✅ Ces returns conditionnels viennent APRÈS les hooks
   if (authLoading) return <div>Chargement...</div>;
 
   return (
@@ -80,8 +77,27 @@ function AppWrapper() {
         <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
         <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
         <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
-        <Route path="/consultations" element={<ConsultationsPage />} />
-        <Route path="/consultations/pro" element={<TableauProfessionnel />} />
+
+        {/* ✅ Route USER : ses consultations */}
+        <Route
+          path="/consultations"
+          element={
+            currentUser
+              ? <ConsultationsPage />
+              : <Navigate to="/connexion" />
+          }
+        />
+
+        {/* ✅ Route PROFESSIONNEL : ses consultations */}
+        <Route
+          path="/consultations/pro"
+          element={
+            currentUser
+              ? <TableauProfessionnel />
+              : <Navigate to="/connexion" />
+          }
+        />
+
         <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
         <Route
           path="/chat/:consultationId"
@@ -92,7 +108,8 @@ function AppWrapper() {
           }
         />
         <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
-        {/* ✅ Un seul catch-all à la fin */}
+
+        {/* Catch-all */}
         <Route path="*" element={<Page404 />} />
       </Routes>
     </RessourceProvider>

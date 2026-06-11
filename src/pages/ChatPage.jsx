@@ -49,7 +49,7 @@ function StatusScreen({ icon: Icon, color, title, subtitle, onBack }) {
   );
 }
 
-export default function ChatPage() {
+export default function ChatPage({ currentUser }) {
   const { consultationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -64,8 +64,9 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef(null);
 
-  // ✅ role et getBackRoute déclarés ICI, avant tout retour anticipé
-  const role = localStorage.getItem("role");
+  // ✅ role détecté depuis localStorage ET depuis currentUser en fallback
+  // Valeurs possibles stockées : "PROFESSIONNEL", "UTILISATEUR", "USER", etc.
+  const role = localStorage.getItem("role") || currentUser?.role || "";
   const getBackRoute = () => {
     if (role === "PROFESSIONNEL") return "/consultations/pro";
     return "/consultations";
