@@ -68,8 +68,18 @@ const MesConsultations = () => {
 
   // ✅ Helper pour naviguer vers le chat avec le state complet
   const ouvrirChat = (c) => {
-    navigate(`/chat/${c.id}`, { state: { consultation: c } });
-  };
+  navigate(`/chat/${c.id}`, {
+    state: {
+      consultation: {
+        ...c,
+        professionnelPrenom: c.professionnelPrenom,
+        professionnelNom: c.professionnelNom,
+        jourConsultation: c.date,
+        heureConsultation: c.heure,
+      }
+    }
+  });
+};
 
   const filtered = consultations.filter(c => statut ? c.statut === statut : true);
 
