@@ -10,7 +10,7 @@ import {
   motion, AnimatePresence, useSpring, useTransform,
 } from "framer-motion";
 
-/* ─── helpers (inchangés) ─── */
+/* ─── helpers ─── */
 const isConsultationStarted = (consultation) => {
   if (!consultation) return false;
   const dateStr = consultation.jourConsultation || consultation.dateConsultation;
@@ -82,23 +82,8 @@ const T = {
   amberLight: "#FEF3C7",
 };
 
-/* ─── Global Styles ─── */
-const GLOBAL_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-  * { box-sizing: border-box; }
-  body { margin: 0; }
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: ${T.slate200}; border-radius: 99px; }
-  ::-webkit-scrollbar-thumb:hover { background: ${T.slate400}; }
-  textarea { font-family: 'Inter', sans-serif; }
-  @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-      animation-duration: 0.01ms !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-`;
+// ✅ GLOBAL_CSS gardé comme constante mais plus injecté via <style> dans les composants
+// Il est maintenant géré par GlobalStyles dans App.js
 
 /* ─── Framer Motion Variants ─── */
 const pageVariants = {
@@ -170,6 +155,7 @@ const statusScreenVariants = {
 };
 
 /* ─── StatusScreen ─── */
+// ✅ <style> supprimé
 function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
   return (
     <motion.div
@@ -184,8 +170,6 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <style>{GLOBAL_CSS}</style>
-
       {/* Header */}
       <motion.div
         variants={headerVariants}
@@ -567,7 +551,7 @@ function TypingIndicator() {
   );
 }
 
-/* ─── Toggle Anonymat iOS style ─── */
+/* ─── Toggle Anonymat ─── */
 function AnonymatToggle({ value, onChange }) {
   return (
     <button
@@ -614,6 +598,7 @@ function AnonymatToggle({ value, onChange }) {
 }
 
 /* ─── Loading Screen ─── */
+// ✅ <style> supprimé
 function LoadingScreen() {
   return (
     <motion.div
@@ -627,10 +612,8 @@ function LoadingScreen() {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      <style>{GLOBAL_CSS}</style>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
         <div style={{ position: "relative", width: 64, height: 64 }}>
-          {/* Outer ring */}
           <motion.div
             animate={{ rotate: 360 }}
             transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
@@ -642,7 +625,6 @@ function LoadingScreen() {
               position: "absolute", inset: 0,
             }}
           />
-          {/* Inner ring (counter) */}
           <motion.div
             animate={{ rotate: -360 }}
             transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
@@ -774,7 +756,6 @@ export default function ChatPage() {
     }
   };
 
-  /* ── Guards ── */
   if (loading) return <LoadingScreen />;
 
   if (!consultation) {
@@ -838,9 +819,7 @@ export default function ChatPage() {
         overflow: "hidden",
       }}
     >
-      <style>{GLOBAL_CSS}</style>
-
-      {/* ════════════════ ANIMATED BG GRADIENT ════════════════ */}
+      {/* ════════ ANIMATED BG ════════ */}
       <motion.div
         animate={{
           background: [
@@ -851,12 +830,10 @@ export default function ChatPage() {
           ],
         }}
         transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
-        style={{
-          position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
-        }}
+        style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}
       />
 
-      {/* ════════════════ HEADER ════════════════ */}
+      {/* ════════ HEADER ════════ */}
       <motion.div
         variants={headerVariants}
         initial="hidden"
@@ -875,9 +852,7 @@ export default function ChatPage() {
         }}
       >
         <BackButton onClick={() => navigate(getBackRoute())} />
-
         <Avatar prenom={pro.prenom} nom={pro.nom} size={44} online={connected} />
-
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
             margin: 0, fontWeight: 800, color: T.slate900,
@@ -957,12 +932,12 @@ export default function ChatPage() {
         </div>
       </motion.div>
 
-      {/* ════════════════ CARTE CONSULTATION ════════════════ */}
+      {/* ════════ CARTE CONSULTATION ════════ */}
       <div style={{ padding: "10px 0 6px", flexShrink: 0, position: "relative", zIndex: 5 }}>
         <ConsultationInfoCard consultation={consultation} />
       </div>
 
-      {/* ════════════════ MESSAGES ════════════════ */}
+      {/* ════════ MESSAGES ════════ */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -974,7 +949,8 @@ export default function ChatPage() {
           position: "relative", zIndex: 1,
         }}
       >
-        <AnimatePresence>
+        {/* ✅ AnimatePresence corrigé avec mode="wait" et clés stables */}
+        <AnimatePresence mode="wait">
           {messages.length === 0 ? (
             <motion.div
               key="empty"
@@ -1001,7 +977,7 @@ export default function ChatPage() {
                   border: `1px solid ${T.border}`,
                 }}
               >
-                <MessageCircle size={32} color={`${T.indigoLight.replace("FF","99")}`} strokeWidth={1.5} />
+                <MessageCircle size={32} color={T.indigoLight} strokeWidth={1.5} />
               </motion.div>
 
               <motion.div variants={emptyChildVariants} style={{ textAlign: "center", maxWidth: 260 }}>
@@ -1040,20 +1016,29 @@ export default function ChatPage() {
               </motion.div>
             </motion.div>
           ) : (
-            messages.map((m, i) => (
-              <MessageBubble
-                key={m.id || i}
-                m={m}
-                showSender={!m.moi && (i === 0 || messages[i - 1]?.moi !== false)}
-                isNew={i >= messages.length - newMsgCount}
-              />
-            ))
+            // ✅ wrapper avec key stable pour éviter le conflit avec "empty"
+            <motion.div
+              key="messages"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ display: "flex", flexDirection: "column", gap: 10, width: "100%" }}
+            >
+              {messages.map((m, i) => (
+                <MessageBubble
+                  key={m.id || i}
+                  m={m}
+                  showSender={!m.moi && (i === 0 || messages[i - 1]?.moi !== false)}
+                  isNew={i >= messages.length - newMsgCount}
+                />
+              ))}
+            </motion.div>
           )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </motion.div>
 
-      {/* ════════════════ ZONE DE SAISIE ════════════════ */}
+      {/* ════════ ZONE DE SAISIE ════════ */}
       <motion.div
         variants={inputBarVariants}
         initial="hidden"
@@ -1069,17 +1054,14 @@ export default function ChatPage() {
           position: "relative", zIndex: 10,
         }}
       >
-        {/* Toggle anonymat */}
         <div style={{ marginBottom: 10, paddingLeft: 4 }}>
           <AnonymatToggle value={anonymat} onChange={setAnonymat} />
         </div>
 
-        {/* Input row */}
         <div style={{
           display: "flex", gap: 10, alignItems: "flex-end",
           maxWidth: 820, margin: "0 auto",
         }}>
-          {/* Textarea wrapper */}
           <motion.div
             animate={{
               borderColor: inputFocused ? T.indigo : T.slate200,
@@ -1123,7 +1105,6 @@ export default function ChatPage() {
             />
           </motion.div>
 
-          {/* Send button */}
           <motion.button
             animate={{
               scale: canSend ? 1 : 0.94,
@@ -1156,10 +1137,11 @@ export default function ChatPage() {
           </motion.button>
         </div>
 
-        {/* Offline notice */}
-        <AnimatePresence>
+        {/* ✅ AnimatePresence corrigé pour le message hors-ligne */}
+        <AnimatePresence mode="wait">
           {!connected && showOfflineMsg && (
             <motion.p
+              key="offline-msg"
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
