@@ -30,73 +30,102 @@ import { RessourceProvider } from './pages/RessourceContext';
 
 import ChatPage from "./pages/ChatPage";
 import ConsultationsPage from './pages/ConsultationsPage';
-import { getMe } from './services/api';
 import ConsultationAccessPage from './pages/ConsultationAccessPage';
 
-// Routes sur lesquelles le Header ne doit PAS apparaître
+import { getMe } from './services/api';
+
+// ❌ routes sans header
 const ROUTES_SANS_HEADER = ['/chat/'];
 
 function AppWrapper() {
   const location = useLocation();
 
-  const [chatOpen, setChatOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [authLoading, setAuthLoading] = useState(true);
+  const [appReady, setAppReady] = useState(false);
 
+  // 🔐 AUTH CHECK (safe)
   useEffect(() => {
+    let isMounted = true;
+
     getMe()
-      .then(setCurrentUser)
-      .catch(() => setCurrentUser(null))
-      .finally(() => setAuthLoading(false));
+      .then((user) => {
+        if (isMounted) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (isMounted) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (isMounted) setAppReady(true);
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
-  const afficherHeader = !ROUTES_SANS_HEADER.some(r => location.pathname.startsWith(r));
+  const hideHeader = ROUTES_SANS_HEADER.some(r =>
+    location.pathname.startsWith(r)
+  );
 
-  if (authLoading) return <div>Chargement...</div>;
+  const afficherHeader = !hideHeader;
+
+  // 🚀 IMPORTANT : évite le crash DOM
+  if (!appReady) {
+    return null; // pas de "Chargement" → évite removeChild bug
+  }
 
   return (
     <RessourceProvider>
-      {afficherHeader && <Header onOpenChat={() => setChatOpen(true)} />}
+      <div style={{ minHeight: "100vh" }}>
 
-      <Routes>
-        <Route path="/" element={<Accueil />} />
-        <Route path="/chatbot" element={<Chatbot />} />
-        <Route path="/inscription" element={<Inscription />} />
-        <Route path="/inscription/utilisateur" element={<InscriptionUser />} />
-        <Route path="/inscription/professionnel" element={<InscriptionProfessionnel />} />
-        <Route path="/connexion" element={<Connexion />} />
-        <Route path="/ressources" element={<Ressources />} />
-        <Route path="/forum" element={<Forum />} />
-        <Route path="/devenir-premium" element={<DevenirPremium />} />
-        <Route path="/tableauAdmin" element={<TableauAdmin />} />
-        <Route path="/tableauUtilisateur" element={<TableauUtilisateur />} />
-        <Route path="/tableauProfessionnel" element={<TableauProfessionnel />} />
-        <Route path="/apropos" element={<APropos />} />
-        <Route path="/reservation" element={<ListeProfessionnels />} />
-        <Route path="/mini-defi-gratuite" element={<MiniDefiGratuite />} />
-        <Route path="/mini-defi-decouverte" element={<MiniDefiDecouverte />} />
-        <Route path="/guide-fixateur-limites" element={<GuideFixateurLimites />} />
-        <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
-        <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
-        <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
+        {afficherHeader && (
+          <Header onOpenChat={() => {}} />
+        )}
 
-        <Route
-          path="/consultations"
-          element={currentUser ? <ConsultationsPage /> : <Navigate to="/connexion" />}
-        />
-        <Route
-          path="/consultations/pro"
-          element={currentUser ? <TableauProfessionnel /> : <Navigate to="/connexion" />}
-        />
+        <Routes>
+          <Route path="/" element={<Accueil />} />
+          <Route path="/chatbot" element={<Chatbot />} />
+          <Route path="/inscription" element={<Inscription />} />
+          <Route path="/inscription/utilisateur" element={<InscriptionUser />} />
+          <Route path="/inscription/professionnel" element={<InscriptionProfessionnel />} />
+          <Route path="/connexion" element={<Connexion />} />
+          <Route path="/ressources" element={<Ressources />} />
+          <Route path="/forum" element={<Forum />} />
 
-        <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
-        <Route
-          path="/chat/:consultationId"
-          element={currentUser ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" />}
-        />
-        <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
-        <Route path="*" element={<Page404 />} />
-      </Routes>
+          <Route path="/devenir-premium" element={<DevenirPremium />} />
+          <Route path="/tableauAdmin" element={<TableauAdmin />} />
+          <Route path="/tableauUtilisateur" element={<TableauUtilisateur />} />
+          <Route path="/tableauProfessionnel" element={<TableauProfessionnel />} />
+          <Route path="/apropos" element={<APropos />} />
+          <Route path="/reservation" element={<ListeProfessionnels />} />
+
+          {/* Consultations */}
+          <Route
+            path="/consultations"
+            element={currentUser ? <ConsultationsPage /> : <Navigate to="/connexion" />}
+          />
+
+          <Route
+            path="/consultations/pro"
+            element={currentUser ? <TableauProfessionnel /> : <Navigate to="/connexion" />}
+          />
+
+          <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
+
+          {/* Chat */}
+          <Route
+            path="/chat/:consultationId"
+            element={
+              currentUser
+                ? <ChatPage currentUser={currentUser} />
+                : <Navigate to="/connexion" />
+            }
+          />
+
+          <Route path="*" element={<Page404 />} />
+        </Routes>
+
+      </div>
     </RessourceProvider>
   );
 }
