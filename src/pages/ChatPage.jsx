@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
+import { getCurrentUserInfo } from "../services/serviceAuth";
 import { Send, Video, ArrowLeft, Wifi, WifiOff, Clock, CheckCircle, MessageCircle } from "lucide-react";
 
 const isConsultationStarted = (consultation) => {
@@ -21,6 +22,24 @@ const isConsultationStarted = (consultation) => {
 const isConsultationTerminee = (consultation) => {
   if (!consultation) return false;
   return consultation.statut === "TERMINEE" || consultation.statut === "ANNULEE";
+};
+
+// ✅ Lit le rôle depuis currentUserInfo dans localStorage (c'est là qu'il est stocké par serviceAuth)
+const getRoleFromStorage = () => {
+  try {
+    const raw = localStorage.getItem("currentUserInfo");
+    if (!raw) return null;
+    const user = JSON.parse(raw);
+    return user?.role || null;
+  } catch {
+    return null;
+  }
+};
+
+const getBackRoute = () => {
+  const role = getRoleFromStorage();
+  if (role === "PSYCHOLOGUE" || role === "PSYCHIATRE") return "/tableauProfessionnel";
+  return "/tableauUtilisateur";
 };
 
 function StatusScreen({ icon: Icon, color, title, subtitle, onBack }) {
@@ -49,7 +68,7 @@ function StatusScreen({ icon: Icon, color, title, subtitle, onBack }) {
   );
 }
 
-export default function ChatPage({ currentUser }) {
+export default function ChatPage() {
   const { consultationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -63,13 +82,6 @@ export default function ChatPage({ currentUser }) {
   const [anonymat, setAnonymat] = useState(false);
 
   const messagesEndRef = useRef(null);
-
-  // ✅ Rôles réels : "USER" → tableauUtilisateur, "PSYCHOLOGUE"/"PSYCHIATRE" → tableauProfessionnel
-  const role = localStorage.getItem("role") || currentUser?.role || "";
-  const getBackRoute = () => {
-    if (role === "PSYCHOLOGUE" || role === "PSYCHIATRE") return "/tableauProfessionnel";
-    return "/tableauUtilisateur";
-  };
 
   const handleNewMessage = useRef((msg) => {
     setMessages((prev) => [...prev, msg]);
@@ -96,7 +108,10 @@ export default function ChatPage({ currentUser }) {
           return;
         }
 
-        if (consultationFromState.statut !== "CONFIRMEE" && consultationFromState.statut !== "TERMINEE") {
+        if (
+          consultationFromState.statut !== "CONFIRMEE" &&
+          consultationFromState.statut !== "TERMINEE"
+        ) {
           navigate(getBackRoute());
           return;
         }
@@ -124,7 +139,9 @@ export default function ChatPage({ currentUser }) {
     }
 
     loadData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [consultationId]);
 
   const handleSend = () => {
@@ -177,7 +194,11 @@ export default function ChatPage({ currentUser }) {
     const dateStr = consultation.jourConsultation || consultation.dateConsultation;
     const heureStr = consultation.heureConsultation?.replace("H", "h") || "";
     const dateFormatee = dateStr
-      ? new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })
+      ? new Date(dateStr + "T00:00:00").toLocaleDateString("fr-FR", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+        })
       : "";
     return (
       <StatusScreen
@@ -202,7 +223,10 @@ export default function ChatPage({ currentUser }) {
 
       {/* HEADER */}
       <div style={{ background: "#fff", borderBottom: "1px solid #e2e8f0", padding: "10px 16px", display: "flex", alignItems: "center", gap: 12, boxShadow: "0 1px 3px rgba(0,0,0,0.05)", flexShrink: 0 }}>
-        <button onClick={() => navigate(getBackRoute())} style={{ background: "none", border: "none", cursor: "pointer", padding: 8, borderRadius: 10, color: "#475569", display: "flex", alignItems: "center" }}>
+        <button
+          onClick={() => navigate(getBackRoute())}
+          style={{ background: "none", border: "none", cursor: "pointer", padding: 8, borderRadius: 10, color: "#475569", display: "flex", alignItems: "center" }}
+        >
           <ArrowLeft size={20} />
         </button>
 
@@ -223,8 +247,12 @@ export default function ChatPage({ currentUser }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           {consultation.lienVisio && (
-            <a href={consultation.lienVisio} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#dcfce7", color: "#16a34a", borderRadius: 10, fontSize: 12, fontWeight: 600, textDecoration: "none" }}>
+            <a
+              href={consultation.lienVisio}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", background: "#dcfce7", color: "#16a34a", borderRadius: 10, fontSize: 12, fontWeight: 600, textDecoration: "none" }}
+            >
               <Video size={13} /> Visio
             </a>
           )}
@@ -312,7 +340,7 @@ export default function ChatPage({ currentUser }) {
         </div>
         {!connected && (
           <p style={{ textAlign: "center", fontSize: 11, color: "#f87171", margin: "6px 0 0" }}>
-            Connexion perdue — tentative de reconnexion...
+            Connexion en cours... (le serveur peut prendre quelques secondes à répondre)
           </p>
         )}
       </div>
