@@ -42,16 +42,44 @@ function AppWrapper() {
 
   const [chatOpen, setChatOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
     getMe()
-      .then(setCurrentUser)
-      .catch(() => setCurrentUser(null));
+      .then((user) => {
+        if (mounted) setCurrentUser(user);
+      })
+      .catch(() => {
+        if (mounted) setCurrentUser(null);
+      })
+      .finally(() => {
+        if (mounted) setAuthLoading(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const afficherHeader = !ROUTES_SANS_HEADER.some(r =>
     location.pathname.startsWith(r)
   );
+
+  // ⭐ SPLASH SCREEN MODERNE
+  if (authLoading) {
+    return (
+      <div className="splash-container">
+        <div className="splash-content">
+          <div className="pulse-circle"></div>
+
+          <h1 className="app-title">PsyConnect</h1>
+          <p className="subtitle">Connexion sécurisée en cours...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <RessourceProvider>
@@ -66,13 +94,18 @@ function AppWrapper() {
         <Route path="/connexion" element={<Connexion />} />
         <Route path="/ressources" element={<Ressources />} />
         <Route path="/forum" element={<Forum />} />
-
         <Route path="/devenir-premium" element={<DevenirPremium />} />
         <Route path="/tableauAdmin" element={<TableauAdmin />} />
         <Route path="/tableauUtilisateur" element={<TableauUtilisateur />} />
         <Route path="/tableauProfessionnel" element={<TableauProfessionnel />} />
         <Route path="/apropos" element={<APropos />} />
         <Route path="/reservation" element={<ListeProfessionnels />} />
+        <Route path="/mini-defi-gratuite" element={<MiniDefiGratuite />} />
+        <Route path="/mini-defi-decouverte" element={<MiniDefiDecouverte />} />
+        <Route path="/guide-fixateur-limites" element={<GuideFixateurLimites />} />
+        <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
+        <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
+        <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
 
         <Route
           path="/consultations"
@@ -95,6 +128,7 @@ function AppWrapper() {
           }
         />
 
+        <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Page404 />} />
       </Routes>
     </RessourceProvider>
