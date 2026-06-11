@@ -2,7 +2,13 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
-import { Send, Video, ArrowLeft, Clock, CheckCircle, MessageCircle, Shield, Lock, Calendar, Stethoscope } from "lucide-react";
+import {
+  Send, Video, ArrowLeft, Clock, CheckCircle,
+  MessageCircle, Shield, Lock, Calendar, Stethoscope,
+} from "lucide-react";
+import {
+  motion, AnimatePresence, useSpring, useTransform,
+} from "framer-motion";
 
 /* ─── helpers (inchangés) ─── */
 const isConsultationStarted = (consultation) => {
@@ -85,80 +91,154 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: ${T.slate200}; border-radius: 99px; }
   ::-webkit-scrollbar-thumb:hover { background: ${T.slate400}; }
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(10px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
-  @keyframes spin {
-    to { transform: rotate(360deg); }
-  }
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.25; }
-  }
-  @keyframes slideIn {
-    from { opacity: 0; transform: translateY(8px) scale(0.98); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-  @keyframes pulseRing {
-    0%   { box-shadow: 0 0 0 0 rgba(16,185,129,0.35); }
-    70%  { box-shadow: 0 0 0 8px rgba(16,185,129,0); }
-    100% { box-shadow: 0 0 0 0 rgba(16,185,129,0); }
-  }
   textarea { font-family: 'Inter', sans-serif; }
   @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 `;
+
+/* ─── Framer Motion Variants ─── */
+const pageVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.35, ease: "easeOut" } },
+  exit: { opacity: 0, transition: { duration: 0.2, ease: "easeIn" } },
+};
+
+const headerVariants = {
+  hidden: { opacity: 0, y: -20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, scale: 0.96, y: 6 },
+  visible: {
+    opacity: 1, scale: 1, y: 0,
+    transition: { duration: 0.35, ease: [0.34, 1.2, 0.64, 1] },
+  },
+};
+
+const inputBarVariants = {
+  hidden: { opacity: 0, y: 24 },
+  visible: {
+    opacity: 1, y: 0,
+    transition: { duration: 0.4, ease: [0.34, 1.1, 0.64, 1], delay: 0.15 },
+  },
+};
+
+const userMsgVariants = {
+  hidden: { opacity: 0, x: 20, scale: 0.95 },
+  visible: {
+    opacity: 1, x: 0, scale: 1,
+    transition: { duration: 0.28, ease: [0.34, 1.3, 0.64, 1] },
+  },
+};
+
+const proMsgVariants = {
+  hidden: { opacity: 0, x: -20, scale: 0.95 },
+  visible: {
+    opacity: 1, x: 0, scale: 1,
+    transition: { duration: 0.28, ease: [0.34, 1.3, 0.64, 1] },
+  },
+};
+
+const emptyStateVariants = {
+  hidden: { opacity: 0, y: 16 },
+  visible: {
+    opacity: 1, y: 0,
+    transition: {
+      duration: 0.5, ease: "easeOut",
+      staggerChildren: 0.12,
+      delayChildren: 0.1,
+    },
+  },
+};
+
+const emptyChildVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: "easeOut" } },
+};
+
+const statusScreenVariants = {
+  hidden: { opacity: 0, scale: 0.95, y: 20 },
+  visible: {
+    opacity: 1, scale: 1, y: 0,
+    transition: { duration: 0.45, ease: [0.34, 1.2, 0.64, 1] },
+  },
+};
 
 /* ─── StatusScreen ─── */
 function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: `linear-gradient(160deg, ${T.bg} 0%, ${T.white} 60%, #EFF6FF 100%)`,
-      display: "flex", flexDirection: "column",
-      fontFamily: "'Inter', sans-serif",
-    }}>
+    <motion.div
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      style={{
+        minHeight: "100vh",
+        background: `linear-gradient(160deg, ${T.bg} 0%, ${T.white} 60%, #EFF6FF 100%)`,
+        display: "flex", flexDirection: "column",
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
       <style>{GLOBAL_CSS}</style>
 
       {/* Header */}
-      <div style={{
-        background: T.surface,
-        backdropFilter: "blur(16px)",
-        WebkitBackdropFilter: "blur(16px)",
-        borderBottom: `1px solid ${T.border}`,
-        padding: "14px 20px",
-        display: "flex", alignItems: "center", gap: 12,
-      }}>
+      <motion.div
+        variants={headerVariants}
+        initial="hidden"
+        animate="visible"
+        style={{
+          background: T.surface,
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
+          borderBottom: `1px solid ${T.border}`,
+          padding: "14px 20px",
+          display: "flex", alignItems: "center", gap: 12,
+        }}
+      >
         <BackButton onClick={onBack} />
         <span style={{ fontWeight: 700, color: T.slate900, fontSize: 15, letterSpacing: -0.3 }}>
           Consultation
         </span>
-      </div>
+      </motion.div>
 
       {/* Content */}
       <div style={{
         flex: 1, display: "flex", alignItems: "center",
         justifyContent: "center", padding: "2rem",
       }}>
-        <div style={{ textAlign: "center", maxWidth: 380, animation: "fadeUp 0.4s ease" }}>
-          <div style={{
-            width: 96, height: 96, borderRadius: 28,
-            background: bgColor,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            margin: "0 auto 28px",
-            boxShadow: `0 16px 40px ${color}30`,
-          }}>
+        <motion.div
+          variants={statusScreenVariants}
+          initial="hidden"
+          animate="visible"
+          style={{ textAlign: "center", maxWidth: 380 }}
+        >
+          <motion.div
+            whileHover={{ scale: 1.05, rotate: 2 }}
+            transition={{ type: "spring", stiffness: 300, damping: 18 }}
+            style={{
+              width: 96, height: 96, borderRadius: 28,
+              background: bgColor,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 28px",
+              boxShadow: `0 16px 40px ${color}30`,
+            }}
+          >
             <Icon size={42} color={color} />
-          </div>
+          </motion.div>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: T.slate900, margin: "0 0 10px", letterSpacing: -0.5 }}>
             {title}
           </h2>
           <p style={{ fontSize: 14, color: T.slate500, lineHeight: 1.75, margin: "0 0 32px" }}>
             {subtitle}
           </p>
-          <button
+          <motion.button
+            whileHover={{ y: -2, boxShadow: "0 6px 20px rgba(0,0,0,0.1)" }}
+            whileTap={{ scale: 0.97 }}
             onClick={onBack}
             style={{
               display: "inline-flex", alignItems: "center", gap: 8,
@@ -167,40 +247,37 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
               background: T.white, color: T.slate700,
               fontSize: 14, fontWeight: 600, cursor: "pointer",
               boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-              transition: "all 0.2s",
+              transition: "background 0.2s, border-color 0.2s",
             }}
-            onMouseEnter={e => { e.currentTarget.style.background = T.slate100; e.currentTarget.style.borderColor = T.slate400; e.currentTarget.style.transform = "translateY(-1px)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = T.white; e.currentTarget.style.borderColor = T.slate200; e.currentTarget.style.transform = "none"; }}
           >
             <ArrowLeft size={16} />
             Retour aux consultations
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
-/* ─── Shared: BackButton ─── */
+/* ─── BackButton ─── */
 function BackButton({ onClick }) {
-  const [hov, setHov] = useState(false);
   return (
-    <button
+    <motion.button
+      whileHover={{ scale: 1.08, backgroundColor: T.slate200 }}
+      whileTap={{ scale: 0.94 }}
       onClick={onClick}
-      onMouseEnter={() => setHov(true)}
-      onMouseLeave={() => setHov(false)}
       style={{
-        background: hov ? T.slate200 : T.slate100,
+        background: T.slate100,
         border: "none", cursor: "pointer",
         width: 38, height: 38, borderRadius: 12,
-        color: hov ? T.slate900 : T.slate500,
+        color: T.slate500,
         display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0, transition: "all 0.15s",
-        boxShadow: hov ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+        flexShrink: 0,
+        transition: "background 0.15s",
       }}
     >
       <ArrowLeft size={18} />
-    </button>
+    </motion.button>
   );
 }
 
@@ -208,7 +285,13 @@ function BackButton({ onClick }) {
 function Avatar({ prenom, nom, size = 44, online }) {
   const initials = `${prenom?.[0] || ""}${nom?.[0] || ""}`.toUpperCase();
   return (
-    <div style={{ position: "relative", flexShrink: 0 }}>
+    <motion.div
+      style={{ position: "relative", flexShrink: 0 }}
+      initial={{ scale: 0.8, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      transition={{ type: "spring", stiffness: 340, damping: 18, delay: 0.15 }}
+      whileHover={{ scale: 1.05 }}
+    >
       <div style={{
         width: size, height: size, borderRadius: size * 0.28,
         background: `linear-gradient(140deg, ${T.indigo} 0%, ${T.violet} 100%)`,
@@ -221,15 +304,21 @@ function Avatar({ prenom, nom, size = 44, online }) {
         {initials || "?"}
       </div>
       {online !== undefined && (
-        <div style={{
-          position: "absolute", bottom: -2, right: -2,
-          width: 13, height: 13, borderRadius: "50%",
-          background: online ? T.teal : T.red,
-          border: `2px solid ${T.white}`,
-          animation: online ? "pulseRing 2.5s infinite" : "none",
-        }} />
+        <motion.div
+          animate={online
+            ? { boxShadow: ["0 0 0 0 rgba(16,185,129,0.35)", "0 0 0 7px rgba(16,185,129,0)", "0 0 0 0 rgba(16,185,129,0)"] }
+            : {}
+          }
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" }}
+          style={{
+            position: "absolute", bottom: -2, right: -2,
+            width: 13, height: 13, borderRadius: "50%",
+            background: online ? T.teal : T.red,
+            border: `2px solid ${T.white}`,
+          }}
+        />
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -240,27 +329,33 @@ function ConsultationInfoCard({ consultation }) {
   const statut = consultation.statut;
 
   const STATUT_STYLE = {
-    CONFIRMEE:  { bg: T.tealLight,   color: T.teal,  label: "Confirmée" },
-    EN_ATTENTE: { bg: T.amberLight,  color: T.amber, label: "En attente" },
+    CONFIRMEE:  { bg: T.tealLight,   color: T.teal,     label: "Confirmée" },
+    EN_ATTENTE: { bg: T.amberLight,  color: T.amber,    label: "En attente" },
     TERMINEE:   { bg: T.slate100,    color: T.slate500, label: "Terminée" },
-    ANNULEE:    { bg: T.redLight,    color: T.red,   label: "Annulée" },
+    ANNULEE:    { bg: T.redLight,    color: T.red,      label: "Annulée" },
   };
   const st = STATUT_STYLE[statut] || STATUT_STYLE.EN_ATTENTE;
 
   return (
-    <div style={{
-      margin: "0 16px",
-      padding: "12px 16px",
-      background: "rgba(255,255,255,0.75)",
-      backdropFilter: "blur(12px)",
-      WebkitBackdropFilter: "blur(12px)",
-      borderRadius: 16,
-      border: `1px solid ${T.border}`,
-      boxShadow: "0 2px 12px rgba(79,70,229,0.06)",
-      display: "flex", alignItems: "center", gap: 12,
-      flexWrap: "wrap",
-    }}>
-      {/* Date */}
+    <motion.div
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ y: -1, boxShadow: "0 6px 24px rgba(79,70,229,0.10)" }}
+      transition={{ duration: 0.18 }}
+      style={{
+        margin: "0 16px",
+        padding: "12px 16px",
+        background: "rgba(255,255,255,0.75)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
+        borderRadius: 16,
+        border: `1px solid ${T.border}`,
+        boxShadow: "0 2px 12px rgba(79,70,229,0.06)",
+        display: "flex", alignItems: "center", gap: 12,
+        flexWrap: "wrap",
+      }}
+    >
       {dateStr && (
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{
@@ -280,7 +375,6 @@ function ConsultationInfoCard({ consultation }) {
         <div style={{ width: 1, height: 20, background: T.slate200, flexShrink: 0 }} />
       )}
 
-      {/* Heure */}
       {heureStr && (
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div style={{
@@ -298,18 +392,25 @@ function ConsultationInfoCard({ consultation }) {
 
       <div style={{ flex: 1 }} />
 
-      {/* Statut */}
-      <span style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        padding: "4px 10px", borderRadius: 20,
-        background: st.bg, color: st.color,
-        fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
-      }}>
-        <span style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }} />
+      <motion.span
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 5,
+          padding: "4px 10px", borderRadius: 20,
+          background: st.bg, color: st.color,
+          fontSize: 11, fontWeight: 700, letterSpacing: 0.2,
+        }}
+      >
+        <motion.span
+          animate={{ opacity: [1, 0.4, 1] }}
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          style={{ width: 6, height: 6, borderRadius: "50%", background: st.color }}
+        />
         {st.label}
-      </span>
+      </motion.span>
 
-      {/* Sécurisé */}
       <div style={{
         display: "flex", alignItems: "center", gap: 4,
         padding: "4px 10px", borderRadius: 20,
@@ -319,31 +420,42 @@ function ConsultationInfoCard({ consultation }) {
         <Lock size={10} />
         Sécurisé
       </div>
-    </div>
+    </motion.div>
   );
 }
 
 /* ─── Message Bubble ─── */
 function MessageBubble({ m, showSender, isNew }) {
   const isMoi = m.moi;
+  const variants = isMoi ? userMsgVariants : proMsgVariants;
+
   return (
-    <div style={{
-      display: "flex",
-      justifyContent: isMoi ? "flex-end" : "flex-start",
-      gap: 8, alignItems: "flex-end",
-      animation: isNew ? "slideIn 0.22s ease" : "none",
-    }}>
-      {/* Avatar expéditeur */}
+    <motion.div
+      variants={variants}
+      initial={isNew ? "hidden" : false}
+      animate="visible"
+      layout
+      style={{
+        display: "flex",
+        justifyContent: isMoi ? "flex-end" : "flex-start",
+        gap: 8, alignItems: "flex-end",
+      }}
+    >
       {!isMoi && (
-        <div style={{
-          width: 30, height: 30, borderRadius: 9, flexShrink: 0,
-          background: `linear-gradient(135deg, ${T.indigo}, ${T.violet})`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          color: "#fff", fontSize: 11, fontWeight: 700,
-          boxShadow: `0 2px 8px rgba(79,70,229,0.25)`,
-        }}>
+        <motion.div
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ type: "spring", stiffness: 400, damping: 18 }}
+          style={{
+            width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+            background: `linear-gradient(135deg, ${T.indigo}, ${T.violet})`,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#fff", fontSize: 11, fontWeight: 700,
+            boxShadow: `0 2px 8px rgba(79,70,229,0.25)`,
+          }}
+        >
           {(m.anonymat ? "A" : (m.expediteurNom?.[0] || "?")).toUpperCase()}
-        </div>
+        </motion.div>
       )}
 
       <div style={{
@@ -351,46 +463,107 @@ function MessageBubble({ m, showSender, isNew }) {
         flexDirection: "column", gap: 4,
         alignItems: isMoi ? "flex-end" : "flex-start",
       }}>
-        {/* Nom expéditeur */}
         {!isMoi && showSender && (
-          <span style={{
-            fontSize: 11, color: T.indigo, fontWeight: 700,
-            paddingLeft: 4, letterSpacing: 0.1,
-          }}>
+          <motion.span
+            initial={{ opacity: 0, x: -6 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.25 }}
+            style={{
+              fontSize: 11, color: T.indigo, fontWeight: 700,
+              paddingLeft: 4, letterSpacing: 0.1,
+            }}
+          >
             {m.anonymat ? "Anonyme" : m.expediteurNom}
-          </span>
+          </motion.span>
         )}
 
-        {/* Bulle */}
-        <div style={{
-          padding: "11px 16px",
-          borderRadius: isMoi ? "20px 20px 6px 20px" : "6px 20px 20px 20px",
-          background: isMoi
-            ? `linear-gradient(140deg, ${T.indigo} 0%, ${T.violet} 100%)`
-            : T.white,
-          color: isMoi ? "#fff" : T.slate900,
-          fontSize: 14, lineHeight: 1.6,
-          boxShadow: isMoi
-            ? `0 6px 20px rgba(79,70,229,0.25)`
-            : `0 2px 10px rgba(15,23,42,0.06)`,
-          border: isMoi ? "none" : `1px solid rgba(226,232,240,0.9)`,
-          wordBreak: "break-word",
-          transition: "box-shadow 0.15s",
-        }}>
+        <motion.div
+          whileHover={{ scale: 1.015 }}
+          transition={{ duration: 0.15 }}
+          style={{
+            padding: "11px 16px",
+            borderRadius: isMoi ? "20px 20px 6px 20px" : "6px 20px 20px 20px",
+            background: isMoi
+              ? `linear-gradient(140deg, ${T.indigo} 0%, ${T.violet} 100%)`
+              : T.white,
+            color: isMoi ? "#fff" : T.slate900,
+            fontSize: 14, lineHeight: 1.6,
+            boxShadow: isMoi
+              ? `0 6px 20px rgba(79,70,229,0.25)`
+              : `0 2px 10px rgba(15,23,42,0.06)`,
+            border: isMoi ? "none" : `1px solid rgba(226,232,240,0.9)`,
+            wordBreak: "break-word",
+          }}
+        >
           {m.contenu}
-        </div>
+        </motion.div>
 
-        {/* Heure */}
         {m.heure && (
-          <span style={{
-            fontSize: 10, color: T.slate400,
-            padding: "0 4px", fontWeight: 500,
-          }}>
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
+            style={{
+              fontSize: 10, color: T.slate400,
+              padding: "0 4px", fontWeight: 500,
+            }}
+          >
             {formatTime(m.heure)}
-          </span>
+          </motion.span>
         )}
       </div>
-    </div>
+    </motion.div>
+  );
+}
+
+/* ─── Typing Indicator ─── */
+function TypingIndicator() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -14, scale: 0.92 }}
+      animate={{ opacity: 1, x: 0, scale: 1 }}
+      exit={{ opacity: 0, x: -10, scale: 0.92 }}
+      transition={{ duration: 0.24, ease: "easeOut" }}
+      style={{
+        display: "flex", alignItems: "center", gap: 10,
+        paddingLeft: 4,
+      }}
+    >
+      <div style={{
+        width: 30, height: 30, borderRadius: 9, flexShrink: 0,
+        background: `linear-gradient(135deg, ${T.indigo}, ${T.violet})`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        boxShadow: `0 2px 8px rgba(79,70,229,0.25)`,
+      }}>
+        <Stethoscope size={13} color="#fff" />
+      </div>
+      <div style={{
+        padding: "12px 16px",
+        borderRadius: "6px 20px 20px 20px",
+        background: T.white,
+        border: `1px solid rgba(226,232,240,0.9)`,
+        boxShadow: `0 2px 10px rgba(15,23,42,0.06)`,
+        display: "flex", alignItems: "center", gap: 5,
+      }}>
+        {[0, 1, 2].map((i) => (
+          <motion.span
+            key={i}
+            animate={{ y: [0, -5, 0], opacity: [0.4, 1, 0.4] }}
+            transition={{
+              duration: 0.9,
+              repeat: Infinity,
+              ease: "easeInOut",
+              delay: i * 0.18,
+            }}
+            style={{
+              width: 7, height: 7, borderRadius: "50%",
+              background: T.indigo,
+              display: "inline-block",
+            }}
+          />
+        ))}
+      </div>
+    </motion.div>
   );
 }
 
@@ -405,71 +578,106 @@ function AnonymatToggle({ value, onChange }) {
         padding: "4px 0",
       }}
     >
-      {/* Track */}
-      <div style={{
-        width: 38, height: 22, borderRadius: 11,
-        background: value
-          ? `linear-gradient(135deg, ${T.indigo}, ${T.violet})`
-          : T.slate200,
-        position: "relative",
-        transition: "background 0.22s",
-        boxShadow: value ? `0 2px 8px rgba(79,70,229,0.3)` : "none",
-        flexShrink: 0,
-      }}>
-        {/* Thumb */}
-        <div style={{
-          position: "absolute", top: 2,
-          left: value ? 18 : 2,
-          width: 18, height: 18, borderRadius: "50%",
-          background: T.white,
-          transition: "left 0.22s cubic-bezier(0.34,1.56,0.64,1)",
-          boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
-        }} />
-      </div>
-      <span style={{
-        fontSize: 12, fontWeight: 600,
-        color: value ? T.indigo : T.slate400,
-        transition: "color 0.2s",
-        userSelect: "none",
-      }}>
+      <motion.div
+        animate={{
+          background: value
+            ? `linear-gradient(135deg, ${T.indigo}, ${T.violet})`
+            : T.slate200,
+        }}
+        transition={{ duration: 0.22 }}
+        style={{
+          width: 38, height: 22, borderRadius: 11,
+          position: "relative", flexShrink: 0,
+          boxShadow: value ? `0 2px 8px rgba(79,70,229,0.3)` : "none",
+        }}
+      >
+        <motion.div
+          animate={{ left: value ? 18 : 2 }}
+          transition={{ type: "spring", stiffness: 400, damping: 22 }}
+          style={{
+            position: "absolute", top: 2,
+            width: 18, height: 18, borderRadius: "50%",
+            background: T.white,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+          }}
+        />
+      </motion.div>
+      <motion.span
+        animate={{ color: value ? T.indigo : T.slate400 }}
+        transition={{ duration: 0.2 }}
+        style={{ fontSize: 12, fontWeight: 600, userSelect: "none" }}
+      >
         Mode anonyme
-      </span>
+      </motion.span>
     </button>
   );
 }
 
-/* ─── Loading Spinner ─── */
+/* ─── Loading Screen ─── */
 function LoadingScreen() {
   return (
-    <div style={{
-      minHeight: "100vh",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      background: `linear-gradient(160deg, ${T.bg} 0%, ${T.white} 100%)`,
-      fontFamily: "'Inter', sans-serif",
-    }}>
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      style={{
+        minHeight: "100vh",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        background: `linear-gradient(160deg, ${T.bg} 0%, ${T.white} 100%)`,
+        fontFamily: "'Inter', sans-serif",
+      }}
+    >
       <style>{GLOBAL_CSS}</style>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
-        {/* Spinner */}
-        <div style={{ position: "relative", width: 56, height: 56 }}>
-          <div style={{
-            width: 56, height: 56,
-            border: `3px solid ${T.indigoLight}`,
-            borderTopColor: T.indigo,
-            borderRadius: "50%",
-            animation: "spin 0.8s linear infinite",
-          }} />
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20 }}>
+        <div style={{ position: "relative", width: 64, height: 64 }}>
+          {/* Outer ring */}
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+            style={{
+              width: 64, height: 64,
+              borderRadius: "50%",
+              border: `3px solid ${T.indigoLight}`,
+              borderTopColor: T.indigo,
+              position: "absolute", inset: 0,
+            }}
+          />
+          {/* Inner ring (counter) */}
+          <motion.div
+            animate={{ rotate: -360 }}
+            transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
+            style={{
+              width: 46, height: 46,
+              borderRadius: "50%",
+              border: `2px solid transparent`,
+              borderTopColor: `${T.violet}60`,
+              position: "absolute",
+              top: 9, left: 9,
+            }}
+          />
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
           }}>
-            <Stethoscope size={18} color={T.indigo} />
+            <motion.div
+              animate={{ scale: [1, 1.12, 1] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+            >
+              <Stethoscope size={18} color={T.indigo} />
+            </motion.div>
           </div>
         </div>
-        <p style={{ color: T.slate400, fontSize: 13, margin: 0, fontWeight: 500, letterSpacing: 0.1 }}>
+
+        <motion.p
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.4 }}
+          style={{ color: T.slate400, fontSize: 13, margin: 0, fontWeight: 500, letterSpacing: 0.1 }}
+        >
           Chargement de la conversation…
-        </p>
+        </motion.p>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -522,7 +730,10 @@ export default function ChatPage() {
       try {
         setLoading(true);
         if (!consultationFromState) { navigate(getBackRoute()); return; }
-        if (consultationFromState.statut !== "CONFIRMEE" && consultationFromState.statut !== "TERMINEE") {
+        if (
+          consultationFromState.statut !== "CONFIRMEE" &&
+          consultationFromState.statut !== "TERMINEE"
+        ) {
           navigate(getBackRoute()); return;
         }
         const chatRes = await getChatHistory(consultationId).catch((e) => {
@@ -615,26 +826,54 @@ export default function ChatPage() {
   const canSend = !!inputValue.trim() && connected;
 
   return (
-    <div style={{
-      height: "100vh", display: "flex", flexDirection: "column",
-      background: `linear-gradient(170deg, #EEF2FF 0%, ${T.bg} 40%, #F0FDF4 100%)`,
-      fontFamily: "'Inter', 'DM Sans', sans-serif",
-      overflow: "hidden",
-    }}>
+    <motion.div
+      variants={pageVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      style={{
+        height: "100vh", display: "flex", flexDirection: "column",
+        background: `linear-gradient(170deg, #EEF2FF 0%, ${T.bg} 40%, #F0FDF4 100%)`,
+        fontFamily: "'Inter', 'DM Sans', sans-serif",
+        overflow: "hidden",
+      }}
+    >
       <style>{GLOBAL_CSS}</style>
 
+      {/* ════════════════ ANIMATED BG GRADIENT ════════════════ */}
+      <motion.div
+        animate={{
+          background: [
+            "radial-gradient(ellipse 80% 60% at 20% 20%, rgba(79,70,229,0.04) 0%, transparent 60%)",
+            "radial-gradient(ellipse 80% 60% at 80% 80%, rgba(124,58,237,0.04) 0%, transparent 60%)",
+            "radial-gradient(ellipse 80% 60% at 20% 80%, rgba(16,185,129,0.03) 0%, transparent 60%)",
+            "radial-gradient(ellipse 80% 60% at 20% 20%, rgba(79,70,229,0.04) 0%, transparent 60%)",
+          ],
+        }}
+        transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+        style={{
+          position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
+        }}
+      />
+
       {/* ════════════════ HEADER ════════════════ */}
-      <div style={{
-        background: T.surface,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderBottom: `1px solid ${T.border}`,
-        padding: "12px 20px",
-        display: "flex", alignItems: "center", gap: 14,
-        flexShrink: 0,
-        boxShadow: "0 1px 24px rgba(79,70,229,0.07)",
-        zIndex: 10,
-      }}>
+      <motion.div
+        variants={headerVariants}
+        initial="hidden"
+        animate="visible"
+        style={{
+          background: T.surface,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderBottom: `1px solid ${T.border}`,
+          padding: "12px 20px",
+          display: "flex", alignItems: "center", gap: 14,
+          flexShrink: 0,
+          boxShadow: "0 1px 24px rgba(79,70,229,0.07)",
+          zIndex: 10,
+          position: "relative",
+        }}
+      >
         <BackButton onClick={() => navigate(getBackRoute())} />
 
         <Avatar prenom={pro.prenom} nom={pro.nom} size={44} online={connected} />
@@ -652,16 +891,21 @@ export default function ChatPage() {
               {pro.specialite}
             </p>
           ) : (
-            <p style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600, color: connected ? T.teal : T.red }}>
+            <motion.p
+              animate={{ color: connected ? T.teal : T.red }}
+              transition={{ duration: 0.3 }}
+              style={{ margin: "1px 0 0", fontSize: 12, fontWeight: 600 }}
+            >
               {connected ? "● En ligne" : "○ Hors ligne"}
-            </p>
+            </motion.p>
           )}
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-          {/* Visio */}
           {consultation.lienVisio && (
-            <a
+            <motion.a
+              whileHover={{ y: -1, boxShadow: "0 6px 20px rgba(16,185,129,0.4)" }}
+              whileTap={{ scale: 0.96 }}
               href={consultation.lienVisio}
               target="_blank"
               rel="noopener noreferrer"
@@ -672,117 +916,159 @@ export default function ChatPage() {
                 color: "#fff", fontSize: 12, fontWeight: 700,
                 textDecoration: "none",
                 boxShadow: "0 4px 14px rgba(16,185,129,0.3)",
-                transition: "all 0.2s",
                 letterSpacing: 0.1,
               }}
-              onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = "0 6px 20px rgba(16,185,129,0.4)"; }}
-              onMouseLeave={e => { e.currentTarget.style.transform = "none"; e.currentTarget.style.boxShadow = "0 4px 14px rgba(16,185,129,0.3)"; }}
             >
               <Video size={13} /> Visio
-            </a>
+            </motion.a>
           )}
 
-          {/* Statut connexion (si spécialité affichée dans le sous-titre) */}
           {pro.specialite && (
-            <div style={{
-              display: "flex", alignItems: "center", gap: 5,
-              padding: "7px 12px", borderRadius: 12,
-              fontSize: 11, fontWeight: 700,
-              background: connected ? T.tealLight : T.redLight,
-              color: connected ? T.teal : T.red,
-              border: `1px solid ${connected ? "#6EE7B7" : "#FCA5A5"}`,
-              transition: "all 0.3s",
-              letterSpacing: 0.1,
-            }}>
-              <span style={{
-                width: 7, height: 7, borderRadius: "50%",
-                background: connected ? T.teal : T.red,
-                animation: connected ? "pulseRing 2.5s infinite" : "blink 1.4s ease-in-out infinite",
-              }} />
+            <motion.div
+              animate={{
+                background: connected ? T.tealLight : T.redLight,
+                color: connected ? T.teal : T.red,
+                borderColor: connected ? "#6EE7B7" : "#FCA5A5",
+              }}
+              transition={{ duration: 0.3 }}
+              style={{
+                display: "flex", alignItems: "center", gap: 5,
+                padding: "7px 12px", borderRadius: 12,
+                fontSize: 11, fontWeight: 700,
+                border: "1px solid",
+                letterSpacing: 0.1,
+              }}
+            >
+              <motion.span
+                animate={connected
+                  ? { boxShadow: ["0 0 0 0 rgba(16,185,129,0.35)", "0 0 0 5px rgba(16,185,129,0)", "0 0 0 0 rgba(16,185,129,0)"] }
+                  : { opacity: [1, 0.25, 1] }
+                }
+                transition={{ duration: connected ? 2.5 : 1.4, repeat: Infinity, ease: "easeOut" }}
+                style={{
+                  width: 7, height: 7, borderRadius: "50%",
+                  background: connected ? T.teal : T.red,
+                  display: "inline-block",
+                }}
+              />
               {connected ? "En ligne" : "Hors ligne"}
-            </div>
+            </motion.div>
           )}
         </div>
-      </div>
+      </motion.div>
 
       {/* ════════════════ CARTE CONSULTATION ════════════════ */}
-      <div style={{ padding: "10px 0 6px", flexShrink: 0 }}>
+      <div style={{ padding: "10px 0 6px", flexShrink: 0, position: "relative", zIndex: 5 }}>
         <ConsultationInfoCard consultation={consultation} />
       </div>
 
       {/* ════════════════ MESSAGES ════════════════ */}
-      <div style={{
-        flex: 1, overflowY: "auto",
-        padding: "16px 20px 8px",
-        display: "flex", flexDirection: "column", gap: 10,
-      }}>
-        {messages.length === 0 ? (
-          <div style={{
-            flex: 1, display: "flex", flexDirection: "column",
-            alignItems: "center", justifyContent: "center",
-            gap: 18, paddingTop: 60,
-            animation: "fadeUp 0.4s ease",
-          }}>
-            {/* Icône */}
-            <div style={{
-              width: 80, height: 80,
-              background: "rgba(255,255,255,0.95)",
-              borderRadius: 24,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              boxShadow: "0 8px 30px rgba(79,70,229,0.1)",
-              border: `1px solid ${T.border}`,
-            }}>
-              <MessageCircle size={32} color={T.indigoLight.replace("FF", "99")} strokeWidth={1.5} />
-            </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.4, delay: 0.2 }}
+        style={{
+          flex: 1, overflowY: "auto",
+          padding: "16px 20px 8px",
+          display: "flex", flexDirection: "column", gap: 10,
+          position: "relative", zIndex: 1,
+        }}
+      >
+        <AnimatePresence>
+          {messages.length === 0 ? (
+            <motion.div
+              key="empty"
+              variants={emptyStateVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0 }}
+              style={{
+                flex: 1, display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center",
+                gap: 18, paddingTop: 60,
+              }}
+            >
+              <motion.div
+                variants={emptyChildVariants}
+                animate={{ rotate: [0, 3, -3, 0] }}
+                transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", repeatDelay: 1 }}
+                style={{
+                  width: 80, height: 80,
+                  background: "rgba(255,255,255,0.95)",
+                  borderRadius: 24,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 8px 30px rgba(79,70,229,0.10)",
+                  border: `1px solid ${T.border}`,
+                }}
+              >
+                <MessageCircle size={32} color={`${T.indigoLight.replace("FF","99")}`} strokeWidth={1.5} />
+              </motion.div>
 
-            <div style={{ textAlign: "center", maxWidth: 260 }}>
-              <p style={{
-                color: T.slate700, fontSize: 16, margin: "0 0 6px",
-                fontWeight: 700, letterSpacing: -0.2,
-              }}>
-                Commencez la conversation
-              </p>
-              <p style={{ color: T.slate400, fontSize: 13, margin: 0, lineHeight: 1.6 }}>
-                Vos échanges sont confidentiels et protégés.
-              </p>
-            </div>
+              <motion.div variants={emptyChildVariants} style={{ textAlign: "center", maxWidth: 260 }}>
+                <p style={{
+                  color: T.slate700, fontSize: 16, margin: "0 0 6px",
+                  fontWeight: 700, letterSpacing: -0.2,
+                }}>
+                  Commencez la conversation
+                </p>
+                <p style={{ color: T.slate400, fontSize: 13, margin: 0, lineHeight: 1.6 }}>
+                  Vos échanges sont confidentiels et protégés.
+                </p>
+              </motion.div>
 
-            {/* Badge sécurité */}
-            <div style={{
-              display: "flex", alignItems: "center", gap: 6,
-              padding: "7px 16px", borderRadius: 20,
-              background: "rgba(16,185,129,0.08)",
-              border: "1px solid rgba(16,185,129,0.2)",
-            }}>
-              <Shield size={12} color={T.teal} />
-              <span style={{ fontSize: 11, color: T.teal, fontWeight: 600, letterSpacing: 0.1 }}>
-                Chiffrement de bout en bout
-              </span>
-            </div>
-          </div>
-        ) : (
-          messages.map((m, i) => (
-            <MessageBubble
-              key={m.id || i}
-              m={m}
-              showSender={!m.moi && (i === 0 || messages[i - 1]?.moi !== false)}
-              isNew={i >= messages.length - newMsgCount}
-            />
-          ))
-        )}
+              <motion.div
+                variants={emptyChildVariants}
+                animate={{
+                  boxShadow: [
+                    "0 0 0 0 rgba(16,185,129,0.08)",
+                    "0 0 0 6px rgba(16,185,129,0)",
+                    "0 0 0 0 rgba(16,185,129,0)",
+                  ],
+                }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", repeatDelay: 0.5 }}
+                style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  padding: "7px 16px", borderRadius: 20,
+                  background: "rgba(16,185,129,0.08)",
+                  border: "1px solid rgba(16,185,129,0.2)",
+                }}
+              >
+                <Shield size={12} color={T.teal} />
+                <span style={{ fontSize: 11, color: T.teal, fontWeight: 600, letterSpacing: 0.1 }}>
+                  Chiffrement de bout en bout
+                </span>
+              </motion.div>
+            </motion.div>
+          ) : (
+            messages.map((m, i) => (
+              <MessageBubble
+                key={m.id || i}
+                m={m}
+                showSender={!m.moi && (i === 0 || messages[i - 1]?.moi !== false)}
+                isNew={i >= messages.length - newMsgCount}
+              />
+            ))
+          )}
+        </AnimatePresence>
         <div ref={messagesEndRef} />
-      </div>
+      </motion.div>
 
       {/* ════════════════ ZONE DE SAISIE ════════════════ */}
-      <div style={{
-        padding: "10px 16px 16px",
-        background: T.surface,
-        backdropFilter: "blur(20px)",
-        WebkitBackdropFilter: "blur(20px)",
-        borderTop: `1px solid ${T.border}`,
-        flexShrink: 0,
-        boxShadow: "0 -4px 24px rgba(15,23,42,0.04)",
-      }}>
+      <motion.div
+        variants={inputBarVariants}
+        initial="hidden"
+        animate="visible"
+        style={{
+          padding: "10px 16px 16px",
+          background: T.surface,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderTop: `1px solid ${T.border}`,
+          flexShrink: 0,
+          boxShadow: "0 -4px 24px rgba(15,23,42,0.04)",
+          position: "relative", zIndex: 10,
+        }}
+      >
         {/* Toggle anonymat */}
         <div style={{ marginBottom: 10, paddingLeft: 4 }}>
           <AnonymatToggle value={anonymat} onChange={setAnonymat} />
@@ -793,19 +1079,24 @@ export default function ChatPage() {
           display: "flex", gap: 10, alignItems: "flex-end",
           maxWidth: 820, margin: "0 auto",
         }}>
-          {/* Textarea */}
-          <div style={{
-            flex: 1, position: "relative",
-            background: T.white,
-            borderRadius: 20,
-            border: `1.5px solid ${inputFocused ? T.indigo : T.slate200}`,
-            boxShadow: inputFocused
-              ? `0 0 0 4px rgba(79,70,229,0.1), 0 4px 16px rgba(0,0,0,0.06)`
-              : `0 2px 10px rgba(0,0,0,0.04)`,
-            transition: "all 0.2s",
-            minHeight: 52,
-            display: "flex", alignItems: "center",
-          }}>
+          {/* Textarea wrapper */}
+          <motion.div
+            animate={{
+              borderColor: inputFocused ? T.indigo : T.slate200,
+              boxShadow: inputFocused
+                ? `0 0 0 4px rgba(79,70,229,0.10), 0 4px 16px rgba(0,0,0,0.06)`
+                : `0 2px 10px rgba(0,0,0,0.04)`,
+            }}
+            transition={{ duration: 0.2 }}
+            style={{
+              flex: 1, position: "relative",
+              background: T.white,
+              borderRadius: 20,
+              border: `1.5px solid`,
+              minHeight: 52,
+              display: "flex", alignItems: "center",
+            }}
+          >
             <textarea
               ref={textareaRef}
               value={inputValue}
@@ -830,44 +1121,60 @@ export default function ChatPage() {
                 fontFamily: "'Inter', sans-serif",
               }}
             />
-          </div>
+          </motion.div>
 
           {/* Send button */}
-          <button
+          <motion.button
+            animate={{
+              scale: canSend ? 1 : 0.94,
+              background: canSend
+                ? `linear-gradient(140deg, ${T.indigo} 0%, ${T.violet} 100%)`
+                : T.slate100,
+            }}
+            whileHover={canSend ? { scale: 1.08, boxShadow: `0 8px 28px rgba(79,70,229,0.45)` } : {}}
+            whileTap={canSend ? { scale: 0.93 } : {}}
+            transition={{ type: "spring", stiffness: 380, damping: 18 }}
             onClick={handleSend}
             disabled={!canSend}
             style={{
               width: 52, height: 52, borderRadius: "50%",
               border: "none",
-              background: canSend
-                ? `linear-gradient(140deg, ${T.indigo} 0%, ${T.violet} 100%)`
-                : T.slate100,
               color: canSend ? "#fff" : T.slate400,
               cursor: canSend ? "pointer" : "not-allowed",
               display: "flex", alignItems: "center", justifyContent: "center",
               flexShrink: 0,
               boxShadow: canSend ? `0 6px 20px rgba(79,70,229,0.35)` : "none",
-              transition: "all 0.2s",
-              transform: canSend ? "scale(1)" : "scale(0.94)",
             }}
-            onMouseEnter={e => { if (canSend) { e.currentTarget.style.transform = "scale(1.08)"; e.currentTarget.style.boxShadow = `0 8px 28px rgba(79,70,229,0.45)`; } }}
-            onMouseLeave={e => { e.currentTarget.style.transform = canSend ? "scale(1)" : "scale(0.94)"; e.currentTarget.style.boxShadow = canSend ? `0 6px 20px rgba(79,70,229,0.35)` : "none"; }}
           >
-            <Send size={18} style={{ marginLeft: 1 }} />
-          </button>
+            <motion.div
+              animate={canSend ? { rotate: [0, -8, 0] } : {}}
+              transition={{ duration: 0.35, ease: "easeOut" }}
+              key={String(canSend)}
+            >
+              <Send size={18} style={{ marginLeft: 1 }} />
+            </motion.div>
+          </motion.button>
         </div>
 
         {/* Offline notice */}
-        {!connected && showOfflineMsg && (
-          <p style={{
-            textAlign: "center", fontSize: 11,
-            color: T.red, margin: "10px 0 0",
-            fontWeight: 500, letterSpacing: 0.1,
-          }}>
-            Connexion en cours… le serveur peut prendre quelques secondes à répondre.
-          </p>
-        )}
-      </div>
-    </div>
+        <AnimatePresence>
+          {!connected && showOfflineMsg && (
+            <motion.p
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25 }}
+              style={{
+                textAlign: "center", fontSize: 11,
+                color: T.red, margin: "10px 0 0",
+                fontWeight: 500, letterSpacing: 0.1,
+              }}
+            >
+              Connexion en cours… le serveur peut prendre quelques secondes à répondre.
+            </motion.p>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </motion.div>
   );
 }
