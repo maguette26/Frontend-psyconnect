@@ -193,12 +193,12 @@ const MesConsultations = () => {
                     <MessageSquare size={16} /> Ouvrir le chat
                   </button>
                 )}
-                {selected.lienVisio && (
+                {/*{selected.lienVisio && (
                   <a href={selected.lienVisio} target="_blank" rel="noopener noreferrer"
                     className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
                     <Video size={16} /> Rejoindre la visio
                   </a>
-                )}
+                )}*/}
                 {(isPassee(selected.date) || selected.statut === 'ANNULEE' || selected.statut === 'TERMINEE') && (
                   <button onClick={() => { setConfirmDelete(selected); setSelected(null); }}
                     className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
