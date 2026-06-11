@@ -33,8 +33,8 @@ import ConsultationsPage from './pages/ConsultationsPage';
 import { getMe } from './services/api';
 import ConsultationAccessPage from './pages/ConsultationAccessPage';
 
-import { useBackendWarmup } from './hooks/useBackendWarmup';
-import WarmupScreen from './components/WarmupScreen';
+// Routes sur lesquelles le Header ne doit PAS apparaître
+const ROUTES_SANS_HEADER = ['/chat/'];
 
 function AppWrapper() {
   const location = useLocation();
@@ -50,11 +50,13 @@ function AppWrapper() {
       .finally(() => setAuthLoading(false));
   }, []);
 
+  const afficherHeader = !ROUTES_SANS_HEADER.some(r => location.pathname.startsWith(r));
+
   if (authLoading) return <div>Chargement...</div>;
 
   return (
     <RessourceProvider>
-      <Header onOpenChat={() => setChatOpen(true)} />
+      {afficherHeader && <Header onOpenChat={() => setChatOpen(true)} />}
 
       <Routes>
         <Route path="/" element={<Accueil />} />
@@ -78,38 +80,21 @@ function AppWrapper() {
         <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
         <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
 
-        {/* ✅ Route USER : ses consultations */}
         <Route
           path="/consultations"
-          element={
-            currentUser
-              ? <ConsultationsPage />
-              : <Navigate to="/connexion" />
-          }
+          element={currentUser ? <ConsultationsPage /> : <Navigate to="/connexion" />}
         />
-
-        {/* ✅ Route PROFESSIONNEL : ses consultations */}
         <Route
           path="/consultations/pro"
-          element={
-            currentUser
-              ? <TableauProfessionnel />
-              : <Navigate to="/connexion" />
-          }
+          element={currentUser ? <TableauProfessionnel /> : <Navigate to="/connexion" />}
         />
 
         <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
         <Route
           path="/chat/:consultationId"
-          element={
-            currentUser
-              ? <ChatPage currentUser={currentUser} />
-              : <Navigate to="/connexion" />
-          }
+          element={currentUser ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" />}
         />
         <Route path="/payment-cancel" element={<Navigate to="/" replace />} />
-
-        {/* Catch-all */}
         <Route path="*" element={<Page404 />} />
       </Routes>
     </RessourceProvider>
