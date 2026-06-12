@@ -1,44 +1,37 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import {
-  CheckCircle, XCircle, Clock, Info,
+  CheckCircle, XCircle, Clock, ScanEye,
   CalendarCheck, Filter, RefreshCw, User, Wifi, WifiOff, CreditCard,
   CalendarDays, CalendarClock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/* ─── CONFIG STATUTS ─────────────────────────────────────────────── */
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'REFUSE', 'ANNULEE'];
 
 const STATUT_CONFIG = {
-  EN_ATTENTE:          { label: 'En attente',       bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400',    icon: Clock        },
-  EN_ATTENTE_PAIEMENT: { label: 'Att. paiement',    bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-400',     icon: CreditCard   },
-  PAYEE:               { label: 'Payée',             bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-400',  icon: CheckCircle  },
-  REFUSE:              { label: 'Refusée',           bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',     dot: 'bg-red-400',      icon: XCircle      },
-  ANNULEE:             { label: 'Annulée',           bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   dot: 'bg-slate-300',    icon: XCircle      },
+  EN_ATTENTE:          { label: 'En attente',     bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',  bar: 'from-amber-400 to-orange-400',   icon: Clock       },
+  EN_ATTENTE_PAIEMENT: { label: 'Att. paiement',  bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',   bar: 'from-blue-400 to-indigo-400',    icon: CreditCard  },
+  PAYEE:               { label: 'Payée',           bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',bar: 'from-emerald-400 to-teal-400',   icon: CheckCircle },
+  REFUSE:              { label: 'Refusée',         bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',    bar: 'from-red-400 to-rose-400',       icon: XCircle     },
+  ANNULEE:             { label: 'Annulée',         bg: 'bg-slate-50',   text: 'text-slate-400',   border: 'border-slate-200',  bar: 'from-slate-300 to-slate-300',    icon: XCircle     },
 };
 
-// ─── Helpers ────────────────────────────────────────────────────────
-const formatDateLong = (dateStr) => {
-  if (!dateStr) return 'N/A';
-  try {
-    return new Date(dateStr).toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    });
-  } catch { return dateStr; }
-};
+/* ─── HELPERS ────────────────────────────────────────────────────── */
+const fmtDate = (d) =>
+  d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
+    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+  }) : '—';
 
-const formatDateTime = (dateStr, timeStr) => {
-  if (!dateStr) return 'N/A';
-  try {
-    const dt = new Date(`${dateStr}T${timeStr || '00:00'}:00`);
-    return dt.toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch { return `${dateStr} ${timeStr || ''}`; }
-};
+const fmtDateShort = (d) =>
+  d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
+    weekday: 'short', day: 'numeric', month: 'short',
+  }) : '—';
 
-// ─── Badge statut ────────────────────────────────────────────────────
+const fmtHeure = (h) => (h ? h.replace(':', 'h') : '—');
+
+/* ─── BADGE STATUT ───────────────────────────────────────────────── */
 function StatutBadge({ statut }) {
   const cfg = STATUT_CONFIG[statut];
   if (!cfg) return <span className="text-xs text-slate-400">{statut}</span>;
@@ -51,21 +44,36 @@ function StatutBadge({ statut }) {
   );
 }
 
-// ─── Ligne info dans le modal ────────────────────────────────────────
-function InfoRow({ label, children }) {
+/* ─── TOAST ──────────────────────────────────────────────────────── */
+function Toast({ msg, type, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 3500);
+    return () => clearTimeout(t);
+  }, [onClose]);
+
+  const styles = {
+    success: 'bg-emerald-50 border-emerald-200 text-emerald-700',
+    error:   'bg-red-50 border-red-200 text-red-600',
+    info:    'bg-blue-50 border-blue-200 text-blue-600',
+  };
+
   return (
-    <div className="flex flex-col gap-0.5">
-      <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</span>
-      <div className="text-sm font-medium text-slate-700">{children}</div>
-    </div>
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: 20 }}
+      className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-lg text-sm font-medium ${styles[type] || styles.info}`}
+    >
+      {msg}
+    </motion.div>
   );
 }
 
-// ─── Modal détails ───────────────────────────────────────────────────
+/* ─── MODAL DÉTAILS ──────────────────────────────────────────────── */
 function DetailsModal({ res, onClose }) {
   if (!res) return null;
-
-  const hasConsultation = !!res.consultation;
+  const cfg = STATUT_CONFIG[res.statut];
+  const bar = cfg?.bar || 'from-indigo-400 to-violet-400';
 
   return (
     <div
@@ -77,79 +85,82 @@ function DetailsModal({ res, onClose }) {
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 60 }}
         transition={{ type: 'spring', stiffness: 320, damping: 30 }}
-        className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg overflow-hidden"
+        className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Barre mobile */}
+        {/* Poignée mobile */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 sm:hidden" />
 
-        {/* En-tête coloré */}
-        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center font-bold text-base">
-                {`${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase() || <User size={18} />}
-              </div>
-              <div>
-                <p className="font-semibold text-base leading-tight">
-                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
-                </p>
-                <p className="text-indigo-200 text-xs">{res.utilisateur?.email}</p>
-              </div>
-            </div>
-            <button onClick={onClose} className="text-white/70 hover:text-white transition p-1">
-              <XCircle size={20} />
+        {/* Header dégradé */}
+        <div className={`bg-gradient-to-r ${bar} px-6 pt-5 pb-6 text-white`}>
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
+              Réservation #{res.id}
+            </span>
+            <button onClick={onClose} className="text-white/70 hover:text-white transition">
+              <XCircle size={18} />
             </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-lg">
+              {`${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase() || '?'}
+            </div>
+            <div>
+              <p className="font-bold text-base leading-tight">
+                {res.utilisateur?.prenom} {res.utilisateur?.nom}
+              </p>
+              <p className="text-white/70 text-xs mt-0.5">{res.utilisateur?.email || '—'}</p>
+            </div>
           </div>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-6 py-5 space-y-4">
+
           {/* Statut */}
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Statut</span>
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Statut</span>
             <StatutBadge statut={res.statut} />
           </div>
 
           <hr className="border-slate-100" />
 
-          {/* Réservation */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center">
-                <CalendarDays size={13} className="text-indigo-600" />
-              </div>
-              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Réservation</span>
+          {/* Bloc réservation */}
+          <div className="rounded-xl overflow-hidden border border-slate-100">
+            <div className="bg-slate-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
+              <CalendarDays size={13} className="text-indigo-500" />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Réservation</span>
             </div>
-            <div className="bg-slate-50 rounded-xl px-4 py-3 grid grid-cols-2 gap-4">
-              <InfoRow label="Date">
-                {formatDateLong(res.dateReservation)}
-              </InfoRow>
-              <InfoRow label="Heure">
-                {res.heureDebut || 'N/A'}
-              </InfoRow>
+            <div className="grid grid-cols-2 divide-x divide-slate-100">
+              <div className="px-4 py-3">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
+                <p className="text-sm font-semibold text-slate-700">{fmtDate(res.dateReservation)}</p>
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
+                <p className="text-sm font-semibold text-slate-700">{fmtHeure(res.heureReservation)}</p>
+              </div>
             </div>
           </div>
 
-          {/* Consultation */}
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${hasConsultation ? 'bg-emerald-100' : 'bg-slate-100'}`}>
-                <CalendarClock size={13} className={hasConsultation ? 'text-emerald-600' : 'text-slate-400'} />
-              </div>
-              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Consultation prévue</span>
+          {/* Bloc consultation */}
+          <div className="rounded-xl overflow-hidden border border-slate-100">
+            <div className={`px-4 py-2 flex items-center gap-2 border-b border-slate-100 ${res.consultation ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+              <CalendarClock size={13} className={res.consultation ? 'text-emerald-500' : 'text-slate-300'} />
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Consultation prévue</span>
             </div>
-
-            {hasConsultation ? (
-              <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 grid grid-cols-2 gap-4">
-                <InfoRow label="Date">
-                  {formatDateLong(res.consultation.dateConsultation)}
-                </InfoRow>
-                <InfoRow label="Heure">
-                  {res.consultation.heure || 'N/A'}
-                </InfoRow>
+            {res.consultation ? (
+              <div className="grid grid-cols-2 divide-x divide-slate-100">
+                <div className="px-4 py-3">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
+                  <p className="text-sm font-semibold text-slate-700">{fmtDate(res.consultation.dateConsultation)}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
+                  <p className="text-sm font-semibold text-slate-700">{fmtHeure(res.consultation.heure)}</p>
+                </div>
               </div>
             ) : (
-              <div className="bg-slate-50 rounded-xl px-4 py-3">
+              <div className="px-4 py-3">
                 <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
               </div>
             )}
@@ -159,7 +170,7 @@ function DetailsModal({ res, onClose }) {
         <div className="px-6 pb-6">
           <button
             onClick={onClose}
-            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition"
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition"
           >
             Fermer
           </button>
@@ -169,17 +180,11 @@ function DetailsModal({ res, onClose }) {
   );
 }
 
-// ─── Card réservation ─────────────────────────────────────────────
+/* ─── CARD RÉSERVATION ───────────────────────────────────────────── */
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   const cfg = STATUT_CONFIG[res.statut];
+  const bar = cfg?.bar || 'from-slate-300 to-slate-300';
   const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
-
-  const accentColor =
-    res.statut === 'PAYEE'               ? 'from-emerald-400 to-teal-400'    :
-    res.statut === 'EN_ATTENTE'          ? 'from-amber-400 to-orange-400'    :
-    res.statut === 'EN_ATTENTE_PAIEMENT' ? 'from-blue-400 to-indigo-400'     :
-    res.statut === 'ANNULEE'             ? 'from-slate-300 to-slate-300'     :
-    'from-red-400 to-rose-400';
 
   return (
     <motion.div
@@ -187,48 +192,48 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
-      transition={{ duration: 0.2 }}
-      className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden group"
+      transition={{ duration: 0.18 }}
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
     >
-      {/* Barre de couleur top */}
-      <div className={`h-1 w-full bg-gradient-to-r ${accentColor}`} />
+      {/* Barre colorée */}
+      <div className={`h-1 w-full bg-gradient-to-r ${bar}`} />
 
-      <div className="p-4 flex items-center gap-3">
+      <div className="px-4 py-3 flex items-center gap-3">
+
         {/* Avatar */}
-        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${accentColor} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}>
-          {initials || <User size={15} />}
+        <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${bar} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}>
+          {initials || <User size={14} />}
         </div>
 
-        {/* Contenu */}
+        {/* Infos */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-start justify-between gap-2 flex-wrap">
             <div className="min-w-0">
-              <h3 className="font-semibold text-slate-800 text-sm leading-tight truncate">
+              <p className="font-semibold text-slate-800 text-sm leading-tight truncate">
                 {res.utilisateur?.prenom} {res.utilisateur?.nom}
-              </h3>
+              </p>
               <p className="text-xs text-slate-400 truncate">{res.utilisateur?.email}</p>
             </div>
             <StatutBadge statut={res.statut} />
           </div>
 
-          {/* Dates réservation + consultation */}
-          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-            <span className="flex items-center gap-1 text-xs text-slate-500">
+          {/* Dates */}
+          <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
+            <span className="inline-flex items-center gap-1 text-xs text-slate-500">
               <CalendarDays size={11} className="text-indigo-400 shrink-0" />
-              Réservé le {formatDateTime(res.dateReservation, res.heureDebut)}
+              {fmtDateShort(res.dateReservation)} à {fmtHeure(res.heureReservation)}
             </span>
             {res.consultation && (
-              <span className="flex items-center gap-1 text-xs text-emerald-600">
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                 <CalendarClock size={11} className="shrink-0" />
-                Consultation : {formatDateLong(res.consultation.dateConsultation)}
-                {res.consultation.heure ? ` à ${res.consultation.heure}` : ''}
+                Consult. {fmtDateShort(res.consultation.dateConsultation)} à {fmtHeure(res.consultation.heure)}
               </span>
             )}
           </div>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+        {/* Boutons */}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {res.statut === 'EN_ATTENTE' && (
             <>
               <button
@@ -249,10 +254,10 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           )}
           <button
             onClick={() => onDetails(res)}
-            title="Détails"
-            className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition"
+            title="Voir les détails"
+            className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-400 rounded-xl transition"
           >
-            <Info size={15} />
+            <ScanEye size={16} />
           </button>
         </div>
       </div>
@@ -260,61 +265,56 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   );
 }
 
-// ─── Composant principal ──────────────────────────────────────────
+/* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────── */
 const POLL_INTERVAL = 15000;
 
-const ListeReservations = ({ proId }) => {
+export default function ListeReservations({ proId }) {
   const [reservations, setReservations] = useState([]);
-  const [error, setError]               = useState('');
-  const [filtreStatut, setFiltreStatut] = useState('TOUS');
-  const [selectedRes, setSelectedRes]   = useState(null);
+  const [filter, setFilter]             = useState('TOUS');
+  const [selected, setSelected]         = useState(null);
+  const [toast, setToast]               = useState(null);
   const [refreshing, setRefreshing]     = useState(false);
   const [serverOnline, setServerOnline] = useState(true);
-  const [lastUpdate, setLastUpdate]     = useState(null);
+  const [lastSync, setLastSync]         = useState(null);
 
-  const chargerReservations = useCallback(async (silent = false) => {
+  const load = useCallback(async (silent = false) => {
     try {
       if (!silent) setRefreshing(true);
       const data = await getReservations(proId);
       setReservations(data);
-      setError('');
       setServerOnline(true);
-      setLastUpdate(new Date());
+      setLastSync(new Date());
     } catch (err) {
-      console.error(err);
       const is5xx = [502, 503].includes(err?.response?.status);
-      const isNet = !err?.response;
-      if (is5xx || isNet) setServerOnline(false);
-      else setError('Erreur lors du chargement des réservations.');
+      if (is5xx || !err?.response) setServerOnline(false);
+      else setToast({ msg: 'Erreur de chargement', type: 'error' });
     } finally {
       if (!silent) setRefreshing(false);
     }
   }, [proId]);
 
-  useEffect(() => {
-    if (proId) chargerReservations();
-  }, [proId, chargerReservations]);
-
+  useEffect(() => { if (proId) load(); }, [proId, load]);
   useEffect(() => {
     if (!proId) return;
-    const id = setInterval(() => chargerReservations(true), POLL_INTERVAL);
+    const id = setInterval(() => load(true), POLL_INTERVAL);
     return () => clearInterval(id);
-  }, [proId, chargerReservations]);
+  }, [proId, load]);
 
-  const handleUpdate = async (id, status) => {
-    const label = status === 'VALIDE' ? "l'acceptation" : 'le refus';
+  const handleUpdate = async (id, statut) => {
+    const label = statut === 'VALIDE' ? "l'acceptation" : 'le refus';
     if (!window.confirm(`Confirmer ${label} de cette réservation ?`)) return;
     try {
-      await updateReservationStatus(id, status);
-      await chargerReservations();
+      await updateReservationStatus(id, statut);
+      setToast({ msg: 'Statut mis à jour avec succès', type: 'success' });
+      load();
     } catch {
-      setError('Erreur lors de la mise à jour. Réessayez dans quelques instants.');
+      setToast({ msg: 'Erreur — réessayez dans quelques instants.', type: 'error' });
     }
   };
 
-  const reservationsFiltrees = filtreStatut === 'TOUS'
+  const filtered = filter === 'TOUS'
     ? reservations
-    : reservations.filter(r => r.statut === filtreStatut);
+    : reservations.filter(r => r.statut === filter);
 
   const counts = STATUTS.reduce((acc, s) => {
     acc[s] = s === 'TOUS' ? reservations.length : reservations.filter(r => r.statut === s).length;
@@ -322,18 +322,18 @@ const ListeReservations = ({ proId }) => {
   }, {});
 
   return (
-    <div className="space-y-5 max-w-2xl mx-auto">
+    <div className="max-w-2xl mx-auto space-y-4 p-4">
 
       {/* HEADER */}
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-xl font-bold text-slate-800">Réservations</h2>
           <div className="flex items-center gap-1.5 mt-0.5">
             {serverOnline ? (
               <span className="flex items-center gap-1 text-xs text-slate-400">
                 <Wifi size={10} className="text-emerald-400" />
-                {lastUpdate
-                  ? `Sync ${lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                {lastSync
+                  ? `Synchro à ${lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
                   : 'En ligne'}
               </span>
             ) : (
@@ -346,19 +346,19 @@ const ListeReservations = ({ proId }) => {
         </div>
 
         <button
-          onClick={() => chargerReservations()}
+          onClick={() => load()}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-60 shadow-sm"
+          className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-50 shadow-sm"
         >
           <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
           Actualiser
         </button>
       </div>
 
-      {/* ALERTE SERVEUR */}
+      {/* ALERTE OFFLINE */}
       {!serverOnline && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3 flex items-start gap-2">
-          <WifiOff size={15} className="shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3">
+          <WifiOff size={15} className="mt-0.5 shrink-0" />
           <span>
             <strong>Serveur en veille.</strong>{' '}
             Rafraîchissement automatique toutes les {POLL_INTERVAL / 1000} s.
@@ -366,20 +366,16 @@ const ListeReservations = ({ proId }) => {
         </div>
       )}
 
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">{error}</div>
-      )}
-
       {/* FILTRES */}
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-none">
+      <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
         {STATUTS.map(s => {
           const cfg = STATUT_CONFIG[s];
-          const active = filtreStatut === s;
+          const active = filter === s;
           const Icon = cfg?.icon;
           return (
             <button
               key={s}
-              onClick={() => setFiltreStatut(s)}
+              onClick={() => setFilter(s)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shrink-0 ${
                 active
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
@@ -402,25 +398,25 @@ const ListeReservations = ({ proId }) => {
       {reservations.length === 0 && !refreshing ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 shadow-sm">
           <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
-            <CalendarCheck className="text-slate-300" size={26} />
+            <CalendarCheck size={26} className="text-slate-300" />
           </div>
-          <p className="text-slate-500 font-semibold text-sm">Aucune réservation pour le moment</p>
+          <p className="font-semibold text-slate-500 text-sm">Aucune réservation pour le moment</p>
           <p className="text-xs text-slate-400 mt-1">Les nouvelles réservations apparaîtront ici.</p>
         </div>
-      ) : reservationsFiltrees.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
           <p className="text-slate-400 text-sm italic">Aucune réservation avec ce statut.</p>
         </div>
       ) : (
         <div className="space-y-2.5">
           <AnimatePresence>
-            {reservationsFiltrees.map(res => (
+            {filtered.map(r => (
               <ReservationCard
-                key={res.id}
-                res={res}
+                key={r.id}
+                res={r}
                 onAccept={id => handleUpdate(id, 'VALIDE')}
                 onRefuse={id => handleUpdate(id, 'REFUSE')}
-                onDetails={setSelectedRes}
+                onDetails={setSelected}
               />
             ))}
           </AnimatePresence>
@@ -429,12 +425,13 @@ const ListeReservations = ({ proId }) => {
 
       {/* MODAL */}
       <AnimatePresence>
-        {selectedRes && (
-          <DetailsModal res={selectedRes} onClose={() => setSelectedRes(null)} />
-        )}
+        {selected && <DetailsModal res={selected} onClose={() => setSelected(null)} />}
+      </AnimatePresence>
+
+      {/* TOAST */}
+      <AnimatePresence>
+        {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
       </AnimatePresence>
     </div>
   );
-};
-
-export default ListeReservations;
+}
