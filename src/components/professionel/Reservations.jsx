@@ -21,41 +21,72 @@ const STATUT_CONFIG = {
 /* ─── HELPERS ────────────────────────────────────────────────────── */
 
 /**
- * dateConsultation est un timestamp Java (ms) → on le convertit directement
- * dateReservation peut être une string "YYYY-MM-DD"
+ * Accepte :
+ *  - un timestamp ms (number) — ex: 1749600000000
+ *  - une string "YYYY-MM-DD"
+ *  - un objet LocalDate Java { year, monthValue, dayOfMonth }
+ *  - null / undefined → '—'
  */
 const fmtDate = (d) => {
-  if (!d) return '—';
+  if (d == null) return '—';
   try {
-    // timestamp numérique (Java Date sérialisé)
-    const dt = typeof d === 'number' ? new Date(d) : new Date(d + 'T12:00:00');
+    let dt;
+    if (typeof d === 'number') {
+      dt = new Date(d);
+    } else if (typeof d === 'object' && 'year' in d) {
+      // LocalDate Java sérialisé : { year, monthValue, dayOfMonth }
+      dt = new Date(d.year, d.monthValue - 1, d.dayOfMonth, 12);
+    } else {
+      // string "YYYY-MM-DD" — on force midi pour éviter les décalages TZ
+      dt = new Date(String(d) + 'T12:00:00');
+    }
+    if (isNaN(dt.getTime())) return '—';
     return dt.toLocaleDateString('fr-FR', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
-  } catch { return '—'; }
+  } catch {
+    return '—';
+  }
 };
 
 const fmtDateShort = (d) => {
-  if (!d) return '—';
+  if (d == null) return '—';
   try {
-    const dt = typeof d === 'number' ? new Date(d) : new Date(d + 'T12:00:00');
+    let dt;
+    if (typeof d === 'number') {
+      dt = new Date(d);
+    } else if (typeof d === 'object' && 'year' in d) {
+      dt = new Date(d.year, d.monthValue - 1, d.dayOfMonth, 12);
+    } else {
+      dt = new Date(String(d) + 'T12:00:00');
+    }
+    if (isNaN(dt.getTime())) return '—';
     return dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-  } catch { return '—'; }
+  } catch {
+    return '—';
+  }
 };
 
 /**
- * heure peut être :
+ * Accepte :
  *  - un objet LocalTime Java : { hour, minute, second, nano }
- *  - une string "HH:mm" ou "HH:mm:ss"
+ *  - une string "HH:mm", "HH:mm:ss", ou "HHHmm" (ex: "10H30")
+ *  - null / undefined → '—'
  */
 const fmtHeure = (h) => {
-  if (!h) return '—';
+  if (h == null) return '—';
   if (typeof h === 'object' && 'hour' in h) {
     const hh = String(h.hour).padStart(2, '0');
     const mm = String(h.minute).padStart(2, '0');
     return `${hh}h${mm}`;
   }
   if (typeof h === 'string') {
+    // "10H30" (format backend legacy)
+    if (h.includes('H')) {
+      const [hh, mm] = h.split('H');
+      return `${hh}h${mm || '00'}`;
+    }
+    // "10:30" ou "10:30:00"
     const parts = h.split(':');
     return `${parts[0]}h${parts[1] || '00'}`;
   }
@@ -182,27 +213,34 @@ function DetailsModal({ res, onClose }) {
               </span>
             </div>
             {res.consultation ? (
-  <div className="grid grid-cols-2 divide-x divide-slate-100">
-    <div className="px-4 py-3">
-      <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
-      <p className="text-sm font-semibold text-slate-700">
-        {fmtDate(res.consultation?.date || res.consultation?.dateConsultation)}
-      </p>
-    </div>
-
-    <div className="px-4 py-3">
-      <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
-      <p className="text-sm font-semibold text-slate-700">
-        {fmtHeure(res.consultation?.heure)}
-      </p>
-    </div>
-  </div>
-) : (
+              <div className="grid grid-cols-2 divide-x divide-slate-100">
+                <div className="px-4 py-3">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {fmtDate(res.consultation.date)}
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {fmtHeure(res.consultation.heure)}
+                  </p>
+                </div>
+              </div>
+            ) : (
               <div className="px-4 py-3">
                 <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
               </div>
             )}
           </div>
+
+          {/* Prix */}
+          {res.consultation?.prix != null && (
+            <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Prix</span>
+              <span className="text-sm font-bold text-slate-700">{res.consultation.prix} MAD</span>
+            </div>
+          )}
         </div>
 
         <div className="px-6 pb-6">
@@ -264,7 +302,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
             {res.consultation && (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                 <CalendarClock size={11} className="shrink-0" />
-                Consult. {fmtDateShort(res.consultation?.date || res.consultation?.dateConsultation)} à {fmtHeure(res.consultation?.heure)}
+                Consult. {fmtDateShort(res.consultation.date)} à {fmtHeure(res.consultation.heure)}
               </span>
             )}
           </div>
@@ -347,7 +385,7 @@ export default function ListeReservations({ proId }) {
   }, [proId, load]);
 
   const handleUpdate = async (id, statut) => {
-    const label = statut === 'VALIDE' ? "l'acceptation" : 'le refus';
+    const label = statut === 'PAYEE' ? "l'acceptation" : 'le refus';
     if (!window.confirm(`Confirmer ${label} de cette réservation ?`)) return;
     try {
       await updateReservationStatus(id, statut);
@@ -460,7 +498,7 @@ export default function ListeReservations({ proId }) {
               <ReservationCard
                 key={r.id}
                 res={r}
-                onAccept={id => handleUpdate(id, 'VALIDE')}
+                onAccept={id => handleUpdate(id, 'PAYEE')}
                 onRefuse={id => handleUpdate(id, 'REFUSE')}
                 onDetails={setSelected}
               />
