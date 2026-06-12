@@ -52,7 +52,10 @@ const MesConsultations = () => {
 
   useEffect(() => {
     api.get('/consultations/mes-consultations')
-      .then(r => setConsultations(r.data))
+      .then(r => {
+        console.log("MES CONSULTATIONS DATA:", r.data);
+        setConsultations(r.data);
+      })
       .catch(e => setError(e.message));
   }, []);
 
@@ -66,20 +69,23 @@ const MesConsultations = () => {
     } catch { toast.error('Erreur lors de la suppression.'); }
   };
 
-  // ✅ Helper pour naviguer vers le chat avec le state complet
+  // ✅ Récupère le nom du professionnel depuis les bons champs
   const ouvrirChat = (c) => {
-  navigate(`/chat/${c.id}`, {
-    state: {
-      consultation: {
-        ...c,
-        professionnelPrenom: c.professionnelPrenom,
-        professionnelNom: c.professionnelNom,
-        jourConsultation: c.date,
-        heureConsultation: c.heure,
+    console.log("CONSULTATION COMPLETE:", c); // pour vérifier les champs dispo
+
+    navigate(`/chat/${c.id}`, {
+      state: {
+        consultation: {
+          ...c,
+          // On tente tous les noms de champs possibles selon ce que l'API renvoie
+          professionnelPrenom: c.professionnelPrenom ?? c.praticienPrenom ?? c.medecinPrenom ?? c.proPrenom ?? '',
+          professionnelNom:    c.professionnelNom    ?? c.praticienNom    ?? c.medecinNom    ?? c.proNom    ?? '',
+          jourConsultation:    c.date,
+          heureConsultation:   c.heure,
+        }
       }
-    }
-  });
-};
+    });
+  };
 
   const filtered = consultations.filter(c => statut ? c.statut === statut : true);
 
@@ -128,7 +134,10 @@ const MesConsultations = () => {
                     <Stethoscope size={20} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 truncate">Dr {c.professionnelPrenom} {c.professionnelNom}</p>
+                    <p className="font-semibold text-slate-800 truncate">
+                      Dr {c.professionnelPrenom ?? c.praticienPrenom ?? c.medecinPrenom ?? ''}{' '}
+                         {c.professionnelNom    ?? c.praticienNom    ?? c.medecinNom    ?? ''}
+                    </p>
                     <p className="text-xs text-slate-400 mt-0.5">{formatDate(c.date)} · {formatHeure(c.heure)}</p>
                   </div>
                   <div className="flex items-center gap-3 flex-shrink-0">
@@ -171,7 +180,10 @@ const MesConsultations = () => {
                     <Stethoscope size={18} className="text-indigo-500" />
                   </div>
                   <div>
-                    <p className="font-bold text-slate-800">Dr {selected.professionnelPrenom} {selected.professionnelNom}</p>
+                    <p className="font-bold text-slate-800">
+                      Dr {selected.professionnelPrenom ?? selected.praticienPrenom ?? selected.medecinPrenom ?? ''}{' '}
+                         {selected.professionnelNom    ?? selected.praticienNom    ?? selected.medecinNom    ?? ''}
+                    </p>
                     <StatutBadge statut={selected.statut} />
                   </div>
                 </div>
@@ -186,19 +198,12 @@ const MesConsultations = () => {
               </div>
               <div className="px-6 pb-6 flex flex-col gap-2">
                 {selected.statut === 'CONFIRMEE' && (
-                  // ✅ Corrigé : state complet passé au navigate
                   <button
                     onClick={() => { setSelected(null); ouvrirChat(selected); }}
                     className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
                     <MessageSquare size={16} /> Ouvrir le chat
                   </button>
                 )}
-                {/*{selected.lienVisio && (
-                  <a href={selected.lienVisio} target="_blank" rel="noopener noreferrer"
-                    className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
-                    <Video size={16} /> Rejoindre la visio
-                  </a>
-                )}*/}
                 {(isPassee(selected.date) || selected.statut === 'ANNULEE' || selected.statut === 'TERMINEE') && (
                   <button onClick={() => { setConfirmDelete(selected); setSelected(null); }}
                     className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
@@ -230,7 +235,9 @@ const MesConsultations = () => {
               </div>
               <h3 className="font-bold text-slate-800 mb-1">Supprimer cette consultation ?</h3>
               <p className="text-sm text-slate-400 mb-5">
-                Dr {confirmDelete.professionnelPrenom} {confirmDelete.professionnelNom} · {formatDate(confirmDelete.date)}
+                Dr {confirmDelete.professionnelPrenom ?? confirmDelete.praticienPrenom ?? ''}{' '}
+                   {confirmDelete.professionnelNom    ?? confirmDelete.praticienNom    ?? ''}{' '}
+                · {formatDate(confirmDelete.date)}
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmDelete(null)}
