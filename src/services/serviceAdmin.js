@@ -26,9 +26,14 @@ export const validateProfessionnel = async (id, valide) => {
   return response.data;
 };
 
+// serviceAdmin.js
 export const downloadDocumentJustificatif = async (filename) => {
+  const token = localStorage.getItem('token'); // adapte selon ton storage
   const response = await api.get(`/professionnels/fichiers/${filename}`, {
     responseType: 'blob',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
   });
   return response.data;
 };
