@@ -20,75 +20,37 @@ const STATUT_CONFIG = {
 
 /* ─── HELPERS ────────────────────────────────────────────────────── */
 
-/**
- * Accepte :
- *  - un timestamp ms (number) — ex: 1749600000000
- *  - une string "YYYY-MM-DD"
- *  - un objet LocalDate Java { year, monthValue, dayOfMonth }
- *  - null / undefined → '—'
- */
+// "2026-06-12" → "vendredi 12 juin 2026"
 const fmtDate = (d) => {
-  if (d == null) return '—';
+  if (!d) return '—';
   try {
-    let dt;
-    if (typeof d === 'number') {
-      dt = new Date(d);
-    } else if (typeof d === 'object' && 'year' in d) {
-      // LocalDate Java sérialisé : { year, monthValue, dayOfMonth }
-      dt = new Date(d.year, d.monthValue - 1, d.dayOfMonth, 12);
-    } else {
-      // string "YYYY-MM-DD" — on force midi pour éviter les décalages TZ
-      dt = new Date(String(d) + 'T12:00:00');
-    }
+    const dt = new Date(String(d) + 'T12:00:00');
     if (isNaN(dt.getTime())) return '—';
     return dt.toLocaleDateString('fr-FR', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
     });
-  } catch {
-    return '—';
-  }
+  } catch { return '—'; }
 };
 
+// "2026-06-12" → "ven. 12 juin"
 const fmtDateShort = (d) => {
-  if (d == null) return '—';
+  if (!d) return '—';
   try {
-    let dt;
-    if (typeof d === 'number') {
-      dt = new Date(d);
-    } else if (typeof d === 'object' && 'year' in d) {
-      dt = new Date(d.year, d.monthValue - 1, d.dayOfMonth, 12);
-    } else {
-      dt = new Date(String(d) + 'T12:00:00');
-    }
+    const dt = new Date(String(d) + 'T12:00:00');
     if (isNaN(dt.getTime())) return '—';
     return dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
-  } catch {
-    return '—';
-  }
+  } catch { return '—'; }
 };
 
-/**
- * Accepte :
- *  - un objet LocalTime Java : { hour, minute, second, nano }
- *  - une string "HH:mm", "HH:mm:ss", ou "HHHmm" (ex: "10H30")
- *  - null / undefined → '—'
- */
+// "19:30" → "19h30"
 const fmtHeure = (h) => {
-  if (h == null) return '—';
-  if (typeof h === 'object' && 'hour' in h) {
-    const hh = String(h.hour).padStart(2, '0');
-    const mm = String(h.minute).padStart(2, '0');
-    return `${hh}h${mm}`;
-  }
+  if (!h) return '—';
   if (typeof h === 'string') {
-    // "10H30" (format backend legacy)
-    if (h.includes('H')) {
-      const [hh, mm] = h.split('H');
-      return `${hh}h${mm || '00'}`;
-    }
-    // "10:30" ou "10:30:00"
     const parts = h.split(':');
     return `${parts[0]}h${parts[1] || '00'}`;
+  }
+  if (typeof h === 'object' && 'hour' in h) {
+    return `${String(h.hour).padStart(2, '0')}h${String(h.minute).padStart(2, '0')}`;
   }
   return '—';
 };
@@ -198,7 +160,7 @@ function DetailsModal({ res, onClose }) {
                 <p className="text-sm font-semibold text-slate-700">{fmtDate(res.dateReservation)}</p>
               </div>
               <div className="px-4 py-3">
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure demande</p>
                 <p className="text-sm font-semibold text-slate-700">{fmtHeure(res.heureReservation)}</p>
               </div>
             </div>
@@ -206,41 +168,24 @@ function DetailsModal({ res, onClose }) {
 
           {/* Bloc consultation */}
           <div className="rounded-xl overflow-hidden border border-slate-100">
-            <div className={`px-4 py-2 flex items-center gap-2 border-b border-slate-100 ${res.consultation ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-              <CalendarClock size={13} className={res.consultation ? 'text-emerald-500' : 'text-slate-300'} />
-              <span className={`text-xs font-semibold uppercase tracking-wider ${res.consultation ? 'text-emerald-600' : 'text-slate-400'}`}>
+            <div className="bg-emerald-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
+              <CalendarClock size={13} className="text-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
                 Consultation prévue
               </span>
             </div>
-            {res.consultation ? (
-              <div className="grid grid-cols-2 divide-x divide-slate-100">
-                <div className="px-4 py-3">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
-                  <p className="text-sm font-semibold text-slate-700">
-                    {fmtDate(res.consultation.date)}
-                  </p>
-                </div>
-                <div className="px-4 py-3">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
-                  <p className="text-sm font-semibold text-slate-700">
-                    {fmtHeure(res.consultation.heure)}
-                  </p>
-                </div>
-              </div>
-            ) : (
+            <div className="grid grid-cols-2 divide-x divide-slate-100">
               <div className="px-4 py-3">
-                <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
+                <p className="text-sm font-semibold text-slate-700">{fmtDate(res.dateReservation)}</p>
               </div>
-            )}
+              <div className="px-4 py-3">
+                <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
+                <p className="text-sm font-semibold text-slate-700">{fmtHeure(res.heureConsultation)}</p>
+              </div>
+            </div>
           </div>
 
-          {/* Prix */}
-          {res.consultation?.prix != null && (
-            <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Prix</span>
-              <span className="text-sm font-bold text-slate-700">{res.consultation.prix} MAD</span>
-            </div>
-          )}
         </div>
 
         <div className="px-6 pb-6">
@@ -297,12 +242,12 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
             <span className="inline-flex items-center gap-1 text-xs text-slate-500">
               <CalendarDays size={11} className="text-indigo-400 shrink-0" />
-              {fmtDateShort(res.dateReservation)} à {fmtHeure(res.heureReservation)}
+              {fmtDateShort(res.dateReservation)} — demande à {fmtHeure(res.heureReservation)}
             </span>
-            {res.consultation && (
+            {res.heureConsultation && (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                 <CalendarClock size={11} className="shrink-0" />
-                Consult. {fmtDateShort(res.consultation.date)} à {fmtHeure(res.consultation.heure)}
+                Consult. à {fmtHeure(res.heureConsultation)}
               </span>
             )}
           </div>
@@ -311,7 +256,6 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
         {/* ── BOUTONS D'ACTION ── */}
         <div className="flex flex-col gap-1.5 flex-shrink-0 ml-1">
 
-          {/* Détails — toujours visible */}
           <button
             onClick={() => onDetails(res)}
             title="Voir les détails"
@@ -321,7 +265,6 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
             <span>Détails</span>
           </button>
 
-          {/* Accepter / Refuser — uniquement EN_ATTENTE */}
           {res.statut === 'EN_ATTENTE' && (
             <div className="flex gap-1.5">
               <button
