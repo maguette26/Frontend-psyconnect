@@ -104,16 +104,9 @@ function DetailsModal({ res, onClose }) {
               <p className="text-sm font-medium text-slate-700">
                 {res.consultation.heure || 'N/A'}
               </p>
-              {res.consultation.lienVisio && (
+              
                 
-                  href={res.consultation.lienVisio}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 mt-2 text-emerald-600 hover:underline text-sm"
-                >
-                  <Video size={14} /> Lien visio
-                </a>
-              )}
+              
             </div>
           ) : (
             <div className="bg-slate-50 rounded-xl px-4 py-3">
@@ -186,7 +179,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
 
             <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
               <CalendarCheck size={12} className="text-indigo-400 shrink-0" />
-              <span className="truncate">{formatDate(res.dateReservation, res.heureDebut)}</span>
+              <span className="truncate">{formatDate(res.dateReservation, res.dateReservation)}</span>
               <span className="text-slate-300 ml-1">#{res.id}</span>
             </div>
           </div>
@@ -329,7 +322,7 @@ const ListeReservations = ({ proId }) => {
           <WifiOff size={16} className="shrink-0 mt-0.5" />
           <div>
             <strong className="font-semibold">Serveur en veille.</strong>
-            {' '}Les données affichées peuvent être obsolètes. Rafraîchissement automatique toutes les {POLL_INTERVAL / 1000}s.
+            {' '}  Rafraîchissement automatique toutes les {POLL_INTERVAL / 1000}s.
           </div>
         </div>
       )}
