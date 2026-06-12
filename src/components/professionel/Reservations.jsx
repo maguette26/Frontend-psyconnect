@@ -19,9 +19,15 @@ const STATUT_CONFIG = {
 };
 
 /* ─── HELPERS ────────────────────────────────────────────────────── */
+
+/**
+ * dateConsultation est un timestamp Java (ms) → on le convertit directement
+ * dateReservation peut être une string "YYYY-MM-DD"
+ */
 const fmtDate = (d) => {
   if (!d) return '—';
   try {
+    // timestamp numérique (Java Date sérialisé)
     const dt = typeof d === 'number' ? new Date(d) : new Date(d + 'T12:00:00');
     return dt.toLocaleDateString('fr-FR', {
       weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
@@ -37,16 +43,21 @@ const fmtDateShort = (d) => {
   } catch { return '—'; }
 };
 
+/**
+ * heure peut être :
+ *  - un objet LocalTime Java : { hour, minute, second, nano }
+ *  - une string "HH:mm" ou "HH:mm:ss"
+ */
 const fmtHeure = (h) => {
   if (!h) return '—';
-  if (typeof h === 'string') {
-    // Format "HHHmm" ex: "09H30" ou "09:30" ou "09:30:00"
-    const normalized = h.replace('H', ':');
-    const parts = normalized.split(':');
-    return `${parts[0]}h${parts[1] || '00'}`;
-  }
   if (typeof h === 'object' && 'hour' in h) {
-    return `${String(h.hour).padStart(2, '0')}h${String(h.minute).padStart(2, '0')}`;
+    const hh = String(h.hour).padStart(2, '0');
+    const mm = String(h.minute).padStart(2, '0');
+    return `${hh}h${mm}`;
+  }
+  if (typeof h === 'string') {
+    const parts = h.split(':');
+    return `${parts[0]}h${parts[1] || '00'}`;
   }
   return '—';
 };
@@ -92,9 +103,8 @@ function Toast({ msg, type, onClose }) {
 /* ─── MODAL DÉTAILS ──────────────────────────────────────────────── */
 function DetailsModal({ res, onClose }) {
   if (!res) return null;
-  const cfg = STATUT_CONFIG[res.reservationStatut];
+  const cfg = STATUT_CONFIG[res.statut];
   const bar = cfg?.bar || 'from-indigo-400 to-violet-400';
-  const initials = `${res.utilisateurPrenom?.[0] || ''}${res.utilisateurNom?.[0] || ''}`.toUpperCase();
 
   return (
     <div
@@ -116,7 +126,7 @@ function DetailsModal({ res, onClose }) {
         <div className={`bg-gradient-to-r ${bar} px-6 pt-5 pb-6 text-white`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
-              Réservation #{res.reservationId}
+              Réservation #{res.id}
             </span>
             <button onClick={onClose} className="text-white/70 hover:text-white transition">
               <XCircle size={18} />
@@ -124,13 +134,13 @@ function DetailsModal({ res, onClose }) {
           </div>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-lg">
-              {initials || '?'}
+              {`${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase() || '?'}
             </div>
             <div>
               <p className="font-bold text-base leading-tight">
-                {res.utilisateurPrenom} {res.utilisateurNom}
+                {res.utilisateur?.prenom} {res.utilisateur?.nom}
               </p>
-              <p className="text-white/70 text-xs mt-0.5">{res.utilisateurEmail || '—'}</p>
+              <p className="text-white/70 text-xs mt-0.5">{res.utilisateur?.email || '—'}</p>
             </div>
           </div>
         </div>
@@ -140,7 +150,7 @@ function DetailsModal({ res, onClose }) {
           {/* Statut */}
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Statut</span>
-            <StatutBadge statut={res.reservationStatut} />
+            <StatutBadge statut={res.statut} />
           </div>
 
           <hr className="border-slate-100" />
@@ -165,37 +175,34 @@ function DetailsModal({ res, onClose }) {
 
           {/* Bloc consultation */}
           <div className="rounded-xl overflow-hidden border border-slate-100">
-            <div className={`px-4 py-2 flex items-center gap-2 border-b border-slate-100 ${res.date ? 'bg-emerald-50' : 'bg-slate-50'}`}>
-              <CalendarClock size={13} className={res.date ? 'text-emerald-500' : 'text-slate-300'} />
-              <span className={`text-xs font-semibold uppercase tracking-wider ${res.date ? 'text-emerald-600' : 'text-slate-400'}`}>
+            <div className={`px-4 py-2 flex items-center gap-2 border-b border-slate-100 ${res.consultation ? 'bg-emerald-50' : 'bg-slate-50'}`}>
+              <CalendarClock size={13} className={res.consultation ? 'text-emerald-500' : 'text-slate-300'} />
+              <span className={`text-xs font-semibold uppercase tracking-wider ${res.consultation ? 'text-emerald-600' : 'text-slate-400'}`}>
                 Consultation prévue
               </span>
             </div>
-            {res.date ? (
-              <div className="grid grid-cols-2 divide-x divide-slate-100">
-                <div className="px-4 py-3">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
-                  <p className="text-sm font-semibold text-slate-700">{fmtDate(res.date)}</p>
-                </div>
-                <div className="px-4 py-3">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
-                  <p className="text-sm font-semibold text-slate-700">{fmtHeure(res.heure)}</p>
-                </div>
-              </div>
-            ) : (
+            {res.consultation ? (
+  <div className="grid grid-cols-2 divide-x divide-slate-100">
+    <div className="px-4 py-3">
+      <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
+      <p className="text-sm font-semibold text-slate-700">
+        {fmtDate(res.consultation?.date || res.consultation?.dateConsultation)}
+      </p>
+    </div>
+
+    <div className="px-4 py-3">
+      <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
+      <p className="text-sm font-semibold text-slate-700">
+        {fmtHeure(res.consultation?.heure)}
+      </p>
+    </div>
+  </div>
+) : (
               <div className="px-4 py-3">
                 <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
               </div>
             )}
           </div>
-
-          {/* Prix */}
-          {res.prix != null && (
-            <div className="flex items-center justify-between px-4 py-3 bg-slate-50 rounded-xl">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Prix</span>
-              <span className="text-sm font-bold text-slate-700">{res.prix} €</span>
-            </div>
-          )}
         </div>
 
         <div className="px-6 pb-6">
@@ -213,9 +220,9 @@ function DetailsModal({ res, onClose }) {
 
 /* ─── CARD RÉSERVATION ───────────────────────────────────────────── */
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
-  const cfg = STATUT_CONFIG[res.reservationStatut];
+  const cfg = STATUT_CONFIG[res.statut];
   const bar = cfg?.bar || 'from-slate-300 to-slate-300';
-  const initials = `${res.utilisateurPrenom?.[0] || ''}${res.utilisateurNom?.[0] || ''}`.toUpperCase();
+  const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
 
   return (
     <motion.div
@@ -241,23 +248,23 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           <div className="flex items-start justify-between gap-2 flex-wrap">
             <div className="min-w-0">
               <p className="font-semibold text-slate-800 text-sm leading-tight truncate">
-                {res.utilisateurPrenom} {res.utilisateurNom}
+                {res.utilisateur?.prenom} {res.utilisateur?.nom}
               </p>
-              <p className="text-xs text-slate-400 truncate">{res.utilisateurEmail}</p>
+              <p className="text-xs text-slate-400 truncate">{res.utilisateur?.email}</p>
             </div>
-            <StatutBadge statut={res.reservationStatut} />
+            <StatutBadge statut={res.statut} />
           </div>
 
           {/* Dates */}
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
             <span className="inline-flex items-center gap-1 text-xs text-slate-500">
               <CalendarDays size={11} className="text-indigo-400 shrink-0" />
-              Réservé le {fmtDateShort(res.dateReservation)} à {fmtHeure(res.heureReservation)}
+              {fmtDateShort(res.dateReservation)} à {fmtHeure(res.heureReservation)}
             </span>
-            {res.date && (
+            {res.consultation && (
               <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
                 <CalendarClock size={11} className="shrink-0" />
-                Consult. {fmtDateShort(res.date)} à {fmtHeure(res.heure)}
+                Consult. {fmtDateShort(res.consultation?.date || res.consultation?.dateConsultation)} à {fmtHeure(res.consultation?.heure)}
               </span>
             )}
           </div>
@@ -277,10 +284,10 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           </button>
 
           {/* Accepter / Refuser — uniquement EN_ATTENTE */}
-          {res.reservationStatut === 'EN_ATTENTE' && (
+          {res.statut === 'EN_ATTENTE' && (
             <div className="flex gap-1.5">
               <button
-                onClick={() => onAccept(res.reservationId)}
+                onClick={() => onAccept(res.id)}
                 title="Accepter la réservation"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
               >
@@ -288,7 +295,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
                 <span>Accepter</span>
               </button>
               <button
-                onClick={() => onRefuse(res.reservationId)}
+                onClick={() => onRefuse(res.id)}
                 title="Refuser la réservation"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
               >
@@ -339,11 +346,11 @@ export default function ListeReservations({ proId }) {
     return () => clearInterval(id);
   }, [proId, load]);
 
-  const handleUpdate = async (reservationId, statut) => {
+  const handleUpdate = async (id, statut) => {
     const label = statut === 'VALIDE' ? "l'acceptation" : 'le refus';
     if (!window.confirm(`Confirmer ${label} de cette réservation ?`)) return;
     try {
-      await updateReservationStatus(reservationId, statut);
+      await updateReservationStatus(id, statut);
       setToast({ msg: 'Statut mis à jour avec succès', type: 'success' });
       load();
     } catch {
@@ -353,12 +360,10 @@ export default function ListeReservations({ proId }) {
 
   const filtered = filter === 'TOUS'
     ? reservations
-    : reservations.filter(r => r.reservationStatut === filter);
+    : reservations.filter(r => r.statut === filter);
 
   const counts = STATUTS.reduce((acc, s) => {
-    acc[s] = s === 'TOUS'
-      ? reservations.length
-      : reservations.filter(r => r.reservationStatut === s).length;
+    acc[s] = s === 'TOUS' ? reservations.length : reservations.filter(r => r.statut === s).length;
     return acc;
   }, {});
 
@@ -453,7 +458,7 @@ export default function ListeReservations({ proId }) {
           <AnimatePresence>
             {filtered.map(r => (
               <ReservationCard
-                key={r.reservationId}
+                key={r.id}
                 res={r}
                 onAccept={id => handleUpdate(id, 'VALIDE')}
                 onRefuse={id => handleUpdate(id, 'REFUSE')}
