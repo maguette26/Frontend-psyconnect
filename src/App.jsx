@@ -33,7 +33,6 @@ import ConsultationAccessPage from './pages/ConsultationAccessPage';
 
 import { getMe } from './services/api';
 
-// ✅ NOUVEAU : composant qui injecte le CSS global une seule fois
 function GlobalStyles() {
   useEffect(() => {
     const style = document.createElement('style');
@@ -55,9 +54,7 @@ function GlobalStyles() {
     `;
     document.head.appendChild(style);
     return () => {
-      if (document.head.contains(style)) {
-        document.head.removeChild(style);
-      }
+      if (document.head.contains(style)) document.head.removeChild(style);
     };
   }, []);
   return null;
@@ -69,27 +66,40 @@ function AppWrapper() {
   const location = useLocation();
 
   const [currentUser, setCurrentUser] = useState(null);
-  const [appReady, setAppReady] = useState(false);
+  // ✅ 3 états distincts : "loading" | "authenticated" | "unauthenticated"
+  const [authState, setAuthState] = useState("loading");
 
   useEffect(() => {
     let isMounted = true;
     getMe()
-      .then((user) => { if (isMounted) setCurrentUser(user); })
-      .catch(() => { if (isMounted) setCurrentUser(null); })
-      .finally(() => { if (isMounted) setAppReady(true); });
+      .then((user) => {
+        if (isMounted) {
+          setCurrentUser(user);
+          setAuthState("authenticated");
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setCurrentUser(null);
+          setAuthState("unauthenticated");
+        }
+      });
     return () => { isMounted = false; };
   }, []);
 
   const hideHeader = ROUTES_SANS_HEADER.some(r => location.pathname.startsWith(r));
   const afficherHeader = !hideHeader;
 
-  if (!appReady) return null;
+  // ✅ Tant que l'auth est en cours, on n'affiche rien
+  // (évite le redirect vers /connexion avant que getMe() réponde)
+  if (authState === "loading") return null;
+
+  const isAuth = authState === "authenticated";
 
   return (
     <RessourceProvider>
-      <GlobalStyles /> {/* ✅ injecté une seule fois ici */}
+      <GlobalStyles />
       <div style={{ minHeight: "100vh" }}>
-
         {afficherHeader && <Header onOpenChat={() => {}} />}
 
         <Routes>
@@ -107,22 +117,28 @@ function AppWrapper() {
           <Route path="/tableauProfessionnel" element={<TableauProfessionnel />} />
           <Route path="/apropos" element={<APropos />} />
           <Route path="/reservation" element={<ListeProfessionnels />} />
+               <Route path="/mini-defi-gratuite" element={<MiniDefiGratuite />} />
+                    <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
+                    <Route path="/mini-defi-decouverte" element={<MiniDefiDecouverte />} />
+                    <Route path="/guide-fixateur-limites" element={<GuideFixateurLimites />} />
+                    <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
+                    <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
           <Route
             path="/consultations"
-            element={currentUser ? <ConsultationsPage /> : <Navigate to="/connexion" />}
+            element={isAuth ? <ConsultationsPage /> : <Navigate to="/connexion" replace />}
           />
           <Route
             path="/consultations/pro"
-            element={currentUser ? <TableauProfessionnel /> : <Navigate to="/connexion" />}
+            element={isAuth ? <TableauProfessionnel /> : <Navigate to="/connexion" replace />}
           />
           <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
+          {/* ✅ currentUser passé en prop pour que ChatPage connaisse le user connecté */}
           <Route
             path="/chat/:consultationId"
-            element={currentUser ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" />}
+            element={isAuth ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" replace />}
           />
           <Route path="*" element={<Page404 />} />
         </Routes>
-
       </div>
     </RessourceProvider>
   );

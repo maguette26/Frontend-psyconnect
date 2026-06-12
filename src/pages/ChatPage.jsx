@@ -6,9 +6,7 @@ import {
   Send, Video, ArrowLeft, Clock, CheckCircle,
   MessageCircle, Shield, Lock, Calendar, Stethoscope,
 } from "lucide-react";
-import {
-  motion, AnimatePresence, useSpring, useTransform,
-} from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
 /* ─── helpers ─── */
 const isConsultationStarted = (consultation) => {
@@ -34,16 +32,21 @@ const getRoleFromStorage = () => {
   } catch { return null; }
 };
 
+// ✅ Lit prenom/nom du user connecté depuis localStorage
+const getSelfFromStorage = () => {
+  try {
+    const raw = localStorage.getItem("currentUserInfo");
+    if (!raw) return { prenom: "", nom: "" };
+    const parsed = JSON.parse(raw);
+    return { prenom: parsed.prenom || parsed.firstName || "", nom: parsed.nom || parsed.lastName || "" };
+  } catch { return { prenom: "", nom: "" }; }
+};
+
 const getBackRoute = () => {
   const role = getRoleFromStorage();
   return role === "PSYCHOLOGUE" || role === "PSYCHIATRE"
     ? "/tableauProfessionnel"
     : "/tableauUtilisateur";
-};
-
-const formatTime = (heure) => {
-  if (!heure) return "";
-  return heure;
 };
 
 const formatDateFR = (dateStr) => {
@@ -81,9 +84,6 @@ const T = {
   amber: "#F59E0B",
   amberLight: "#FEF3C7",
 };
-
-// ✅ GLOBAL_CSS gardé comme constante mais plus injecté via <style> dans les composants
-// Il est maintenant géré par GlobalStyles dans App.js
 
 /* ─── Framer Motion Variants ─── */
 const pageVariants = {
@@ -155,7 +155,6 @@ const statusScreenVariants = {
 };
 
 /* ─── StatusScreen ─── */
-// ✅ <style> supprimé
 function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
   return (
     <motion.div
@@ -170,7 +169,6 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
         fontFamily: "'Inter', sans-serif",
       }}
     >
-      {/* Header */}
       <motion.div
         variants={headerVariants}
         initial="hidden"
@@ -190,7 +188,6 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
         </span>
       </motion.div>
 
-      {/* Content */}
       <div style={{
         flex: 1, display: "flex", alignItems: "center",
         justifyContent: "center", padding: "2rem",
@@ -231,7 +228,6 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
               background: T.white, color: T.slate700,
               fontSize: 14, fontWeight: 600, cursor: "pointer",
               boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
-              transition: "background 0.2s, border-color 0.2s",
             }}
           >
             <ArrowLeft size={16} />
@@ -257,7 +253,6 @@ function BackButton({ onClick }) {
         color: T.slate500,
         display: "flex", alignItems: "center", justifyContent: "center",
         flexShrink: 0,
-        transition: "background 0.15s",
       }}
     >
       <ArrowLeft size={18} />
@@ -325,8 +320,6 @@ function ConsultationInfoCard({ consultation }) {
       variants={cardVariants}
       initial="hidden"
       animate="visible"
-      whileHover={{ y: -1, boxShadow: "0 6px 24px rgba(79,70,229,0.10)" }}
-      transition={{ duration: 0.18 }}
       style={{
         margin: "0 16px",
         padding: "12px 16px",
@@ -492,7 +485,7 @@ function MessageBubble({ m, showSender, isNew }) {
               padding: "0 4px", fontWeight: 500,
             }}
           >
-            {formatTime(m.heure)}
+            {m.heure}
           </motion.span>
         )}
       </div>
@@ -508,10 +501,7 @@ function TypingIndicator() {
       animate={{ opacity: 1, x: 0, scale: 1 }}
       exit={{ opacity: 0, x: -10, scale: 0.92 }}
       transition={{ duration: 0.24, ease: "easeOut" }}
-      style={{
-        display: "flex", alignItems: "center", gap: 10,
-        paddingLeft: 4,
-      }}
+      style={{ display: "flex", alignItems: "center", gap: 10, paddingLeft: 4 }}
     >
       <div style={{
         width: 30, height: 30, borderRadius: 9, flexShrink: 0,
@@ -533,16 +523,10 @@ function TypingIndicator() {
           <motion.span
             key={i}
             animate={{ y: [0, -5, 0], opacity: [0.4, 1, 0.4] }}
-            transition={{
-              duration: 0.9,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: i * 0.18,
-            }}
+            transition={{ duration: 0.9, repeat: Infinity, ease: "easeInOut", delay: i * 0.18 }}
             style={{
               width: 7, height: 7, borderRadius: "50%",
-              background: T.indigo,
-              display: "inline-block",
+              background: T.indigo, display: "inline-block",
             }}
           />
         ))}
@@ -598,7 +582,6 @@ function AnonymatToggle({ value, onChange }) {
 }
 
 /* ─── Loading Screen ─── */
-// ✅ <style> supprimé
 function LoadingScreen() {
   return (
     <motion.div
@@ -618,8 +601,7 @@ function LoadingScreen() {
             animate={{ rotate: 360 }}
             transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
             style={{
-              width: 64, height: 64,
-              borderRadius: "50%",
+              width: 64, height: 64, borderRadius: "50%",
               border: `3px solid ${T.indigoLight}`,
               borderTopColor: T.indigo,
               position: "absolute", inset: 0,
@@ -629,12 +611,10 @@ function LoadingScreen() {
             animate={{ rotate: -360 }}
             transition={{ duration: 1.8, repeat: Infinity, ease: "linear" }}
             style={{
-              width: 46, height: 46,
-              borderRadius: "50%",
+              width: 46, height: 46, borderRadius: "50%",
               border: `2px solid transparent`,
               borderTopColor: `${T.violet}60`,
-              position: "absolute",
-              top: 9, left: 9,
+              position: "absolute", top: 9, left: 9,
             }}
           />
           <div style={{
@@ -649,12 +629,11 @@ function LoadingScreen() {
             </motion.div>
           </div>
         </div>
-
         <motion.p
           initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.25, duration: 0.4 }}
-          style={{ color: T.slate400, fontSize: 13, margin: 0, fontWeight: 500, letterSpacing: 0.1 }}
+          style={{ color: T.slate400, fontSize: 13, margin: 0, fontWeight: 500 }}
         >
           Chargement de la conversation…
         </motion.p>
@@ -666,7 +645,7 @@ function LoadingScreen() {
 /* ═══════════════════════════════════════════
    COMPOSANT PRINCIPAL ChatPage
 ═══════════════════════════════════════════ */
-export default function ChatPage() {
+export default function ChatPage({ currentUser }) {
   const { consultationId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -798,11 +777,31 @@ export default function ChatPage() {
     );
   }
 
-  const pro = {
-    prenom: consultation.professionnelPrenom,
-    nom: consultation.professionnelNom,
-    specialite: consultation.specialite,
-  };
+  // ✅ Détermine le rôle du user connecté
+  const role = getRoleFromStorage();
+  const isPro = role === "PSYCHOLOGUE" || role === "PSYCHIATRE";
+
+  // ✅ Construit l'objet "pro" à afficher dans le header selon le rôle :
+  // - Si c'est un patient → il voit le professionnel (champs professionnelPrenom/Nom)
+  // - Si c'est un professionnel → il se voit lui-même (champs dans localStorage)
+  let pro;
+  if (isPro) {
+    // Le pro se voit lui-même dans le header du chat
+    const self = getSelfFromStorage();
+    // Fallback sur currentUser prop si localStorage vide
+    pro = {
+      prenom: self.prenom || currentUser?.prenom || currentUser?.firstName || "",
+      nom:    self.nom    || currentUser?.nom    || currentUser?.lastName  || "",
+      specialite: consultation.specialite || role,
+    };
+  } else {
+    // Le patient voit le professionnel avec qui il consulte
+    pro = {
+      prenom: consultation.professionnelPrenom || "",
+      nom:    consultation.professionnelNom    || "",
+      specialite: consultation.specialite || "",
+    };
+  }
 
   const canSend = !!inputValue.trim() && connected;
 
@@ -847,8 +846,7 @@ export default function ChatPage() {
           display: "flex", alignItems: "center", gap: 14,
           flexShrink: 0,
           boxShadow: "0 1px 24px rgba(79,70,229,0.07)",
-          zIndex: 10,
-          position: "relative",
+          zIndex: 10, position: "relative",
         }}
       >
         <BackButton onClick={() => navigate(getBackRoute())} />
@@ -891,7 +889,6 @@ export default function ChatPage() {
                 color: "#fff", fontSize: 12, fontWeight: 700,
                 textDecoration: "none",
                 boxShadow: "0 4px 14px rgba(16,185,129,0.3)",
-                letterSpacing: 0.1,
               }}
             >
               <Video size={13} /> Visio
@@ -911,7 +908,6 @@ export default function ChatPage() {
                 padding: "7px 12px", borderRadius: 12,
                 fontSize: 11, fontWeight: 700,
                 border: "1px solid",
-                letterSpacing: 0.1,
               }}
             >
               <motion.span
@@ -949,7 +945,6 @@ export default function ChatPage() {
           position: "relative", zIndex: 1,
         }}
       >
-        {/* ✅ AnimatePresence corrigé avec mode="wait" et clés stables */}
         <AnimatePresence mode="wait">
           {messages.length === 0 ? (
             <motion.div
@@ -981,10 +976,7 @@ export default function ChatPage() {
               </motion.div>
 
               <motion.div variants={emptyChildVariants} style={{ textAlign: "center", maxWidth: 260 }}>
-                <p style={{
-                  color: T.slate700, fontSize: 16, margin: "0 0 6px",
-                  fontWeight: 700, letterSpacing: -0.2,
-                }}>
+                <p style={{ color: T.slate700, fontSize: 16, margin: "0 0 6px", fontWeight: 700 }}>
                   Commencez la conversation
                 </p>
                 <p style={{ color: T.slate400, fontSize: 13, margin: 0, lineHeight: 1.6 }}>
@@ -994,14 +986,6 @@ export default function ChatPage() {
 
               <motion.div
                 variants={emptyChildVariants}
-                animate={{
-                  boxShadow: [
-                    "0 0 0 0 rgba(16,185,129,0.08)",
-                    "0 0 0 6px rgba(16,185,129,0)",
-                    "0 0 0 0 rgba(16,185,129,0)",
-                  ],
-                }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: "easeOut", repeatDelay: 0.5 }}
                 style={{
                   display: "flex", alignItems: "center", gap: 6,
                   padding: "7px 16px", borderRadius: 20,
@@ -1010,13 +994,12 @@ export default function ChatPage() {
                 }}
               >
                 <Shield size={12} color={T.teal} />
-                <span style={{ fontSize: 11, color: T.teal, fontWeight: 600, letterSpacing: 0.1 }}>
+                <span style={{ fontSize: 11, color: T.teal, fontWeight: 600 }}>
                   Chiffrement de bout en bout
                 </span>
               </motion.div>
             </motion.div>
           ) : (
-            // ✅ wrapper avec key stable pour éviter le conflit avec "empty"
             <motion.div
               key="messages"
               initial={{ opacity: 0 }}
@@ -1137,7 +1120,6 @@ export default function ChatPage() {
           </motion.button>
         </div>
 
-        {/* ✅ AnimatePresence corrigé pour le message hors-ligne */}
         <AnimatePresence mode="wait">
           {!connected && showOfflineMsg && (
             <motion.p
@@ -1149,7 +1131,7 @@ export default function ChatPage() {
               style={{
                 textAlign: "center", fontSize: 11,
                 color: T.red, margin: "10px 0 0",
-                fontWeight: 500, letterSpacing: 0.1,
+                fontWeight: 500,
               }}
             >
               Connexion en cours… le serveur peut prendre quelques secondes à répondre.
