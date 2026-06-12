@@ -1,4 +1,3 @@
-// src/pages/InscriptionProfessionnel.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
@@ -28,11 +27,12 @@ const InscriptionProfessionnel = () => {
     specialite: '', motDePasse: '', confirmerMotDePasse: '', justificatif: null,
   });
   const [errors, setErrors] = useState({});
-  const [submitted, setSubmitted] = useState(false); // ✅ nouvel état
-  const [countdown, setCountdown] = useState(9);     // ✅ compte à rebours
+  const [submitted, setSubmitted] = useState(false);
+  const [countdown, setCountdown] = useState(9);
   const navigate = useNavigate();
 
   const [offsets, setOffsets] = useState({ circle1: {x:0,y:0}, circle2: {x:0,y:0}, circle3: {x:0,y:0} });
+
   useEffect(() => {
     let frame;
     const animate = () => {
@@ -48,7 +48,6 @@ const InscriptionProfessionnel = () => {
     return () => cancelAnimationFrame(frame);
   }, []);
 
-  // ✅ Compte à rebours uniquement après soumission réussie
   useEffect(() => {
     if (!submitted) return;
     if (countdown <= 0) { navigate('/'); return; }
@@ -80,21 +79,22 @@ const InscriptionProfessionnel = () => {
   const validateForm = () => {
     const newErrors = {};
     let isValid = true;
-    if (!formData.nom.trim()) { newErrors.nom = "Le nom est obligatoire."; isValid=false; }
-    if (!formData.prenom.trim()) { newErrors.prenom = "Le prénom est obligatoire."; isValid=false; }
-    if (!formData.email.trim()) { newErrors.email = "L'adresse email est obligatoire."; isValid=false; }
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) { newErrors.email = "L'adresse email n'est pas valide."; isValid=false; }
-    if (!formData.telephone.trim()) { newErrors.telephone = "Le numéro de téléphone est obligatoire."; isValid=false; }
-    else if (!/^\+?[0-9\s-]{8,}$/.test(formData.telephone)) { newErrors.telephone = "Format invalide."; isValid=false; }
-    if (!formData.specialite.trim()) { newErrors.specialite = "La spécialité est obligatoire."; isValid=false; }
-    if (!formData.justificatif) { newErrors.justificatif = "Le justificatif est obligatoire."; isValid=false; }
+    if (!formData.nom.trim()) { newErrors.nom = "Le nom est obligatoire."; isValid = false; }
+    if (!formData.prenom.trim()) { newErrors.prenom = "Le prénom est obligatoire."; isValid = false; }
+    if (!formData.email.trim()) { newErrors.email = "L'adresse email est obligatoire."; isValid = false; }
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) { newErrors.email = "L'adresse email n'est pas valide."; isValid = false; }
+    if (!formData.telephone.trim()) { newErrors.telephone = "Le numéro de téléphone est obligatoire."; isValid = false; }
+    else if (!/^\+?[0-9\s-]{8,}$/.test(formData.telephone)) { newErrors.telephone = "Format invalide."; isValid = false; }
+    if (!formData.specialite.trim()) { newErrors.specialite = "La spécialité est obligatoire."; isValid = false; }
+    if (!formData.justificatif) { newErrors.justificatif = "Le justificatif est obligatoire."; isValid = false; }
     const passwordErrors = validatePassword(formData.motDePasse);
-    if (passwordErrors.length > 0) { newErrors.motDePasse = passwordErrors.join(" "); isValid=false; }
-    if (formData.motDePasse !== formData.confirmerMotDePasse) { newErrors.confirmerMotDePasse = "Les mots de passe ne correspondent pas."; isValid=false; }
+    if (passwordErrors.length > 0) { newErrors.motDePasse = passwordErrors.join(" "); isValid = false; }
+    if (formData.motDePasse !== formData.confirmerMotDePasse) { newErrors.confirmerMotDePasse = "Les mots de passe ne correspondent pas."; isValid = false; }
     setErrors(newErrors);
     return isValid;
   };
 
+  // ✅ const (pas cconst)
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrors({});
@@ -105,11 +105,18 @@ const InscriptionProfessionnel = () => {
       Object.entries(formData).forEach(([key, val]) => {
         if (val !== null) formPayload.append(key === 'justificatif' ? 'document' : key, val);
       });
-      await api.post('/professionnels/inscription', formPayload, {
+
+      const response = await api.post('/professionnels/inscription', formPayload, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      setSubmitted(true); // ✅ affiche l'écran de succès
+
+      console.log('✅ Réponse backend:', response.data);
+      setSubmitted(true);
+
     } catch (err) {
+      console.error('❌ Erreur complète:', err);
+      console.error('❌ err.response:', err.response);
+
       const data = err.response?.data;
       let message = "Erreur lors de l'inscription. Veuillez réessayer.";
       if (typeof data === "string") message = data;
@@ -133,7 +140,6 @@ const InscriptionProfessionnel = () => {
     </div>
   );
 
-  // ✅ Écran de succès complet — remplace le formulaire
   if (submitted) {
     return (
       <Layout>
@@ -141,23 +147,18 @@ const InscriptionProfessionnel = () => {
           <AnimatedBg />
           <div className="flex w-full md:w-1/2 items-center justify-center p-10">
             <div className="w-full max-w-md bg-white rounded-3xl shadow-lg p-10 text-center">
-              {/* Icône succès */}
               <div className="flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mx-auto mb-6">
                 <svg className="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
               </div>
-
               <h2 className="text-2xl font-bold text-gray-800 mb-3">Inscription réussie !</h2>
-
               <p className="text-gray-600 text-sm mb-2">
                 Votre dossier a bien été reçu et est <span className="font-semibold text-yellow-600">en cours de validation</span>.
               </p>
               <p className="text-gray-500 text-xs mb-8">
                 Vous recevrez une confirmation par email une fois votre compte validé par notre équipe.
               </p>
-
-              {/* Barre de progression */}
               <div className="w-full bg-gray-200 rounded-full h-1.5 mb-2">
                 <div
                   className="bg-blue-500 h-1.5 rounded-full transition-all duration-1000"
@@ -167,7 +168,6 @@ const InscriptionProfessionnel = () => {
               <p className="text-gray-400 text-xs mb-6">
                 Redirection vers l'accueil dans <span className="font-semibold text-blue-500">{countdown}s</span>
               </p>
-
               <button
                 onClick={() => navigate('/')}
                 className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-md transition duration-300"
@@ -181,7 +181,6 @@ const InscriptionProfessionnel = () => {
     );
   }
 
-  // Formulaire normal
   return (
     <Layout>
       <div className="flex min-h-screen bg-gray-50">
@@ -201,17 +200,42 @@ const InscriptionProfessionnel = () => {
               <InputField id="prenom" label="Prénom" value={formData.prenom} onChange={handleChange} error={errors.prenom} autoComplete="given-name" />
               <InputField id="email" label="Email" type="email" value={formData.email} onChange={handleChange} error={errors.email} autoComplete="email" />
               <InputField id="telephone" label="Téléphone" type="tel" value={formData.telephone} onChange={handleChange} error={errors.telephone} autoComplete="tel" />
-              <InputField id="specialite" label="Spécialité" value={formData.specialite} onChange={handleChange} error={errors.specialite} placeholder="Ex: psychiatrie, psychologie" />
+
+              {/* ✅ Select spécialité — valeurs exactes attendues par le backend */}
+              <div className="flex flex-col mb-3">
+                <label htmlFor="specialite" className="mb-1 text-gray-800 font-semibold text-xs">
+                  Spécialité
+                </label>
+                <select
+                  id="specialite"
+                  name="specialite"
+                  value={formData.specialite}
+                  onChange={handleChange}
+                  className={`border rounded-md px-2 py-1 text-gray-900 text-sm focus:outline-none focus:ring-2 transition
+                    ${errors.specialite ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-400'}`}
+                >
+                  <option value="">-- Choisir une spécialité --</option>
+                  <option value="psychiatrie">Psychiatrie</option>
+                  <option value="psychologie">Psychologie</option>
+                </select>
+                {errors.specialite && (
+                  <p className="text-red-600 text-[10px] mt-1 italic font-medium">{errors.specialite}</p>
+                )}
+              </div>
 
               <div className="flex flex-col mb-3">
-                <label htmlFor="justificatif" className="mb-1 text-gray-800 font-semibold text-xs">Justificatif (PDF, JPG, PNG)</label>
+                <label htmlFor="justificatif" className="mb-1 text-gray-800 font-semibold text-xs">
+                  Justificatif (PDF, JPG, PNG)
+                </label>
                 <input
                   type="file" id="justificatif" accept=".pdf,image/jpeg,image/png"
                   onChange={handleFileChange}
                   className={`border rounded-md px-2 py-1 text-gray-900 text-sm focus:outline-none focus:ring-2 transition
                     ${errors.justificatif ? 'border-red-500 focus:ring-red-400' : 'border-gray-300 focus:ring-blue-400'}`}
                 />
-                {errors.justificatif && <p className="text-red-600 text-[10px] mt-1 italic font-medium">{errors.justificatif}</p>}
+                {errors.justificatif && (
+                  <p className="text-red-600 text-[10px] mt-1 italic font-medium">{errors.justificatif}</p>
+                )}
               </div>
 
               <InputField id="motDePasse" label="Mot de passe" type="password" value={formData.motDePasse} onChange={handleChange} error={errors.motDePasse} autoComplete="new-password" />
