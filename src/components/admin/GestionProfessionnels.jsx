@@ -1,17 +1,11 @@
+// GestionProfessionnels.jsx
 import React, { useEffect, useState } from 'react';
-import {
-  getProfessionnels,
-  downloadDocumentJustificatif,
-  validateProfessionnel,
-} from '../../services/serviceAdmin';
+import { getProfessionnels, validateProfessionnel } from '../../services/serviceAdmin';
 import api from '../../services/api';
 import { logout } from '../../services/serviceAuth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import {
-  faCheckCircle,
-  faTimesCircle,
-  faDownload,
-  faMagnifyingGlass,
+  faCheckCircle, faTimesCircle, faDownload, faMagnifyingGlass,
 } from '@fortawesome/free-solid-svg-icons';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,109 +14,74 @@ const GestionProfessionnels = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatut, setFilterStatut] = useState('TOUS');
   const [error, setError] = useState(null);
-  const [currentAdminRole, setCurrentAdminRole] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    fetchUserInfoAndProfessionnels();
-  }, []);
+  useEffect(() => { fetchUserInfoAndProfessionnels(); }, []);
 
   const fetchUserInfoAndProfessionnels = async () => {
     try {
       const res = await api.get('/auth/me');
-      const fetchedRole = res.data.role;
-      setCurrentAdminRole(fetchedRole);
-      if (fetchedRole === 'ADMIN') {
+      if (res.data.role === 'ADMIN') {
         await fetchProfessionnels();
       } else {
-        setError("Accès refusé.");
         handleLogoutAndRedirect();
       }
-    } catch (err) {
+    } catch {
       handleLogoutAndRedirect();
     }
   };
 
   const handleLogoutAndRedirect = async () => {
-    try {
-      await logout();
-    } finally {
-      navigate('/connexion');
-    }
+    try { await logout(); } finally { navigate('/connexion'); }
   };
 
   const fetchProfessionnels = async () => {
     try {
       const data = await getProfessionnels();
-      const filtered = data.filter(p =>
-        ['PSYCHOLOGUE', 'PSYCHIATRE'].includes(p.role)
-      );
-      setProfessionnels(filtered);
-    } catch (err) {
+      setProfessionnels(data.filter(p => ['PSYCHOLOGUE', 'PSYCHIATRE'].includes(p.role)));
+    } catch {
       setError("Erreur lors du chargement des professionnels.");
     }
   };
 
   const handleValidation = async (id, valide) => {
-    const confirmation = window.confirm(
-      valide
-        ? "Confirmer la validation de ce professionnel ?"
-        : "Confirmer le refus ou la désactivation de ce professionnel ?"
-    );
-    if (!confirmation) return;
-
+    if (!window.confirm(valide
+      ? "Confirmer la validation de ce professionnel ?"
+      : "Confirmer le refus de ce professionnel ?")) return;
     try {
       await validateProfessionnel(id, valide);
       setProfessionnels(prev =>
-        prev.map(p =>
-          p.id === id ? { ...p, statutValidation: valide ? 'VALIDE' : 'REFUSE' } : p
-        )
+        prev.map(p => p.id === id ? { ...p, statutValidation: valide ? 'VALIDE' : 'REFUSE' } : p)
       );
     } catch {
       setError("Erreur de validation.");
     }
   };
 
-  const handleDownloadDocument = async (filename) => {
-    if (!filename) return;
-    try {
-      const blob = await downloadDocumentJustificatif(filename);
-      const url = window.URL.createObjectURL(new Blob([blob]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch {
-      setError("Erreur de téléchargement.");
-    }
+  // ✅ Ouvre directement l'URL Cloudinary dans un nouvel onglet
+  const handleOpenDocument = (url) => {
+    if (!url) return;
+    window.open(url, '_blank', 'noopener,noreferrer');
   };
 
-  const filteredProfessionnels = professionnels.filter(pro => {
-    const term = searchTerm.toLowerCase();
-    return (
-      pro.nom?.toLowerCase().includes(term) ||
-      pro.prenom?.toLowerCase().includes(term) ||
-      pro.email?.toLowerCase().includes(term) ||
-      pro.specialite?.toLowerCase().includes(term)
-    );
-  }).filter(pro => {
-    if (filterStatut === 'TOUS') return true;
-    return pro.statutValidation === filterStatut;
-  });
+  const filteredProfessionnels = professionnels
+    .filter(pro => {
+      const term = searchTerm.toLowerCase();
+      return (
+        pro.nom?.toLowerCase().includes(term) ||
+        pro.prenom?.toLowerCase().includes(term) ||
+        pro.email?.toLowerCase().includes(term) ||
+        pro.specialite?.toLowerCase().includes(term)
+      );
+    })
+    .filter(pro => filterStatut === 'TOUS' || pro.statutValidation === filterStatut);
 
   const getBadgeClass = (statut) => {
     switch (statut) {
-      case 'EN_ATTENTE':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'VALIDE':
-        return 'bg-green-100 text-green-800';
-      case 'REFUSE':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-700';
+      case 'EN_ATTENTE': return 'bg-yellow-100 text-yellow-800';
+      case 'VALIDE':     return 'bg-green-100 text-green-800';
+      case 'REFUSE':     return 'bg-red-100 text-red-800';
+      default:           return 'bg-gray-100 text-gray-700';
     }
   };
 
@@ -130,7 +89,6 @@ const GestionProfessionnels = () => {
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-6 text-center text-indigo-800">Gestion des Professionnels</h2>
 
-      {/* Barre de recherche */}
       <div className="max-w-md mx-auto mb-6">
         <div className="relative">
           <input
@@ -140,41 +98,25 @@ const GestionProfessionnels = () => {
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           />
-          <FontAwesomeIcon
-            icon={faMagnifyingGlass}
-            className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-          />
+          <FontAwesomeIcon icon={faMagnifyingGlass} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
         </div>
       </div>
 
-      {/* Filtres */}
       <div className="flex justify-center space-x-3 mb-8">
         {['TOUS', 'EN_ATTENTE', 'VALIDE', 'REFUSE'].map(status => (
-          <button
-            key={status}
-            onClick={() => setFilterStatut(status)}
+          <button key={status} onClick={() => setFilterStatut(status)}
             className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 border ${
               filterStatut === status
                 ? 'bg-indigo-600 text-white border-indigo-600 shadow'
                 : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
-            }`}
-          >
-            {status === 'TOUS' ? 'Tous' :
-              status === 'EN_ATTENTE' ? 'En attente' :
-              status === 'VALIDE' ? 'Validés' :
-              'Refusés'}
+            }`}>
+            {status === 'TOUS' ? 'Tous' : status === 'EN_ATTENTE' ? 'En attente' : status === 'VALIDE' ? 'Validés' : 'Refusés'}
           </button>
         ))}
       </div>
 
-      {/* Tableau stylisé ou message */}
       {filteredProfessionnels.length === 0 ? (
-        <p className="text-center text-gray-600 italic mt-4">
-          Aucun professionnel {filterStatut === 'TOUS' ? 'correspondant.' : 
-            filterStatut === 'EN_ATTENTE' ? 'en attente.' :
-            filterStatut === 'VALIDE' ? 'validé.' :
-            'refusé.'}
-        </p>
+        <p className="text-center text-gray-600 italic mt-4">Aucun professionnel trouvé.</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-300 shadow">
           <table className="min-w-full bg-gray-50 divide-y divide-gray-300 table-fixed">
@@ -205,12 +147,10 @@ const GestionProfessionnels = () => {
                   </td>
                   <td className="px-3 py-2 text-center">
                     {pro.documentJustificatif ? (
-                      <button
-                        onClick={() => handleDownloadDocument(pro.documentJustificatif)}
+                      <button onClick={() => handleOpenDocument(pro.documentJustificatif)}
                         className="text-indigo-600 hover:text-indigo-800 focus:outline-none"
-                        title="Télécharger"
-                        style={{ background: 'transparent', border: 'none', padding: 0 }}
-                      >
+                        title="Voir le document"
+                        style={{ background: 'transparent', border: 'none', padding: 0 }}>
                         <FontAwesomeIcon icon={faDownload} />
                       </button>
                     ) : (
@@ -218,20 +158,14 @@ const GestionProfessionnels = () => {
                     )}
                   </td>
                   <td className="px-3 py-2 text-center space-x-2 whitespace-nowrap">
-                    <button
-                      onClick={() => handleValidation(pro.id, true)}
-                      className="text-green-600 hover:text-green-800 focus:outline-none"
-                      title="Valider"
-                      style={{ background: 'transparent', border: 'none', padding: 0 }}
-                    >
+                    <button onClick={() => handleValidation(pro.id, true)}
+                      className="text-green-600 hover:text-green-800 focus:outline-none" title="Valider"
+                      style={{ background: 'transparent', border: 'none', padding: 0 }}>
                       <FontAwesomeIcon icon={faCheckCircle} size="lg" />
                     </button>
-                    <button
-                      onClick={() => handleValidation(pro.id, false)}
-                      className="text-red-600 hover:text-red-800 focus:outline-none"
-                      title="Refuser"
-                      style={{ background: 'transparent', border: 'none', padding: 0 }}
-                    >
+                    <button onClick={() => handleValidation(pro.id, false)}
+                      className="text-red-600 hover:text-red-800 focus:outline-none" title="Refuser"
+                      style={{ background: 'transparent', border: 'none', padding: 0 }}>
                       <FontAwesomeIcon icon={faTimesCircle} size="lg" />
                     </button>
                   </td>
@@ -242,9 +176,7 @@ const GestionProfessionnels = () => {
         </div>
       )}
 
-      {error && (
-        <p className="text-center text-red-600 mt-4">{error}</p>
-      )}
+      {error && <p className="text-center text-red-600 mt-4">{error}</p>}
     </div>
   );
 };

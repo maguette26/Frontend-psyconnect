@@ -1,3 +1,4 @@
+// serviceAdmin.js
 import api from './api';
 
 // Utilisateurs
@@ -23,17 +24,5 @@ export const getProfessionnels = async () => {
 
 export const validateProfessionnel = async (id, valide) => {
   const response = await api.patch(`/professionnels/validation/${id}`, { valide });
-  return response.data;
-};
-
-// serviceAdmin.js
-export const downloadDocumentJustificatif = async (filename) => {
-  const token = localStorage.getItem('token'); // adapte selon ton storage
-  const response = await api.get(`/professionnels/fichiers/${filename}`, {
-    responseType: 'blob',
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
   return response.data;
 };
