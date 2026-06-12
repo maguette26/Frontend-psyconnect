@@ -3,7 +3,7 @@ import { getReservations, updateReservationStatus } from '../../services/service
 import {
   CheckCircle, XCircle, Clock, ScanEye,
   CalendarCheck, Filter, RefreshCw, User, Wifi, WifiOff, CreditCard,
-  CalendarDays, CalendarClock
+  CalendarDays, CalendarClock, ThumbsUp, ThumbsDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -11,25 +11,56 @@ import { motion, AnimatePresence } from 'framer-motion';
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'REFUSE', 'ANNULEE'];
 
 const STATUT_CONFIG = {
-  EN_ATTENTE:          { label: 'En attente',     bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',  bar: 'from-amber-400 to-orange-400',   icon: Clock       },
-  EN_ATTENTE_PAIEMENT: { label: 'Att. paiement',  bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',   bar: 'from-blue-400 to-indigo-400',    icon: CreditCard  },
-  PAYEE:               { label: 'Payée',           bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',bar: 'from-emerald-400 to-teal-400',   icon: CheckCircle },
-  REFUSE:              { label: 'Refusée',         bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',    bar: 'from-red-400 to-rose-400',       icon: XCircle     },
-  ANNULEE:             { label: 'Annulée',         bg: 'bg-slate-50',   text: 'text-slate-400',   border: 'border-slate-200',  bar: 'from-slate-300 to-slate-300',    icon: XCircle     },
+  EN_ATTENTE:          { label: 'En attente',    bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',  bar: 'from-amber-400 to-orange-400',  icon: Clock       },
+  EN_ATTENTE_PAIEMENT: { label: 'Att. paiement', bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',   bar: 'from-blue-400 to-indigo-400',   icon: CreditCard  },
+  PAYEE:               { label: 'Payée',          bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200',bar: 'from-emerald-400 to-teal-400',  icon: CheckCircle },
+  REFUSE:              { label: 'Refusée',        bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',    bar: 'from-red-400 to-rose-400',      icon: XCircle     },
+  ANNULEE:             { label: 'Annulée',        bg: 'bg-slate-50',   text: 'text-slate-400',   border: 'border-slate-200',  bar: 'from-slate-300 to-slate-300',   icon: XCircle     },
 };
 
 /* ─── HELPERS ────────────────────────────────────────────────────── */
-const fmtDate = (d) =>
-  d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-  }) : '—';
 
-const fmtDateShort = (d) =>
-  d ? new Date(d + 'T12:00:00').toLocaleDateString('fr-FR', {
-    weekday: 'short', day: 'numeric', month: 'short',
-  }) : '—';
+/**
+ * dateConsultation est un timestamp Java (ms) → on le convertit directement
+ * dateReservation peut être une string "YYYY-MM-DD"
+ */
+const fmtDate = (d) => {
+  if (!d) return '—';
+  try {
+    // timestamp numérique (Java Date sérialisé)
+    const dt = typeof d === 'number' ? new Date(d) : new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+  } catch { return '—'; }
+};
 
-const fmtHeure = (h) => (h ? h.replace(':', 'h') : '—');
+const fmtDateShort = (d) => {
+  if (!d) return '—';
+  try {
+    const dt = typeof d === 'number' ? new Date(d) : new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  } catch { return '—'; }
+};
+
+/**
+ * heure peut être :
+ *  - un objet LocalTime Java : { hour, minute, second, nano }
+ *  - une string "HH:mm" ou "HH:mm:ss"
+ */
+const fmtHeure = (h) => {
+  if (!h) return '—';
+  if (typeof h === 'object' && 'hour' in h) {
+    const hh = String(h.hour).padStart(2, '0');
+    const mm = String(h.minute).padStart(2, '0');
+    return `${hh}h${mm}`;
+  }
+  if (typeof h === 'string') {
+    const parts = h.split(':');
+    return `${parts[0]}h${parts[1] || '00'}`;
+  }
+  return '—';
+};
 
 /* ─── BADGE STATUT ───────────────────────────────────────────────── */
 function StatutBadge({ statut }) {
@@ -51,18 +82,18 @@ function Toast({ msg, type, onClose }) {
     return () => clearTimeout(t);
   }, [onClose]);
 
-  const styles = {
+  const cls = {
     success: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     error:   'bg-red-50 border-red-200 text-red-600',
     info:    'bg-blue-50 border-blue-200 text-blue-600',
-  };
+  }[type] || 'bg-slate-50 border-slate-200 text-slate-700';
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-lg text-sm font-medium ${styles[type] || styles.info}`}
+      className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-lg text-sm font-medium ${cls}`}
     >
       {msg}
     </motion.div>
@@ -91,7 +122,7 @@ function DetailsModal({ res, onClose }) {
         {/* Poignée mobile */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 sm:hidden" />
 
-        {/* Header dégradé */}
+        {/* Header */}
         <div className={`bg-gradient-to-r ${bar} px-6 pt-5 pb-6 text-white`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
@@ -126,9 +157,9 @@ function DetailsModal({ res, onClose }) {
 
           {/* Bloc réservation */}
           <div className="rounded-xl overflow-hidden border border-slate-100">
-            <div className="bg-slate-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
+            <div className="bg-indigo-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
               <CalendarDays size={13} className="text-indigo-500" />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Réservation</span>
+              <span className="text-xs font-semibold text-indigo-600 uppercase tracking-wider">Réservation</span>
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-100">
               <div className="px-4 py-3">
@@ -146,17 +177,23 @@ function DetailsModal({ res, onClose }) {
           <div className="rounded-xl overflow-hidden border border-slate-100">
             <div className={`px-4 py-2 flex items-center gap-2 border-b border-slate-100 ${res.consultation ? 'bg-emerald-50' : 'bg-slate-50'}`}>
               <CalendarClock size={13} className={res.consultation ? 'text-emerald-500' : 'text-slate-300'} />
-              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Consultation prévue</span>
+              <span className={`text-xs font-semibold uppercase tracking-wider ${res.consultation ? 'text-emerald-600' : 'text-slate-400'}`}>
+                Consultation prévue
+              </span>
             </div>
             {res.consultation ? (
               <div className="grid grid-cols-2 divide-x divide-slate-100">
                 <div className="px-4 py-3">
                   <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Date</p>
-                  <p className="text-sm font-semibold text-slate-700">{fmtDate(res.consultation.dateConsultation)}</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {fmtDate(res.consultation.dateConsultation)}
+                  </p>
                 </div>
                 <div className="px-4 py-3">
                   <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Heure</p>
-                  <p className="text-sm font-semibold text-slate-700">{fmtHeure(res.consultation.heure)}</p>
+                  <p className="text-sm font-semibold text-slate-700">
+                    {fmtHeure(res.consultation.heure)}
+                  </p>
                 </div>
               </div>
             ) : (
@@ -232,34 +269,42 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           </div>
         </div>
 
-        {/* Boutons */}
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {res.statut === 'EN_ATTENTE' && (
-            <>
-              <button
-                onClick={() => onAccept(res.id)}
-                title="Accepter"
-                className="w-8 h-8 flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition active:scale-90 shadow-sm"
-              >
-                <CheckCircle size={15} />
-              </button>
-              <button
-                onClick={() => onRefuse(res.id)}
-                title="Refuser"
-                className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-xl transition active:scale-90 shadow-sm"
-              >
-                <XCircle size={15} />
-              </button>
-            </>
-          )}
+        {/* ── BOUTONS D'ACTION ── */}
+        <div className="flex flex-col gap-1.5 flex-shrink-0 ml-1">
+
+          {/* Détails — toujours visible */}
           <button
             onClick={() => onDetails(res)}
             title="Voir les détails"
-            className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-indigo-100 hover:text-indigo-600 text-slate-400 rounded-xl transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-500 text-xs font-medium transition"
           >
-            <ScanEye size={16} />
+            <ScanEye size={14} />
+            <span>Détails</span>
           </button>
+
+          {/* Accepter / Refuser — uniquement EN_ATTENTE */}
+          {res.statut === 'EN_ATTENTE' && (
+            <div className="flex gap-1.5">
+              <button
+                onClick={() => onAccept(res.id)}
+                title="Accepter la réservation"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+              >
+                <ThumbsUp size={13} />
+                <span>Accepter</span>
+              </button>
+              <button
+                onClick={() => onRefuse(res.id)}
+                title="Refuser la réservation"
+                className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
+              >
+                <ThumbsDown size={13} />
+                <span>Refuser</span>
+              </button>
+            </div>
+          )}
         </div>
+
       </div>
     </motion.div>
   );
