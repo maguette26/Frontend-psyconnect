@@ -1,229 +1,266 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { getReservations, updateReservationStatus } from '../../services/servicePsy';
 import {
-  CheckCircle, XCircle, Clock, Info, Video,
-  CalendarCheck, Filter, RefreshCw, User, Wifi, WifiOff, CreditCard
+  CheckCircle, XCircle, Clock, Info,
+  CalendarCheck, Filter, RefreshCw, User, Wifi, WifiOff, CreditCard,
+  CalendarDays, CalendarClock
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'REFUSE', 'ANNULEE'];
 
 const STATUT_CONFIG = {
-  EN_ATTENTE:          { label: 'En attente',          bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   icon: Clock        },
-  EN_ATTENTE_PAIEMENT: { label: 'Attente paiement',    bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    icon: CreditCard   },
-  PAYEE:               { label: 'Payée',                bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', icon: CheckCircle  },
-  REFUSE:              { label: 'Refusée',              bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',     icon: XCircle      },
-  ANNULEE:             { label: 'Annulée',              bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   icon: XCircle      },
+  EN_ATTENTE:          { label: 'En attente',       bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400',    icon: Clock        },
+  EN_ATTENTE_PAIEMENT: { label: 'Att. paiement',    bg: 'bg-blue-50',    text: 'text-blue-700',    border: 'border-blue-200',    dot: 'bg-blue-400',     icon: CreditCard   },
+  PAYEE:               { label: 'Payée',             bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-400',  icon: CheckCircle  },
+  REFUSE:              { label: 'Refusée',           bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',     dot: 'bg-red-400',      icon: XCircle      },
+  ANNULEE:             { label: 'Annulée',           bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   dot: 'bg-slate-300',    icon: XCircle      },
 };
 
+// ─── Helpers ────────────────────────────────────────────────────────
+const formatDateLong = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  try {
+    return new Date(dateStr).toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+    });
+  } catch { return dateStr; }
+};
+
+const formatDateTime = (dateStr, timeStr) => {
+  if (!dateStr) return 'N/A';
+  try {
+    const dt = new Date(`${dateStr}T${timeStr || '00:00'}:00`);
+    return dt.toLocaleDateString('fr-FR', {
+      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
+      hour: '2-digit', minute: '2-digit',
+    });
+  } catch { return `${dateStr} ${timeStr || ''}`; }
+};
+
+// ─── Badge statut ────────────────────────────────────────────────────
 function StatutBadge({ statut }) {
   const cfg = STATUT_CONFIG[statut];
   if (!cfg) return <span className="text-xs text-slate-400">{statut}</span>;
   const Icon = cfg.icon;
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-      <Icon size={12} />
+      <Icon size={11} />
       {cfg.label}
     </span>
   );
 }
 
-// ─── Modal détails ─────────────────────────────────────────────────
+// ─── Ligne info dans le modal ────────────────────────────────────────
+function InfoRow({ label, children }) {
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">{label}</span>
+      <div className="text-sm font-medium text-slate-700">{children}</div>
+    </div>
+  );
+}
+
+// ─── Modal détails ───────────────────────────────────────────────────
 function DetailsModal({ res, onClose }) {
   if (!res) return null;
 
-  const formatDate = (d, t) => {
-    if (!d) return 'N/A';
-    try {
-      const dt = new Date(`${d}T${t || '00:00'}:00`);
-      return dt.toLocaleDateString('fr-FR', {
-        weekday: 'long', day: 'numeric', month: 'long',
-        hour: '2-digit', minute: '2-digit'
-      });
-    } catch { return `${d} ${t || ''}`; }
-  };
+  const hasConsultation = !!res.consultation;
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 px-0 sm:px-4"
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 px-0 sm:px-4"
       onClick={onClose}
     >
       <motion.div
         initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: 60 }}
-        className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md p-6"
+        transition={{ type: 'spring', stiffness: 320, damping: 30 }}
+        className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Handle mobile */}
-        <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4 sm:hidden" />
+        {/* Barre mobile */}
+        <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 sm:hidden" />
 
-        <div className="flex items-center justify-between mb-5">
-          <h3 className="text-lg font-bold text-slate-800">Réservation #{res.id}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition p-1">
-            <XCircle size={22} />
-          </button>
+        {/* En-tête coloré */}
+        <div className="bg-gradient-to-r from-indigo-600 to-violet-600 px-6 py-5 text-white">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center font-bold text-base">
+                {`${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase() || <User size={18} />}
+              </div>
+              <div>
+                <p className="font-semibold text-base leading-tight">
+                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
+                </p>
+                <p className="text-indigo-200 text-xs">{res.utilisateur?.email}</p>
+              </div>
+            </div>
+            <button onClick={onClose} className="text-white/70 hover:text-white transition p-1">
+              <XCircle size={20} />
+            </button>
+          </div>
         </div>
 
-        <div className="space-y-2">
-          {/* Infos patient */}
-          {[
-            { label: 'Patient', value: `${res.utilisateur?.prenom || ''} ${res.utilisateur?.nom || ''}` },
-            { label: 'Email',   value: res.utilisateur?.email || 'N/A' },
-            { label: 'Statut',  value: <StatutBadge statut={res.statut} /> },
-          ].map(({ label, value }) => (
-            <div key={label} className="bg-slate-50 rounded-xl px-4 py-3">
-              <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-              <div className="font-medium text-slate-700 text-sm">{value}</div>
-            </div>
-          ))}
+        <div className="px-6 py-5 space-y-5">
+          {/* Statut */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-400">Statut</span>
+            <StatutBadge statut={res.statut} />
+          </div>
 
-          {/* Date de réservation */}
-          <div className="bg-slate-50 rounded-xl px-4 py-3">
-            <p className="text-xs text-slate-400 mb-0.5">Date de réservation</p>
-            <div className="font-medium text-slate-700 text-sm">
-              {formatDate(res.dateReservation, res.heureDebut)}
+          <hr className="border-slate-100" />
+
+          {/* Réservation */}
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-6 h-6 rounded-lg bg-indigo-100 flex items-center justify-center">
+                <CalendarDays size={13} className="text-indigo-600" />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Réservation</span>
+            </div>
+            <div className="bg-slate-50 rounded-xl px-4 py-3 grid grid-cols-2 gap-4">
+              <InfoRow label="Date">
+                {formatDateLong(res.dateReservation)}
+              </InfoRow>
+              <InfoRow label="Heure">
+                {res.heureDebut || 'N/A'}
+              </InfoRow>
             </div>
           </div>
 
           {/* Consultation */}
-          {res.consultation ? (
-            <div className="bg-emerald-50 border border-emerald-200 rounded-xl px-4 py-3 space-y-1">
-              <p className="text-xs text-emerald-500 mb-1 font-semibold uppercase tracking-wide">
-                Consultation prévue
-              </p>
-              <p className="text-xs text-slate-500">Jour</p>
-              <p className="text-sm font-medium text-slate-700">
-                {res.consultation.dateConsultation
-                  ? new Date(res.consultation.dateConsultation).toLocaleDateString('fr-FR', {
-                      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
-                    })
-                  : 'N/A'}
-              </p>
-              <p className="text-xs text-slate-500 mt-1">Heure</p>
-              <p className="text-sm font-medium text-slate-700">
-                {res.consultation.heure || 'N/A'}
-              </p>
-              
-                
-              
+          <div>
+            <div className="flex items-center gap-2 mb-3">
+              <div className={`w-6 h-6 rounded-lg flex items-center justify-center ${hasConsultation ? 'bg-emerald-100' : 'bg-slate-100'}`}>
+                <CalendarClock size={13} className={hasConsultation ? 'text-emerald-600' : 'text-slate-400'} />
+              </div>
+              <span className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Consultation prévue</span>
             </div>
-          ) : (
-            <div className="bg-slate-50 rounded-xl px-4 py-3">
-              <p className="text-xs text-slate-400 mb-0.5">Consultation</p>
-              <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
-            </div>
-          )}
+
+            {hasConsultation ? (
+              <div className="bg-emerald-50 border border-emerald-100 rounded-xl px-4 py-3 grid grid-cols-2 gap-4">
+                <InfoRow label="Date">
+                  {formatDateLong(res.consultation.dateConsultation)}
+                </InfoRow>
+                <InfoRow label="Heure">
+                  {res.consultation.heure || 'N/A'}
+                </InfoRow>
+              </div>
+            ) : (
+              <div className="bg-slate-50 rounded-xl px-4 py-3">
+                <p className="text-sm text-slate-400 italic">Aucune consultation associée.</p>
+              </div>
+            )}
+          </div>
         </div>
 
-        <button
-          onClick={onClose}
-          className="mt-5 w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-sm font-medium transition"
-        >
-          Fermer
-        </button>
+        <div className="px-6 pb-6">
+          <button
+            onClick={onClose}
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-sm font-semibold transition"
+          >
+            Fermer
+          </button>
+        </div>
       </motion.div>
     </div>
   );
 }
 
-// ─── Card réservation ──────────────────────────────────────────────
+// ─── Card réservation ─────────────────────────────────────────────
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
-  const formatDate = (dateString, timeString) => {
-    if (!dateString) return 'N/A';
-    try {
-      const dt = new Date(`${dateString}T${timeString || '00:00'}:00`);
-      return dt.toLocaleDateString('fr-FR', {
-        weekday: 'short', day: 'numeric', month: 'short',
-        hour: '2-digit', minute: '2-digit'
-      });
-    } catch { return `${dateString} ${timeString || ''}`; }
-  };
-
+  const cfg = STATUT_CONFIG[res.statut];
   const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
 
-  const barColor =
-    res.statut === 'PAYEE'               ? 'bg-emerald-400' :
-    res.statut === 'EN_ATTENTE'          ? 'bg-amber-400'   :
-    res.statut === 'EN_ATTENTE_PAIEMENT' ? 'bg-blue-400'    :
-    res.statut === 'ANNULEE'             ? 'bg-slate-300'   :
-    'bg-red-400';
+  const accentColor =
+    res.statut === 'PAYEE'               ? 'from-emerald-400 to-teal-400'    :
+    res.statut === 'EN_ATTENTE'          ? 'from-amber-400 to-orange-400'    :
+    res.statut === 'EN_ATTENTE_PAIEMENT' ? 'from-blue-400 to-indigo-400'     :
+    res.statut === 'ANNULEE'             ? 'from-slate-300 to-slate-300'     :
+    'from-red-400 to-rose-400';
 
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+      exit={{ opacity: 0, scale: 0.97 }}
+      transition={{ duration: 0.2 }}
+      className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg transition-all duration-200 overflow-hidden group"
     >
-      <div className={`h-1 w-full ${barColor}`} />
+      {/* Barre de couleur top */}
+      <div className={`h-1 w-full bg-gradient-to-r ${accentColor}`} />
 
-      <div className="p-4">
-        {/* HEADER */}
-        <div className="flex items-start gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 flex items-center justify-center text-white font-bold text-sm shadow flex-shrink-0">
-            {initials || <User size={16} />}
+      <div className="p-4 flex items-center gap-3">
+        {/* Avatar */}
+        <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${accentColor} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}>
+          {initials || <User size={15} />}
+        </div>
+
+        {/* Contenu */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div className="min-w-0">
+              <h3 className="font-semibold text-slate-800 text-sm leading-tight truncate">
+                {res.utilisateur?.prenom} {res.utilisateur?.nom}
+              </h3>
+              <p className="text-xs text-slate-400 truncate">{res.utilisateur?.email}</p>
+            </div>
+            <StatutBadge statut={res.statut} />
           </div>
 
-          <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2 flex-wrap">
-              <div className="min-w-0">
-                <h3 className="font-semibold text-slate-800 text-sm leading-tight truncate">
-                  {res.utilisateur?.prenom} {res.utilisateur?.nom}
-                </h3>
-                <p className="text-xs text-slate-400 truncate">{res.utilisateur?.email}</p>
-              </div>
-              <StatutBadge statut={res.statut} />
-            </div>
-
-            <div className="mt-2 flex items-center gap-1.5 text-xs text-slate-500">
-              <CalendarCheck size={12} className="text-indigo-400 shrink-0" />
-              <span className="truncate">{formatDate(res.dateReservation, res.dateReservation)}</span>
-              <span className="text-slate-300 ml-1">#{res.id}</span>
-            </div>
+          {/* Dates réservation + consultation */}
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <span className="flex items-center gap-1 text-xs text-slate-500">
+              <CalendarDays size={11} className="text-indigo-400 shrink-0" />
+              Réservé le {formatDateTime(res.dateReservation, res.heureDebut)}
+            </span>
+            {res.consultation && (
+              <span className="flex items-center gap-1 text-xs text-emerald-600">
+                <CalendarClock size={11} className="shrink-0" />
+                Consultation : {formatDateLong(res.consultation.dateConsultation)}
+                {res.consultation.heure ? ` à ${res.consultation.heure}` : ''}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* FOOTER ACTIONS */}
-        <div className="flex items-center justify-end gap-2 mt-3 pt-3 border-t border-slate-100 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            {res.statut === 'EN_ATTENTE' && (
-              <>
-                <button
-                  onClick={() => onAccept(res.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold transition active:scale-95"
-                >
-                  <CheckCircle size={12} />
-                  <span className="hidden sm:inline">Accepter</span>
-                  <span className="sm:hidden">✓</span>
-                </button>
-                <button
-                  onClick={() => onRefuse(res.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-xs font-semibold transition active:scale-95"
-                >
-                  <XCircle size={12} />
-                  <span className="hidden sm:inline">Refuser</span>
-                  <span className="sm:hidden">✕</span>
-                </button>
-              </>
-            )}
-            {/* Un seul bouton Détails */}
-            <button
-              onClick={() => onDetails(res)}
-              className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-xs font-semibold transition"
-            >
-              <Info size={12} />
-              Détails
-            </button>
-          </div>
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+          {res.statut === 'EN_ATTENTE' && (
+            <>
+              <button
+                onClick={() => onAccept(res.id)}
+                title="Accepter"
+                className="w-8 h-8 flex items-center justify-center bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl transition active:scale-90 shadow-sm"
+              >
+                <CheckCircle size={15} />
+              </button>
+              <button
+                onClick={() => onRefuse(res.id)}
+                title="Refuser"
+                className="w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-xl transition active:scale-90 shadow-sm"
+              >
+                <XCircle size={15} />
+              </button>
+            </>
+          )}
+          <button
+            onClick={() => onDetails(res)}
+            title="Détails"
+            className="w-8 h-8 flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-xl transition"
+          >
+            <Info size={15} />
+          </button>
         </div>
       </div>
     </motion.div>
   );
 }
 
-// ─── Composant principal ───────────────────────────────────────────
+// ─── Composant principal ──────────────────────────────────────────
 const POLL_INTERVAL = 15000;
 
 const ListeReservations = ({ proId }) => {
@@ -245,13 +282,10 @@ const ListeReservations = ({ proId }) => {
       setLastUpdate(new Date());
     } catch (err) {
       console.error(err);
-      const is503 = err?.response?.status === 503 || err?.response?.status === 502;
+      const is5xx = [502, 503].includes(err?.response?.status);
       const isNet = !err?.response;
-      if (is503 || isNet) {
-        setServerOnline(false);
-      } else {
-        setError('Erreur lors du chargement des réservations.');
-      }
+      if (is5xx || isNet) setServerOnline(false);
+      else setError('Erreur lors du chargement des réservations.');
     } finally {
       if (!silent) setRefreshing(false);
     }
@@ -274,7 +308,7 @@ const ListeReservations = ({ proId }) => {
       await updateReservationStatus(id, status);
       await chargerReservations();
     } catch {
-      setError('Erreur lors de la mise à jour. Le serveur est peut-être en veille, réessayez.');
+      setError('Erreur lors de la mise à jour. Réessayez dans quelques instants.');
     }
   };
 
@@ -288,42 +322,47 @@ const ListeReservations = ({ proId }) => {
   }, {});
 
   return (
-    <div className="space-y-4 max-w-2xl mx-auto">
+    <div className="space-y-5 max-w-2xl mx-auto">
 
       {/* HEADER */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-2">
+        <div>
           <h2 className="text-xl font-bold text-slate-800">Réservations</h2>
-          {!serverOnline && (
-            <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-full">
-              <WifiOff size={11} />
-              Serveur en veille
-            </span>
-          )}
-          {serverOnline && lastUpdate && (
-            <span className="flex items-center gap-1 text-xs text-slate-400">
-              <Wifi size={11} />
-              Synchro {lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-            </span>
-          )}
+          <div className="flex items-center gap-1.5 mt-0.5">
+            {serverOnline ? (
+              <span className="flex items-center gap-1 text-xs text-slate-400">
+                <Wifi size={10} className="text-emerald-400" />
+                {lastUpdate
+                  ? `Sync ${lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                  : 'En ligne'}
+              </span>
+            ) : (
+              <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                <WifiOff size={10} />
+                Serveur en veille
+              </span>
+            )}
+          </div>
         </div>
+
         <button
           onClick={() => chargerReservations()}
           disabled={refreshing}
-          className="flex items-center gap-2 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition disabled:opacity-60"
+          className="flex items-center gap-2 px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium transition disabled:opacity-60 shadow-sm"
         >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+          <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
           Actualiser
         </button>
       </div>
 
+      {/* ALERTE SERVEUR */}
       {!serverOnline && (
         <div className="bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3 flex items-start gap-2">
-          <WifiOff size={16} className="shrink-0 mt-0.5" />
-          <div>
-            <strong className="font-semibold">Serveur en veille.</strong>
-            {' '}  Rafraîchissement automatique toutes les {POLL_INTERVAL / 1000}s.
-          </div>
+          <WifiOff size={15} className="shrink-0 mt-0.5" />
+          <span>
+            <strong>Serveur en veille.</strong>{' '}
+            Rafraîchissement automatique toutes les {POLL_INTERVAL / 1000} s.
+          </span>
         </div>
       )}
 
@@ -336,16 +375,22 @@ const ListeReservations = ({ proId }) => {
         {STATUTS.map(s => {
           const cfg = STATUT_CONFIG[s];
           const active = filtreStatut === s;
+          const Icon = cfg?.icon;
           return (
-            <button key={s} onClick={() => setFiltreStatut(s)}
+            <button
+              key={s}
+              onClick={() => setFiltreStatut(s)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition shrink-0 ${
                 active
                   ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-              }`}>
-              {s === 'TOUS' ? <Filter size={11} /> : cfg && <cfg.icon size={11} />}
+                  : 'bg-white text-slate-500 border-slate-200 hover:border-indigo-300 hover:text-slate-700'
+              }`}
+            >
+              {s === 'TOUS' ? <Filter size={11} /> : Icon && <Icon size={11} />}
               {s === 'TOUS' ? 'Tous' : cfg?.label || s}
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${active ? 'bg-white/20' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                active ? 'bg-white/25 text-white' : 'bg-slate-100 text-slate-500'
+              }`}>
                 {counts[s]}
               </span>
             </button>
@@ -355,17 +400,19 @@ const ListeReservations = ({ proId }) => {
 
       {/* LISTE */}
       {reservations.length === 0 && !refreshing ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200">
-          <CalendarCheck className="text-slate-200 mx-auto mb-3" size={40} />
-          <p className="text-slate-500 font-medium">Aucune réservation pour le moment.</p>
-          <p className="text-xs text-slate-400 mt-1">Les réservations apparaîtront ici.</p>
+        <div className="text-center py-16 bg-white rounded-2xl border border-slate-100 shadow-sm">
+          <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+            <CalendarCheck className="text-slate-300" size={26} />
+          </div>
+          <p className="text-slate-500 font-semibold text-sm">Aucune réservation pour le moment</p>
+          <p className="text-xs text-slate-400 mt-1">Les nouvelles réservations apparaîtront ici.</p>
         </div>
       ) : reservationsFiltrees.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
-          <p className="text-slate-400 italic text-sm">Aucune réservation avec ce statut.</p>
+        <div className="text-center py-12 bg-white rounded-2xl border border-slate-100">
+          <p className="text-slate-400 text-sm italic">Aucune réservation avec ce statut.</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2.5">
           <AnimatePresence>
             {reservationsFiltrees.map(res => (
               <ReservationCard
@@ -382,7 +429,9 @@ const ListeReservations = ({ proId }) => {
 
       {/* MODAL */}
       <AnimatePresence>
-        {selectedRes && <DetailsModal res={selectedRes} onClose={() => setSelectedRes(null)} />}
+        {selectedRes && (
+          <DetailsModal res={selectedRes} onClose={() => setSelectedRes(null)} />
+        )}
       </AnimatePresence>
     </div>
   );
