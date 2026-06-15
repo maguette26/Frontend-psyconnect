@@ -32,6 +32,7 @@ import ConsultationsPage from './pages/ConsultationsPage';
 import ConsultationAccessPage from './pages/ConsultationAccessPage';
 
 import { getMe } from './services/api';
+import PremiumSuccess from './pages/PremiumSuccess';
 
 function GlobalStyles() {
   useEffect(() => {
@@ -137,6 +138,8 @@ function AppWrapper() {
             path="/chat/:consultationId"
             element={isAuth ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" replace />}
           />
+          <Route path="/premium-success" element={<PremiumSuccess />} />
+          <Route path="/premium-cancel" element={<DevenirPremium />} />
           <Route path="*" element={<Page404 />} />
         </Routes>
       </div>

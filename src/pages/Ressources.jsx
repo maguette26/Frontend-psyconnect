@@ -48,20 +48,42 @@ const Ressources = () => {
   }
 }, []);
   useEffect(() => {
-    const roleLocal = localStorage.getItem('role');
+  const token = localStorage.getItem('token');
 
-    if (!roleLocal) {
-      setNotConnectedMessage('⚠️ Vous devez être connecté pour accéder aux ressources. Redirection...');
-      setLoading(false);
-      setFonctionnalites([]);
+  if (!token) {
+    setNotConnectedMessage(
+      '⚠️ Vous devez être connecté pour accéder aux ressources.'
+    );
+
+    setLoading(false);
+    setFonctionnalites([]);
+    setIsUserPremium(false);
+
+    const timer = setTimeout(() => {
+      navigate('/connexion');
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }
+
+  const fetchUserInfo = async () => {
+    try {
+      const res = await api.get('/auth/me');
+
+      const role = res.data.role;
+
+      setIsUserPremium(role === 'PREMIUM' || role === 'ADMIN');
+
+      localStorage.setItem("role", role); // 🔥 important
+    } catch (e) {
       setIsUserPremium(false);
-
-      const timer = setTimeout(() => {
-        navigate('/connexion');
-      }, 3000);
-
-      return () => clearTimeout(timer);
+    } finally {
+      fetchFonctionnalites();
     }
+  };
+
+  fetchUserInfo();
+}, [navigate, fetchFonctionnalites]);
 
     const fetchUserInfo = async () => {
       try {
