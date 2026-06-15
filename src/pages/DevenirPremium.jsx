@@ -52,7 +52,7 @@ const DevenirPremium = () => {
 
        
       const response =
-  await api.post("/payments/premium-checkout", {
+ await api.post("/payments/premium-checkout", {
   plan: selectedPlan
 });
 
