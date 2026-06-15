@@ -110,7 +110,7 @@ export const getReservations = async (proId) => {
  * - délai exponentiel : 2s, 4s, 8s
  * - timeout étendu à 35s pour laisser le temps à Railway de se réveiller
  */
-const STATUTS_VALIDES = ['EN_ATTENTE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'REFUSE', 'ANNULEE'];
+const STATUTS_VALIDES = ['VALIDE', 'REFUSE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'ANNULEE'];
 const RETRY_DELAYS = [2000, 4000, 8000];
 
 export const updateReservationStatus = async (reservationId, statut, attempt = 0) => {

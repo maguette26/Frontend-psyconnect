@@ -388,23 +388,25 @@ export default function ListeReservations({ proId }) {
   const reservationsRef = React.useRef(reservations);
   useEffect(() => { reservationsRef.current = reservations; }, [reservations]);
 
-  const handleUpdate = async (id, statut) => {
-    const snapshot = reservationsRef.current;
+ const handleUpdate = async (id, statut) => {
+  const snapshot = reservationsRef.current;
+  // Optimistic UI : on mappe VALIDE → EN_ATTENTE_PAIEMENT localement
+  const optimisticStatut = statut === 'VALIDE' ? 'EN_ATTENTE_PAIEMENT' : statut;
 
-    setReservations(prev =>
-      prev.map(r => r.id === id ? { ...r, statut } : r)
-    );
+  setReservations(prev =>
+    prev.map(r => r.id === id ? { ...r, statut: optimisticStatut } : r)
+  );
 
-    try {
-      await updateReservationStatus(id, statut);
-      setToast({ msg: 'Statut mis à jour', type: 'success' });
-      load(true);
-    } catch (err) {
-      console.error('updateReservationStatus error:', err);
-      setReservations(snapshot);
-      setToast({ msg: 'Erreur — modification annulée.', type: 'error' });
-    }
-  };
+  try {
+    await updateReservationStatus(id, statut); // envoie 'VALIDE' ou 'REFUSE' au backend
+    setToast({ msg: 'Statut mis à jour', type: 'success' });
+    load(true);
+  } catch (err) {
+    console.error('updateReservationStatus error:', err?.response?.status, err?.response?.data);
+    setReservations(snapshot);
+    setToast({ msg: 'Erreur — modification annulée.', type: 'error' });
+  }
+};
 
   const filtered = filter === 'TOUS'
     ? reservations
