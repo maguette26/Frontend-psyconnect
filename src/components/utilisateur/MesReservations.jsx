@@ -83,15 +83,7 @@ const MesReservations = () => {
     } catch { toast.error("Erreur lors de l'annulation."); }
   };
 
-  const handleSupprimer = async (res) => {
-    try {
-      await api.delete(`/reservations/supprimer/${res.id}`);
-      setReservations(prev => prev.filter(r => r.id !== res.id));
-      setConfirmDelete(null);
-      setSelected(null);
-      toast.success('Réservation supprimée.');
-    } catch { toast.error('Erreur lors de la suppression.'); }
-  };
+   
 
   const filtered = reservations.filter(r => statut ? r.statut === statut : r.statut !== 'ANNULEE');
 
@@ -255,10 +247,7 @@ const MesReservations = () => {
                   className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition">
                   Annuler
                 </button>
-                <button onClick={() => handleSupprimer(confirmDelete)}
-                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition">
-                  Supprimer
-                </button>
+                 
               </div>
             </motion.div>
           </motion.div>
