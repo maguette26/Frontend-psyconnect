@@ -47,8 +47,9 @@ const Ressources = () => {
     setLoading(false);
   }
 }, []);
+ 
+ // 1. Sync role depuis localStorage (refresh instant UI)
 useEffect(() => {
-  useEffect(() => {
   const syncUser = () => {
     const role = localStorage.getItem("role");
     setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
@@ -60,7 +61,9 @@ useEffect(() => {
 
   return () => window.removeEventListener("user-updated", syncUser);
 }, []);
- useEffect(() => {
+
+// 2. Load user + data
+useEffect(() => {
   const token = localStorage.getItem("token");
 
   if (!token) {
@@ -78,6 +81,9 @@ useEffect(() => {
       setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
 
       localStorage.setItem("role", role);
+
+      // 🔥 IMPORTANT: notify UI partout
+      window.dispatchEvent(new Event("user-updated"));
 
     } catch {
       setIsUserPremium(false);
