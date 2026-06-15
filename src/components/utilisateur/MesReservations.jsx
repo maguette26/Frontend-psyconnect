@@ -1,13 +1,22 @@
 import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import {
-  CalendarCheck, Clock, CreditCard, TicketCheck,
+  CalendarCheck, TicketCheck,
   SlidersHorizontal, XCircle, Stethoscope, Trash2, ChevronRight,
   AlertTriangle
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
+
+// ── Injecter la font une seule fois dans <head>, jamais dans le JSX ──────────
+if (!document.getElementById('dm-sans-font')) {
+  const link = document.createElement('link');
+  link.id   = 'dm-sans-font';
+  link.rel  = 'stylesheet';
+  link.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap';
+  document.head.appendChild(link);
+}
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '—';
@@ -21,11 +30,6 @@ const formatHeure = (heureStr) => {
   return heureStr.replace('H', ':').substring(0, 5);
 };
 
-const isPassee = (dateStr) => {
-  if (!dateStr) return false;
-  return new Date(dateStr + 'T00:00:00') < new Date();
-};
-
 const STATUT_CONFIG = {
   EN_ATTENTE:          { label: 'En attente',       bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400'   },
   EN_ATTENTE_PAIEMENT: { label: 'Attente paiement', bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200',  dot: 'bg-orange-400'  },
@@ -35,7 +39,9 @@ const STATUT_CONFIG = {
 };
 
 function StatutBadge({ statut }) {
-  const cfg = STATUT_CONFIG[statut] || { label: statut, bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' };
+  const cfg = STATUT_CONFIG[statut] || {
+    label: statut, bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400'
+  };
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
@@ -55,11 +61,11 @@ function InfoRow({ label, value }) {
 
 const MesReservations = () => {
   const [reservations, setReservations] = useState([]);
-  const [statut, setStatut] = useState('');
-  const [error, setError] = useState(null);
-  const [selected, setSelected] = useState(null);
+  const [statut, setStatut]             = useState('');
+  const [error, setError]               = useState(null);
+  const [selected, setSelected]         = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [deleting, setDeleting] = useState(false);
+  const [deleting, setDeleting]         = useState(false);
 
   useEffect(() => {
     api.get('/reservations/mes-reservations')
@@ -67,9 +73,7 @@ const MesReservations = () => {
       .catch(e => setError(e.message));
   }, []);
 
-  // Only ANNULEE or REFUSE can be deleted
-  const canDelete = (res) =>
-    res.statut === 'ANNULEE' || res.statut === 'REFUSE';
+  const canDelete = (res) => res.statut === 'ANNULEE' || res.statut === 'REFUSE';
 
   const handleDownloadTicket = async (id) => {
     try {
@@ -85,8 +89,10 @@ const MesReservations = () => {
   const handleAnnuler = async (res) => {
     try {
       await api.delete(`/reservations/annuler/${res.id}`);
-      setReservations(prev => prev.filter(r => r.id !== res.id));
       setSelected(null);
+      setTimeout(() => {
+        setReservations(prev => prev.filter(r => r.id !== res.id));
+      }, 300);
       toast.success('Réservation annulée.');
     } catch {
       toast.error("Erreur lors de l'annulation.");
@@ -94,13 +100,14 @@ const MesReservations = () => {
   };
 
   const handleDelete = async (res) => {
-     console.log("Suppression réservation ID:", res.id, "| objet complet:", res);
     setDeleting(true);
     try {
       await api.delete(`/reservations/supprimer/${res.id}`);
-      setReservations(prev => prev.filter(r => r.id !== res.id));
       setConfirmDelete(null);
       setSelected(null);
+      setTimeout(() => {
+        setReservations(prev => prev.filter(r => r.id !== res.id));
+      }, 350);
       toast.success('Réservation supprimée.');
     } catch {
       toast.error('Erreur lors de la suppression.');
@@ -111,40 +118,50 @@ const MesReservations = () => {
 
   const openConfirmDelete = (e, res) => {
     e.stopPropagation();
-    setSelected(null);      // close detail modal if open
-    setConfirmDelete(res);  // open confirm modal
+    setSelected(null);
+    setTimeout(() => setConfirmDelete(res), 150);
   };
 
-  const filtered = reservations.filter(r => statut ? r.statut === statut : r.statut !== 'ANNULEE');
+  const filtered = reservations.filter(r =>
+    statut ? r.statut === statut : r.statut !== 'ANNULEE'
+  );
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <ToastContainer position="top-right" />
 
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <div>
           <h1 className="text-2xl font-bold text-slate-800">Mes Réservations</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{filtered.length} réservation{filtered.length > 1 ? 's' : ''}</p>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {filtered.length} réservation{filtered.length > 1 ? 's' : ''}
+          </p>
         </div>
         <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
           <SlidersHorizontal size={15} className="text-slate-400" />
-          <select value={statut} onChange={e => setStatut(e.target.value)}
-            className="bg-transparent text-sm text-slate-700 font-medium focus:outline-none cursor-pointer">
+          <select
+            value={statut}
+            onChange={e => setStatut(e.target.value)}
+            className="bg-transparent text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
+          >
             <option value="">Actives</option>
             <option value="EN_ATTENTE">En attente</option>
             <option value="EN_ATTENTE_PAIEMENT">Attente paiement</option>
             <option value="PAYEE">Payées</option>
             <option value="ANNULEE">Annulées</option>
+            <option value="REFUSE">Refusées</option>
           </select>
         </div>
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6">{error}</div>
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6">
+          {error}
+        </div>
       )}
 
+      {/* LISTE */}
       {filtered.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
           <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -154,11 +171,16 @@ const MesReservations = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          <AnimatePresence>
+          <AnimatePresence mode="popLayout">
             {filtered.map(res => (
-              <motion.div key={res.id}
-                initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group"
+              <motion.div
+                key={res.id}
+                layout
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
                 onClick={() => setSelected(res)}
               >
                 <div className="flex items-center gap-4 p-4">
@@ -176,7 +198,6 @@ const MesReservations = () => {
                     {res.prix != null && (
                       <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix}€</span>
                     )}
-                    {/* Trash button — only visible on hover, only for ANNULEE or REFUSE */}
                     {canDelete(res) && (
                       <button
                         onClick={(e) => openConfirmDelete(e, res)}
@@ -195,7 +216,7 @@ const MesReservations = () => {
         </div>
       )}
 
-      {/* ── MODAL DETAIL ── */}
+      {/* ── MODAL DÉTAIL ── */}
       <AnimatePresence>
         {selected && (
           <motion.div
@@ -208,7 +229,6 @@ const MesReservations = () => {
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              {/* Modal header */}
               <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
@@ -224,7 +244,6 @@ const MesReservations = () => {
                 </button>
               </div>
 
-              {/* Modal body */}
               <div className="px-6 py-4">
                 <InfoRow label="Date réservation"   value={formatDate(selected.dateReservation)} />
                 <InfoRow label="Heure réservation"  value={formatHeure(selected.heureReservation)} />
@@ -233,7 +252,6 @@ const MesReservations = () => {
                 {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} €`} />}
               </div>
 
-              {/* Modal actions */}
               <div className="px-6 pb-6 flex flex-col gap-2">
                 {selected.statut === 'PAYEE' && (
                   <button
@@ -243,7 +261,6 @@ const MesReservations = () => {
                     <TicketCheck size={16} /> Télécharger le ticket
                   </button>
                 )}
-
                 {(selected.statut === 'EN_ATTENTE' || selected.statut === 'EN_ATTENTE_PAIEMENT') && (
                   <button
                     onClick={() => handleAnnuler(selected)}
@@ -252,8 +269,6 @@ const MesReservations = () => {
                     <XCircle size={16} /> Annuler la réservation
                   </button>
                 )}
-
-                {/* Delete button — only for ANNULEE or REFUSE */}
                 {canDelete(selected) && (
                   <button
                     onClick={(e) => openConfirmDelete(e, selected)}
@@ -262,7 +277,6 @@ const MesReservations = () => {
                     <Trash2 size={16} /> Supprimer la réservation
                   </button>
                 )}
-
                 <button
                   onClick={() => setSelected(null)}
                   className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm transition"
@@ -275,7 +289,7 @@ const MesReservations = () => {
         )}
       </AnimatePresence>
 
-      {/* ── MODAL CONFIRM DELETE ── */}
+      {/* ── MODAL CONFIRMATION SUPPRESSION ── */}
       <AnimatePresence>
         {confirmDelete && (
           <motion.div
@@ -291,7 +305,6 @@ const MesReservations = () => {
               className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              {/* Red top banner */}
               <div className="bg-red-50 px-6 pt-6 pb-5 flex flex-col items-center border-b border-red-100">
                 <div className="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center mb-3">
                   <AlertTriangle className="text-red-500" size={26} />
@@ -300,7 +313,6 @@ const MesReservations = () => {
                 <p className="text-sm text-slate-500 text-center mt-1">Cette action est irréversible.</p>
               </div>
 
-              {/* Reservation summary */}
               <div className="px-6 py-4 space-y-2">
                 <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
                   <span className="text-xs text-slate-400 font-medium">Médecin</span>
@@ -316,7 +328,6 @@ const MesReservations = () => {
                 </div>
               </div>
 
-              {/* Action buttons */}
               <div className="px-6 pb-6 flex gap-3">
                 <button
                   onClick={() => setConfirmDelete(null)}
@@ -339,9 +350,7 @@ const MesReservations = () => {
                       Suppression…
                     </>
                   ) : (
-                    <>
-                      <Trash2 size={15} /> Supprimer
-                    </>
+                    <><Trash2 size={15} /> Supprimer</>
                   )}
                 </button>
               </div>
