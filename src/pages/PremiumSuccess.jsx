@@ -34,7 +34,7 @@ const PremiumSuccess = () => {
       <h1 className="text-3xl font-bold text-green-600">
         Paiement réussi 🎉
       </h1>
-      <p>Activation de votre compte Premium...</p>
+      <p>Activation de votre compte Premium....</p>
     </div>
   );
 };
