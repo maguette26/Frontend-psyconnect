@@ -50,27 +50,14 @@ const DevenirPremium = () => {
       setLoading(true);
       setError(null);
 
-      // ⚠️ Vérifie la clé exacte dans ton localStorage
-      const userId =
-        localStorage.getItem("id");
-
-      if (!userId) {
-
-        setError(
-          "Utilisateur non connecté."
-        );
-
-        return;
-      }
-
+       
       const response =
-        await api.post(
-          "/api/payments/premium-checkout",
-          {
-            plan: selectedPlan,
-            userId
-          }
-        );
+  await api.post(
+    "/api/payments/premium-checkout",
+    {
+      plan: selectedPlan
+    }
+  );
 
       if (
         response.data &&
@@ -101,7 +88,7 @@ const DevenirPremium = () => {
       setLoading(false);
     }
   };
-
+console.log(api.defaults.baseURL);
   return (
     <Layout>
 
