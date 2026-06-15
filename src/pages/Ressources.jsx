@@ -47,7 +47,7 @@ const Ressources = () => {
     setLoading(false);
   }
 }, []);
-  useEffect(() => {
+ useEffect(() => {
   const token = localStorage.getItem('token');
 
   if (!token) {
@@ -74,7 +74,9 @@ const Ressources = () => {
 
       setIsUserPremium(role === 'PREMIUM' || role === 'ADMIN');
 
-      localStorage.setItem("role", role); // 🔥 important
+      // optionnel mais utile
+      localStorage.setItem("role", role);
+
     } catch (e) {
       setIsUserPremium(false);
     } finally {
@@ -84,20 +86,6 @@ const Ressources = () => {
 
   fetchUserInfo();
 }, [navigate, fetchFonctionnalites]);
-
-    const fetchUserInfo = async () => {
-      try {
-        const res = await api.get('/auth/me');
-        setIsUserPremium(res.data.role === 'PREMIUM' || res.data.role === 'ADMIN');
-      } catch {
-        setIsUserPremium(false);
-      } finally {
-        fetchFonctionnalites();
-      }
-    };
-
-    fetchUserInfo();
-  }, [navigate, fetchFonctionnalites]);
 
   const filteredFonctionnalites = useMemo(() => {
     return fonctionnalites.filter(f =>
