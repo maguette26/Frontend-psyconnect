@@ -110,7 +110,7 @@ export const getReservations = async (proId) => {
  * - délai exponentiel : 2s, 4s, 8s
  * - timeout étendu à 35s pour laisser le temps à Railway de se réveiller
  */
-const STATUTS_VALIDES = ['EN_ATTENTE', 'VALIDE', 'REFUSE'];
+const STATUTS_VALIDES = ['EN_ATTENTE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'REFUSE', 'ANNULEE'];
 const RETRY_DELAYS = [2000, 4000, 8000];
 
 export const updateReservationStatus = async (reservationId, statut, attempt = 0) => {
@@ -120,10 +120,10 @@ export const updateReservationStatus = async (reservationId, statut, attempt = 0
 
   try {
     const res = await api.put(
-      `/reservations/${reservationId}/statut`,
-      { statut },
-      { timeout: 35000 }
-    );
+  `/reservations/${reservationId}/statut`,
+  { statut },
+  { timeout: 55000 }  // 35s → 45s
+);
     return res.data;
   } catch (err) {
     const isNetworkError = !err.response; // pas de réponse = Railway en veille ou coupure réseau
