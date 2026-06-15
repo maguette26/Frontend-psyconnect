@@ -2,26 +2,24 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import { Loader2, CheckCircle2, AlertCircle, CreditCard, Zap } from 'lucide-react';
 import api from '../../services/api';
 
 const stripePromise = loadStripe("pk_test_51RXnftAc9vHWOsmYRgXSBdNEne7MxfObedkDBDRtA7l5G2zZM0sfMPfhHmCtWqeNIM81YSEyREpIPVDg76hE201t002UNapsv0");
 
-// ─── Utilitaire : wake-up Railway + retry ────────────────────────────
-const MAX_RETRIES   = 5;
-const RETRY_DELAY   = 2500; // ms entre chaque tentative
-const HEALTH_ROUTE  = '/actuator/health';   // adapte selon ton backend
+/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
+const RETRY_DELAYS = [2000, 3000, 5000, 8000, 10000];
 
-async function wakeUpAndRetry(fn, retries = MAX_RETRIES) {
-  for (let i = 0; i < retries; i++) {
+async function wakeUpAndRetry(fn) {
+  for (let i = 0; i <= RETRY_DELAYS.length; i++) {
     try {
       return await fn();
     } catch (err) {
-      const is503 = err?.response?.status === 503 || err?.response?.status === 502;
-      const isNet = !err?.response;   // ECONNREFUSED / réseau
-      if ((is503 || isNet) && i < retries - 1) {
-        // Tente un ping health pour réveiller le container
-        try { await api.get(HEALTH_ROUTE); } catch (_) {}
-        await new Promise(r => setTimeout(r, RETRY_DELAY * (i + 1)));
+      const is5xx = [502, 503].includes(err?.response?.status);
+      const isNet = !err?.response;
+      if ((is5xx || isNet) && i < RETRY_DELAYS.length) {
+        try { await api.get('/reservations/ping', { timeout: 3000 }); } catch (_) {}
+        await new Promise(r => setTimeout(r, RETRY_DELAYS[i]));
       } else {
         throw err;
       }
@@ -29,116 +27,140 @@ async function wakeUpAndRetry(fn, retries = MAX_RETRIES) {
   }
 }
 
-// ─── Polling statut réservation ──────────────────────────────────────
-async function pollReservationStatus(reservationId, targetStatus, timeoutMs = 30000) {
+/* ─── POLLING STATUT ─────────────────────────────────────────────── */
+async function pollReservationStatus(reservationId, targetStatut, timeoutMs = 30000) {
   const interval = 2000;
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     try {
       const { data } = await api.get(`/reservations/${reservationId}`);
-      if (data?.statut === targetStatus || data?.paiement?.statut === 'VALIDE') return data;
+      if (data?.statut === targetStatut) return data;
     } catch (_) {}
     await new Promise(r => setTimeout(r, interval));
   }
   return null;
 }
 
-// =========================
-// CHECKOUT FORM
-// =========================
-const CheckoutForm = ({ clientSecret, reservationId, onSuccess, onError, onPaid }) => {
+/* ─── PHASES UI ──────────────────────────────────────────────────── */
+// idle | waking | processing | polling | success | error
+function PhaseIndicator({ phase, errorMsg }) {
+  if (phase === 'idle') return null;
+
+  const configs = {
+    waking:     { icon: <Zap size={15} className="animate-pulse" />,      text: 'Réveil du serveur en cours…',         cls: 'bg-amber-50 border-amber-200 text-amber-700' },
+    processing: { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Paiement en cours de traitement…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+    polling:    { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Synchronisation avec le serveur…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
+    success:    { icon: <CheckCircle2 size={15} />,                        text: 'Paiement confirmé avec succès !',     cls: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
+    error:      { icon: <AlertCircle size={15} />,                         text: errorMsg || 'Une erreur est survenue.', cls: 'bg-red-50 border-red-200 text-red-600' },
+  };
+
+  const c = configs[phase];
+  if (!c) return null;
+
+  return (
+    <div className={`flex items-center gap-2.5 rounded-xl px-4 py-3 border text-sm font-medium ${c.cls}`}>
+      {c.icon}
+      <span>{c.text}</span>
+    </div>
+  );
+}
+
+/* ─── BARRE DE PROGRESSION ───────────────────────────────────────── */
+function ProgressBar({ phase }) {
+  const widths = { idle: '0%', waking: '35%', processing: '65%', polling: '85%', success: '100%', error: '100%' };
+  const colors = { success: 'bg-emerald-400', error: 'bg-red-400' };
+  const color  = colors[phase] || 'bg-indigo-500';
+  const width  = widths[phase] || '0%';
+
+  if (phase === 'idle') return null;
+
+  return (
+    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+      <div
+        className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
+        style={{ width }}
+      />
+    </div>
+  );
+}
+
+/* ─── CHECKOUT FORM (Stripe) ─────────────────────────────────────── */
+const CheckoutForm = ({ clientSecret, reservationId, onPhaseChange, onPaid }) => {
   const stripe   = useStripe();
   const elements = useElements();
-  const [loading, setLoading] = useState(false);
-  const [polling, setPolling] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!stripe || !elements) { onError("Stripe n'est pas prêt."); return; }
-    setLoading(true);
+    if (!stripe || !elements) return;
+
+    onPhaseChange('processing');
 
     try {
-      const cardElement = elements.getElement(CardElement);
       const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElement },
+        payment_method: { card: elements.getElement(CardElement) },
       });
 
-      if (result.error) { onError(result.error.message); return; }
-
-      if (result.paymentIntent?.status === 'succeeded') {
-        onSuccess('Paiement accepté. Mise à jour en cours…');
-        setPolling(true);
-
-        // Polling : on attend que le backend confirme le changement de statut
-        const updated = await pollReservationStatus(reservationId, 'VALIDE');
-        setPolling(false);
-
-        if (updated) {
-          onSuccess('Paiement confirmé et réservation mise à jour !');
-        } else {
-          // Le backend est peut-être en veille → on notifie quand même
-          onSuccess('Paiement confirmé. La mise à jour apparaîtra dans quelques instants.');
-        }
-        onPaid?.();
+      if (result.error) {
+        onPhaseChange('error', result.error.message);
         return;
       }
-      onError('Paiement non abouti, veuillez réessayer.');
+
+      if (result.paymentIntent?.status === 'succeeded') {
+        onPhaseChange('polling');
+
+        const updated = await pollReservationStatus(reservationId, 'PAYEE', 30000);
+
+        onPhaseChange('success');
+        // Petit délai pour que l'utilisateur voit le succès avant fermeture
+        setTimeout(() => onPaid?.(), 1500);
+        return;
+      }
+
+      onPhaseChange('error', 'Paiement non abouti, veuillez réessayer.');
     } catch (err) {
-      onError('Erreur : ' + (err.message || 'inconnue'));
-    } finally {
-      setLoading(false);
-      setPolling(false);
+      onPhaseChange('error', err.message || 'Erreur inconnue.');
     }
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="border border-gray-300 rounded-xl p-4 bg-gray-50">
+      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 focus-within:border-indigo-400 focus-within:bg-white transition">
         <CardElement options={{
           style: {
-            base: { fontSize: '16px', color: '#1e293b', '::placeholder': { color: '#94a3b8' } },
+            base: {
+              fontSize: '15px',
+              color: '#1e293b',
+              fontFamily: 'DM Sans, system-ui, sans-serif',
+              '::placeholder': { color: '#94a3b8' },
+            },
+            invalid: { color: '#ef4444' },
           }
         }} />
       </div>
 
-      {polling && (
-        <div className="flex items-center gap-2 text-sm text-indigo-600 bg-indigo-50 rounded-xl px-4 py-3">
-          <svg className="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-          </svg>
-          Synchronisation avec le serveur…
-        </div>
-      )}
-
       <button
         type="submit"
-        disabled={!stripe || loading || polling}
-        className="px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white rounded-xl w-full font-semibold transition flex items-center justify-center gap-2"
+        disabled={!stripe}
+        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]"
       >
-        {loading ? (
-          <>
-            <svg className="animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-            </svg>
-            Paiement en cours…
-          </>
-        ) : 'Payer maintenant'}
+        <CreditCard size={16} />
+        Payer maintenant
       </button>
     </form>
   );
 };
 
-// =========================
-// PAYMENT FORM
-// =========================
+/* ─── PAYMENT FORM (principal) ───────────────────────────────────── */
 const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [clientSecret, setClientSecret]   = useState(null);
-  const [message, setMessage]             = useState(null);
-  const [loading, setLoading]             = useState(false);
-  const [serverWaking, setServerWaking]   = useState(false);
+  const [phase, setPhase]                 = useState('idle'); // idle | waking | processing | polling | success | error
+  const [errorMsg, setErrorMsg]           = useState('');
+
+  const handlePhaseChange = useCallback((p, msg = '') => {
+    setPhase(p);
+    if (msg) setErrorMsg(msg);
+  }, []);
 
   const createPayment = useCallback(() =>
     api.post('/payments/create', {
@@ -147,132 +169,164 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
       successUrl: window.location.origin + '/payment-success',
       cancelUrl:  window.location.origin + '/payment-cancel',
       currency: 'EUR',
-    }).then(r => r.data)
+    }, { timeout: 55000 }).then(r => r.data)
   , [reservationId, paymentMethod]);
 
-  // ─── Stripe init avec wake-up auto ──────────────────────────────
+  /* ── Init Stripe avec wake-up ── */
   useEffect(() => {
     if (paymentMethod !== 'stripe') return;
-    let ignore = false;
-    setLoading(true);
-    setServerWaking(false);
-    setMessage(null);
-    setClientSecret(null);
+    let cancelled = false;
 
-    const timer = setTimeout(() => !ignore && setServerWaking(true), 1500);
+    setClientSecret(null);
+    setErrorMsg('');
+
+    // Délai avant d'afficher "réveil serveur" — si Railway répond vite, on ne le montre pas
+    const wakeTimer = setTimeout(() => {
+      if (!cancelled) setPhase('waking');
+    }, 1200);
 
     wakeUpAndRetry(createPayment)
       .then(data => {
-        if (ignore) return;
-        clearTimeout(timer);
-        setServerWaking(false);
+        if (cancelled) return;
+        clearTimeout(wakeTimer);
         if (data?.clientSecret) {
           setClientSecret(data.clientSecret);
+          setPhase('idle');
         } else {
-          setMessage({ type: 'error', text: "Impossible d'initialiser le paiement." });
+          handlePhaseChange('error', "Impossible d'initialiser le paiement.");
         }
       })
       .catch(err => {
-        if (ignore) return;
-        clearTimeout(timer);
-        setServerWaking(false);
-        const msg = err.response?.data?.message || "Serveur indisponible, réessayez dans quelques secondes.";
-        setMessage({ type: 'error', text: msg });
-      })
-      .finally(() => { if (!ignore) setLoading(false); });
+        if (cancelled) return;
+        clearTimeout(wakeTimer);
+        const msg = err?.response?.data?.message || 'Serveur indisponible. Réessayez dans quelques secondes.';
+        handlePhaseChange('error', msg);
+      });
 
-    return () => { ignore = true; clearTimeout(timer); };
-  }, [paymentMethod, reservationId]);
+    return () => { cancelled = true; clearTimeout(wakeTimer); };
+  }, [paymentMethod, createPayment, handlePhaseChange]);
 
-  // ─── PayPal avec wake-up auto ────────────────────────────────────
+  /* ── PayPal avec wake-up ── */
   const handlePayPalPayment = async () => {
-    setLoading(true);
-    setServerWaking(false);
-    const timer = setTimeout(() => setServerWaking(true), 1500);
+    setErrorMsg('');
+    const wakeTimer = setTimeout(() => setPhase('waking'), 1200);
+
     try {
       const data = await wakeUpAndRetry(createPayment);
-      clearTimeout(timer);
-      if (data.approvalUrl) window.location.href = data.approvalUrl;
+      clearTimeout(wakeTimer);
+      if (data?.approvalUrl) {
+        setPhase('processing');
+        window.location.href = data.approvalUrl;
+      } else {
+        handlePhaseChange('error', 'Erreur PayPal, veuillez réessayer.');
+      }
     } catch {
-      clearTimeout(timer);
-      setMessage({ type: 'error', text: "Erreur PayPal, veuillez réessayer." });
-    } finally {
-      setLoading(false);
-      setServerWaking(false);
+      clearTimeout(wakeTimer);
+      handlePhaseChange('error', 'Erreur PayPal, veuillez réessayer.');
     }
   };
 
+  const isLocked = ['waking', 'processing', 'polling'].includes(phase);
+  const isDone   = phase === 'success';
+
   return (
-    <div className="bg-white p-6 rounded-2xl w-full max-w-md relative shadow-xl">
+    <div className="bg-white rounded-2xl w-full max-w-md relative shadow-2xl overflow-hidden">
 
-      <button onClick={onClose}
-        className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 text-2xl leading-none">×</button>
+      {/* Barre de progression en haut */}
+      <ProgressBar phase={phase} />
 
-      <h2 className="text-xl font-bold mb-5 text-center text-slate-800">Paiement sécurisé</h2>
+      <div className="p-6 space-y-5">
 
-      {/* Avertissement wake-up serveur */}
-      {serverWaking && (
-        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3 mb-4">
-          <svg className="animate-spin w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24">
-            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-          </svg>
-          <span>Le serveur se réveille, un instant…</span>
-        </div>
-      )}
-
-      {/* Switch méthode */}
-      <div className="flex gap-2 mb-5">
-        {['stripe', 'paypal'].map(m => (
-          <button key={m} onClick={() => setPaymentMethod(m)}
-            className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition ${
-              paymentMethod === m
-                ? 'bg-indigo-600 text-white border-indigo-600'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-            }`}>
-            {m === 'stripe' ? '💳 Carte bancaire' : '🅿️ PayPal'}
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-slate-800">Paiement sécurisé</h2>
+          <button
+            onClick={onClose}
+            disabled={isLocked}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition disabled:opacity-30"
+          >
+            ×
           </button>
-        ))}
-      </div>
-
-      {/* Message */}
-      {message && (
-        <div className={`text-sm rounded-xl px-4 py-3 mb-4 ${
-          message.type === 'success'
-            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-            : 'bg-red-50 text-red-600 border border-red-200'
-        }`}>
-          {message.text}
         </div>
-      )}
 
-      {/* Stripe */}
-      {paymentMethod === 'stripe' && (
-        <>
-          {loading && !serverWaking && (
-            <p className="text-sm text-slate-400 text-center py-4">Initialisation…</p>
-          )}
-          {clientSecret && (
-            <Elements stripe={stripePromise} options={{ clientSecret }}>
-              <CheckoutForm
-                clientSecret={clientSecret}
-                reservationId={reservationId}
-                onSuccess={msg => setMessage({ type: 'success', text: msg })}
-                onError={msg => setMessage({ type: 'error', text: msg })}
-                onPaid={() => onPaymentSuccess?.()}
-              />
-            </Elements>
-          )}
-        </>
-      )}
+        {/* Switch méthode — désactivé pendant une action */}
+        <div className="flex gap-2">
+          {['stripe', 'paypal'].map(m => (
+            <button
+              key={m}
+              onClick={() => { if (!isLocked && !isDone) { setPaymentMethod(m); setPhase('idle'); setErrorMsg(''); } }}
+              disabled={isLocked || isDone}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition ${
+                paymentMethod === m
+                  ? 'bg-indigo-600 text-white border-indigo-600'
+                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
+              } disabled:opacity-50`}
+            >
+              {m === 'stripe' ? '💳 Carte bancaire' : '🅿️ PayPal'}
+            </button>
+          ))}
+        </div>
 
-      {/* PayPal */}
-      {paymentMethod === 'paypal' && (
-        <button onClick={handlePayPalPayment} disabled={loading}
-          className="w-full py-3 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-60 text-yellow-900 font-bold rounded-xl transition">
-          {loading ? 'Redirection…' : 'Payer avec PayPal'}
-        </button>
-      )}
+        {/* Indicateur de phase */}
+        <PhaseIndicator phase={phase} errorMsg={errorMsg} />
+
+        {/* Stripe */}
+        {paymentMethod === 'stripe' && !isDone && (
+          <>
+            {/* Skeleton pendant init */}
+            {!clientSecret && !['error'].includes(phase) && (
+              <div className="space-y-3 animate-pulse">
+                <div className="h-12 bg-slate-100 rounded-xl" />
+                <div className="h-12 bg-slate-100 rounded-xl" />
+              </div>
+            )}
+
+            {clientSecret && (
+              <Elements stripe={stripePromise} options={{ clientSecret }}>
+                <CheckoutForm
+                  clientSecret={clientSecret}
+                  reservationId={reservationId}
+                  onPhaseChange={handlePhaseChange}
+                  onPaid={() => onPaymentSuccess?.()}
+                />
+              </Elements>
+            )}
+          </>
+        )}
+
+        {/* Stripe — succès */}
+        {isDone && (
+          <div className="flex flex-col items-center gap-3 py-4">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center">
+              <CheckCircle2 size={32} className="text-emerald-500" />
+            </div>
+            <p className="font-semibold text-slate-800">Réservation confirmée !</p>
+            <p className="text-xs text-slate-400 text-center">Vous recevrez une confirmation par email.</p>
+          </div>
+        )}
+
+        {/* PayPal */}
+        {paymentMethod === 'paypal' && !isDone && (
+          <button
+            onClick={handlePayPalPayment}
+            disabled={isLocked}
+            className="w-full py-3.5 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-yellow-900 font-bold rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
+          >
+            {isLocked ? (
+              <><Loader2 size={16} className="animate-spin" /> Un instant…</>
+            ) : (
+              '🅿️ Payer avec PayPal'
+            )}
+          </button>
+        )}
+
+        {/* Mention sécurité */}
+        {!isDone && (
+          <p className="text-[11px] text-slate-400 text-center">
+            🔒 Paiement sécurisé — vos données ne transitent pas par nos serveurs
+          </p>
+        )}
+      </div>
     </div>
   );
 };

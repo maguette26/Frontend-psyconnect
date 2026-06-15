@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import api from '../../services/api';
 import {
   CalendarCheck, TicketCheck, SlidersHorizontal, XCircle,
@@ -51,16 +52,18 @@ function InfoRow({ label, value }) {
   );
 }
 
-/* Modal générique 100% CSS — aucun Framer */
+/* ─── MODAL via createPortal — évite tout conflit DOM ──────────── */
 function Modal({ open, onClose, children }) {
   useEffect(() => {
-    if (open) document.body.style.overflow = 'hidden';
-    else document.body.style.overflow = '';
-    return () => { document.body.style.overflow = ''; };
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
   }, [open]);
 
   if (!open) return null;
-  return (
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
       onClick={onClose}
@@ -71,7 +74,8 @@ function Modal({ open, onClose, children }) {
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -89,7 +93,9 @@ const MesReservations = () => {
       .catch(e => setError(e.message));
   }, []);
 
-  const canDelete = (res) => res.statut === 'ANNULEE' || res.statut === 'REFUSE';
+  const canDelete = useCallback((res) =>
+    res.statut === 'ANNULEE' || res.statut === 'REFUSE'
+  , []);
 
   const handleDownloadTicket = async (id) => {
     try {
@@ -117,8 +123,11 @@ const MesReservations = () => {
     setDeleting(true);
     try {
       await api.delete(`/reservations/supprimer/${res.id}`);
+      // Fermer les modals AVANT de modifier la liste
       setConfirmDelete(null);
       setSelected(null);
+      // Délai micro pour laisser React démonter les portails proprement
+      await new Promise(r => setTimeout(r, 0));
       setReservations(prev => prev.filter(r => r.id !== res.id));
       toast.success('Réservation supprimée.');
     } catch {
@@ -134,7 +143,16 @@ const MesReservations = () => {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
-      <ToastContainer position="top-right" />
+
+      {/* ToastContainer isolé via portail natif de react-toastify */}
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop
+        closeOnClick
+        pauseOnHover
+      />
 
       {/* HEADER */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
@@ -198,7 +216,11 @@ const MesReservations = () => {
                   )}
                   {canDelete(res) && (
                     <button
-                      onClick={e => { e.stopPropagation(); setSelected(null); setConfirmDelete(res); }}
+                      onClick={e => {
+                        e.stopPropagation();
+                        setSelected(null);
+                        setConfirmDelete(res);
+                      }}
                       className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
                       title="Supprimer"
                     >

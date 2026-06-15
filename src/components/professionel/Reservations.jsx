@@ -1,11 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { getReservations, updateReservationStatus } from '../../services/servicePsy';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   CheckCircle, XCircle, Clock, ScanEye,
   CalendarCheck, Filter, RefreshCw, User, Wifi, WifiOff, CreditCard,
-  CalendarDays, CalendarClock, ThumbsUp, ThumbsDown
+  CalendarDays, CalendarClock, ThumbsUp, ThumbsDown, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getReservations } from '../../services/servicePsy';
+import api from '../../services/api';
 
 /* ─── CONFIG STATUTS ─────────────────────────────────────────────── */
 const STATUTS = ['TOUS', 'EN_ATTENTE', 'EN_ATTENTE_PAIEMENT', 'PAYEE', 'REFUSE', 'ANNULEE'];
@@ -24,9 +25,7 @@ const fmtDate = (d) => {
   try {
     const dt = new Date(String(d) + 'T12:00:00');
     if (isNaN(dt.getTime())) return '—';
-    return dt.toLocaleDateString('fr-FR', {
-      weekday: 'long', day: 'numeric', month: 'long', year: 'numeric',
-    });
+    return dt.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   } catch { return '—'; }
 };
 
@@ -41,14 +40,45 @@ const fmtDateShort = (d) => {
 
 const fmtHeure = (h) => {
   if (!h) return '—';
-  if (typeof h === 'string') {
-    const parts = h.split(':');
-    return `${parts[0]}h${parts[1] || '00'}`;
-  }
-  if (typeof h === 'object' && 'hour' in h) {
-    return `${String(h.hour).padStart(2, '0')}h${String(h.minute).padStart(2, '0')}`;
-  }
+  if (typeof h === 'string') { const p = h.split(':'); return `${p[0]}h${p[1] || '00'}`; }
+  if (typeof h === 'object' && 'hour' in h) return `${String(h.hour).padStart(2,'0')}h${String(h.minute).padStart(2,'0')}`;
   return '—';
+};
+
+/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
+// Ping silencieux — on tente jusqu'à réponse ou timeout 20s
+const wakeUpBackend = async (timeout = 20000) => {
+  const start = Date.now();
+  while (Date.now() - start < timeout) {
+    try {
+      await api.get('/reservations/ping', { timeout: 4000 });
+      return true; // réveillé
+    } catch {
+      await new Promise(r => setTimeout(r, 2000));
+    }
+  }
+  return false; // toujours mort après timeout
+};
+
+/* ─── MISE À JOUR STATUT (avec retry réseau) ─────────────────────── */
+const RETRY_DELAYS = [2000, 4000, 8000];
+
+const updateStatutApi = async (reservationId, statut, attempt = 0) => {
+  try {
+    const res = await api.put(
+      `/reservations/${reservationId}/statut`,
+      { statut },
+      { timeout: 55000 }
+    );
+    return res.data;
+  } catch (err) {
+    const isNetworkError = !err.response;
+    if (isNetworkError && attempt < RETRY_DELAYS.length) {
+      await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]));
+      return updateStatutApi(reservationId, statut, attempt + 1);
+    }
+    throw err;
+  }
 };
 
 /* ─── BADGE STATUT ───────────────────────────────────────────────── */
@@ -64,25 +94,31 @@ function StatutBadge({ statut }) {
   );
 }
 
+/* ─── BADGE "EN COURS" ANIMÉ ─────────────────────────────────────── */
+function PendingBadge({ label = 'En cours…' }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-violet-50 text-violet-600 border-violet-200">
+      <Loader2 size={11} className="animate-spin" />
+      {label}
+    </span>
+  );
+}
+
 /* ─── TOAST ──────────────────────────────────────────────────────── */
 function Toast({ msg, type, onClose }) {
-  useEffect(() => {
-    const t = setTimeout(onClose, 3500);
-    return () => clearTimeout(t);
-  }, [onClose]);
-
+  useEffect(() => { const t = setTimeout(onClose, 4000); return () => clearTimeout(t); }, [onClose]);
   const cls = {
     success: 'bg-emerald-50 border-emerald-200 text-emerald-700',
     error:   'bg-red-50 border-red-200 text-red-600',
     info:    'bg-blue-50 border-blue-200 text-blue-600',
+    warning: 'bg-amber-50 border-amber-200 text-amber-700',
   }[type] || 'bg-slate-50 border-slate-200 text-slate-700';
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 20 }}
-      className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-lg text-sm font-medium ${cls}`}
+      className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-xl border shadow-lg text-sm font-medium max-w-xs ${cls}`}
     >
       {msg}
     </motion.div>
@@ -94,12 +130,8 @@ function DetailsModal({ res, onClose }) {
   if (!res) return null;
   const cfg = STATUT_CONFIG[res.statut];
   const bar = cfg?.bar || 'from-indigo-400 to-violet-400';
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 px-0 sm:px-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 px-0 sm:px-4" onClick={onClose}>
       <motion.div
         initial={{ opacity: 0, y: 60 }}
         animate={{ opacity: 1, y: 0 }}
@@ -109,29 +141,21 @@ function DetailsModal({ res, onClose }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 sm:hidden" />
-
         <div className={`bg-gradient-to-r ${bar} px-6 pt-5 pb-6 text-white`}>
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
-              Réservation #{res.id}
-            </span>
-            <button onClick={onClose} className="text-white/70 hover:text-white transition">
-              <XCircle size={18} />
-            </button>
+            <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Réservation #{res.id}</span>
+            <button onClick={onClose} className="text-white/70 hover:text-white transition"><XCircle size={18} /></button>
           </div>
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center font-bold text-lg">
               {`${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase() || '?'}
             </div>
             <div>
-              <p className="font-bold text-base leading-tight">
-                {res.utilisateur?.prenom} {res.utilisateur?.nom}
-              </p>
+              <p className="font-bold text-base leading-tight">{res.utilisateur?.prenom} {res.utilisateur?.nom}</p>
               <p className="text-white/70 text-xs mt-0.5">{res.utilisateur?.email || '—'}</p>
             </div>
           </div>
         </div>
-
         <div className="px-6 py-5 space-y-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Statut</span>
@@ -157,9 +181,7 @@ function DetailsModal({ res, onClose }) {
           <div className="rounded-xl overflow-hidden border border-slate-100">
             <div className="bg-emerald-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
               <CalendarClock size={13} className="text-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">
-                Consultation prévue
-              </span>
+              <span className="text-xs font-semibold text-emerald-600 uppercase tracking-wider">Consultation prévue</span>
             </div>
             <div className="grid grid-cols-2 divide-x divide-slate-100">
               <div className="px-4 py-3">
@@ -173,12 +195,8 @@ function DetailsModal({ res, onClose }) {
             </div>
           </div>
         </div>
-
         <div className="px-6 pb-6">
-          <button
-            onClick={onClose}
-            className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition"
-          >
+          <button onClick={onClose} className="w-full py-3 bg-slate-900 hover:bg-slate-800 active:scale-[0.98] text-white rounded-xl text-sm font-semibold transition">
             Fermer
           </button>
         </div>
@@ -187,8 +205,7 @@ function DetailsModal({ res, onClose }) {
   );
 }
 
-/* ─── POPOVER DE CONFIRMATION INLINE ─────────────────────────────── */
-// Apparaît directement sur la card, sans bloquer toute l'UI
+/* ─── POPOVER CONFIRMATION INLINE ────────────────────────────────── */
 function ConfirmPopover({ action, onConfirm, onCancel }) {
   const isAccept = action === 'accept';
   return (
@@ -198,27 +215,20 @@ function ConfirmPopover({ action, onConfirm, onCancel }) {
       exit={{ opacity: 0, scale: 0.92, y: -4 }}
       transition={{ duration: 0.12 }}
       className={`absolute inset-0 z-10 rounded-2xl flex items-center justify-between gap-3 px-4 py-3 ${
-        isAccept
-          ? 'bg-emerald-50 border border-emerald-200'
-          : 'bg-red-50 border border-red-200'
+        isAccept ? 'bg-emerald-50 border border-emerald-200' : 'bg-red-50 border border-red-200'
       }`}
     >
       <p className={`text-xs font-semibold ${isAccept ? 'text-emerald-700' : 'text-red-600'}`}>
         {isAccept ? 'Accepter cette réservation ?' : 'Refuser cette réservation ?'}
       </p>
       <div className="flex gap-2 flex-shrink-0">
-        <button
-          onClick={onCancel}
-          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
-        >
+        <button onClick={onCancel} className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition">
           Annuler
         </button>
         <button
           onClick={onConfirm}
           className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition active:scale-95 ${
-            isAccept
-              ? 'bg-emerald-500 hover:bg-emerald-600'
-              : 'bg-red-500 hover:bg-red-600'
+            isAccept ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-red-500 hover:bg-red-600'
           }`}
         >
           Confirmer
@@ -228,26 +238,60 @@ function ConfirmPopover({ action, onConfirm, onCancel }) {
   );
 }
 
+/* ─── BANNER WAKE-UP ─────────────────────────────────────────────── */
+function WakeUpBanner({ visible, label }) {
+  if (!visible) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      className="flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-700 text-sm rounded-xl px-4 py-3"
+    >
+      <Loader2 size={15} className="animate-spin shrink-0" />
+      <span>{label}</span>
+    </motion.div>
+  );
+}
+
 /* ─── CARD RÉSERVATION ───────────────────────────────────────────── */
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   const [confirming, setConfirming] = useState(null); // 'accept' | 'refuse' | null
-  const [pending, setPending]       = useState(false);
+  // 'idle' | 'waking' | 'updating' | 'done'
+  const [actionState, setActionState] = useState('idle');
 
   const cfg = STATUT_CONFIG[res.statut];
   const bar = cfg?.bar || 'from-slate-300 to-slate-300';
   const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
 
+  const isPending = actionState === 'waking' || actionState === 'updating';
+
   const handleConfirm = async () => {
-    const action = confirming; // capture avant le reset
+    const action = confirming;
     setConfirming(null);
-    setPending(true);
+
+    // Phase 1 : on indique qu'on réveille Railway
+    setActionState('waking');
+
+    // Ping silencieux pour réveiller Railway (max 20s)
+    await wakeUpBackend(20000);
+
+    // Phase 2 : appel réel
+    setActionState('updating');
     try {
       if (action === 'accept') await onAccept(res.id);
       else await onRefuse(res.id);
-    } finally {
-      setPending(false);
+      setActionState('done');
+    } catch {
+      setActionState('idle');
     }
   };
+
+  const pendingLabel = actionState === 'waking'
+    ? 'Réveil du serveur…'
+    : actionState === 'updating'
+    ? 'Mise à jour…'
+    : '';
 
   return (
     <motion.div
@@ -261,7 +305,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
       {/* Barre colorée */}
       <div className={`h-1 w-full bg-gradient-to-r ${bar}`} />
 
-      {/* Popover de confirmation — s'affiche par dessus la card */}
+      {/* Popover confirmation */}
       <AnimatePresence>
         {confirming && (
           <ConfirmPopover
@@ -272,7 +316,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
         )}
       </AnimatePresence>
 
-      <div className={`px-4 py-3 flex items-center gap-3 transition-opacity ${pending ? 'opacity-50 pointer-events-none' : ''}`}>
+      <div className={`px-4 py-3 flex items-center gap-3 transition-opacity ${isPending ? 'opacity-60 pointer-events-none' : ''}`}>
 
         {/* Avatar */}
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${bar} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}>
@@ -288,12 +332,10 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
               </p>
               <p className="text-xs text-slate-400 truncate">{res.utilisateur?.email}</p>
             </div>
-            {/* Badge avec spinner si en cours */}
-            {pending ? (
-              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-50 text-slate-400 border-slate-200">
-                <RefreshCw size={11} className="animate-spin" />
-                Mise à jour…
-              </span>
+
+            {/* Badge : en cours animé OU statut réel */}
+            {isPending ? (
+              <PendingBadge label={pendingLabel} />
             ) : (
               <StatutBadge statut={res.statut} />
             )}
@@ -311,9 +353,21 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
               </span>
             )}
           </div>
+
+          {/* Barre de progression pendant l'attente */}
+          {isPending && (
+            <div className="mt-2 h-1 w-full bg-slate-100 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-violet-400 rounded-full"
+                initial={{ width: '0%' }}
+                animate={{ width: actionState === 'waking' ? '60%' : '90%' }}
+                transition={{ duration: actionState === 'waking' ? 18 : 4, ease: 'easeOut' }}
+              />
+            </div>
+          )}
         </div>
 
-        {/* BOUTONS D'ACTION */}
+        {/* BOUTONS */}
         <div className="flex flex-col gap-1.5 flex-shrink-0 ml-1">
           <button
             onClick={() => onDetails(res)}
@@ -324,11 +378,10 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
             <span>Détails</span>
           </button>
 
-          {res.statut === 'EN_ATTENTE' && (
+          {res.statut === 'EN_ATTENTE' && !isPending && (
             <div className="flex gap-1.5">
               <button
                 onClick={() => setConfirming('accept')}
-                title="Accepter la réservation"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
               >
                 <ThumbsUp size={13} />
@@ -336,7 +389,6 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
               </button>
               <button
                 onClick={() => setConfirming('refuse')}
-                title="Refuser la réservation"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
               >
                 <ThumbsDown size={13} />
@@ -361,6 +413,9 @@ export default function ListeReservations({ proId }) {
   const [refreshing, setRefreshing]     = useState(false);
   const [serverOnline, setServerOnline] = useState(true);
   const [lastSync, setLastSync]         = useState(null);
+  const reservationsRef                 = useRef(reservations);
+
+  useEffect(() => { reservationsRef.current = reservations; }, [reservations]);
 
   const load = useCallback(async (silent = false) => {
     try {
@@ -385,28 +440,27 @@ export default function ListeReservations({ proId }) {
     return () => clearInterval(id);
   }, [proId, load]);
 
-  const reservationsRef = React.useRef(reservations);
-  useEffect(() => { reservationsRef.current = reservations; }, [reservations]);
+  /* ── handleUpdate : optimistic + rollback ── */
+  const handleUpdate = useCallback(async (id, statutValidation) => {
+    const snapshot = reservationsRef.current;
 
- const handleUpdate = async (id, statut) => {
-  const snapshot = reservationsRef.current;
-  // Optimistic UI : on mappe VALIDE → EN_ATTENTE_PAIEMENT localement
-  const optimisticStatut = statut === 'VALIDE' ? 'EN_ATTENTE_PAIEMENT' : statut;
+    // Optimistic : on mappe VALIDE → EN_ATTENTE_PAIEMENT, REFUSE → REFUSE
+    const optimisticStatut = statutValidation === 'VALIDE' ? 'EN_ATTENTE_PAIEMENT' : 'REFUSE';
+    setReservations(prev => prev.map(r => r.id === id ? { ...r, statut: optimisticStatut } : r));
 
-  setReservations(prev =>
-    prev.map(r => r.id === id ? { ...r, statut: optimisticStatut } : r)
-  );
-
-  try {
-    await updateReservationStatus(id, statut); // envoie 'VALIDE' ou 'REFUSE' au backend
-    setToast({ msg: 'Statut mis à jour', type: 'success' });
-    load(true);
-  } catch (err) {
-    console.error('updateReservationStatus error:', err?.response?.status, err?.response?.data);
-    setReservations(snapshot);
-    setToast({ msg: 'Erreur — modification annulée.', type: 'error' });
-  }
-};
+    try {
+      await updateStatutApi(id, statutValidation);
+      setToast({ msg: '✅ Statut mis à jour avec succès', type: 'success' });
+      load(true); // resync silencieux
+    } catch (err) {
+      console.error('handleUpdate error:', err?.response?.status, err?.response?.data);
+      setReservations(snapshot); // rollback
+      setToast({
+        msg: `❌ Échec — ${err?.response?.data?.message || 'modification annulée'}`,
+        type: 'error'
+      });
+    }
+  }, [load]);
 
   const filtered = filter === 'TOUS'
     ? reservations
@@ -440,7 +494,6 @@ export default function ListeReservations({ proId }) {
             )}
           </div>
         </div>
-
         <button
           onClick={() => load()}
           disabled={refreshing}
@@ -452,15 +505,22 @@ export default function ListeReservations({ proId }) {
       </div>
 
       {/* ALERTE OFFLINE */}
-      {!serverOnline && (
-        <div className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3">
-          <WifiOff size={15} className="mt-0.5 shrink-0" />
-          <span>
-            <strong>Serveur en veille.</strong>{' '}
-            Rafraîchissement automatique toutes les {POLL_INTERVAL / 1000} s.
-          </span>
-        </div>
-      )}
+      <AnimatePresence>
+        {!serverOnline && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3"
+          >
+            <WifiOff size={15} className="mt-0.5 shrink-0" />
+            <span>
+              <strong>Serveur en veille.</strong>{' '}
+              Lors d'une validation, le serveur sera réveillé automatiquement. Rafraîchissement toutes les {POLL_INTERVAL / 1000}s.
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* FILTRES */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
