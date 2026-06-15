@@ -1,17 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   getDisponibilitesByProId,
   ajouterDisponibilite,
   modifierDisponibilite,
   supprimerDisponibilite
 } from '../../services/servicePsy';
-import { CheckCircle, XCircle, Trash2, Pencil, CalendarClock, Plus, X } from 'lucide-react';
+import {
+  CheckCircle, XCircle, Trash2, Pencil, CalendarClock,
+  Plus, X, Loader2, Zap, WifiOff
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import api from '../../services/api';
 
-const formatHeure = (heure) => {
-  if (!heure) return '';
-  const [h, m] = heure.split(':');
-  return `${h}h${m}`;
+/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
+const RETRY_DELAYS = [2000, 3000, 5000, 8000];
+
+async function wakeUpAndRetry(fn) {
+  for (let i = 0; i <= RETRY_DELAYS.length; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is5xx = [502, 503].includes(err?.response?.status);
+      const isNet = !err?.response;
+      if ((is5xx || isNet) && i < RETRY_DELAYS.length) {
+        try { await api.get('/reservations/ping', { timeout: 3000 }); } catch (_) {}
+        await new Promise(r => setTimeout(r, RETRY_DELAYS[i]));
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+/* ─── HELPERS ────────────────────────────────────────────────────── */
+const formatHeure = (h) => {
+  if (!h) return '';
+  const [hh, mm] = h.split(':');
+  return `${hh}h${mm}`;
 };
 
 const formatDate = (dateStr) => {
@@ -23,7 +49,6 @@ const formatDate = (dateStr) => {
   } catch { return dateStr; }
 };
 
-// Vérifie si une dispo est passée
 const isPassee = (dispo) => {
   try {
     const [hEnd, mEnd] = dispo.heureFin.split(':').map(Number);
@@ -33,30 +58,195 @@ const isPassee = (dispo) => {
   } catch { return false; }
 };
 
+/* ─── BARRE DE PROGRESSION ───────────────────────────────────────── */
+function ProgressBar({ active }) {
+  if (!active) return null;
+  return (
+    <div className="h-0.5 w-full bg-slate-100 rounded-full overflow-hidden">
+      <motion.div
+        className="h-full bg-indigo-500 rounded-full"
+        initial={{ width: '0%' }}
+        animate={{ width: '85%' }}
+        transition={{ duration: 12, ease: 'easeOut' }}
+      />
+    </div>
+  );
+}
+
+/* ─── BANNER WAKE-UP ─────────────────────────────────────────────── */
+function WakeUpBanner({ visible }) {
+  return (
+    <AnimatePresence>
+      {visible && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3"
+        >
+          <Zap size={14} className="animate-pulse shrink-0" />
+          <span>Le serveur se réveille, un instant…</span>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
+/* ─── CONFIRM MODAL via portal ───────────────────────────────────── */
+function ConfirmModal({ open, onCancel, onConfirm, deleting }) {
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
+
+  if (!open) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+      onClick={() => !deleting && onCancel()}
+    >
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0 }}
+        className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-sm w-full"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Barre de progression pendant suppression */}
+        <ProgressBar active={deleting} />
+
+        <div className="p-6">
+          <div className="text-center mb-5">
+            <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              {deleting
+                ? <Loader2 className="text-red-500 animate-spin" size={22} />
+                : <Trash2 className="text-red-500" size={22} />
+              }
+            </div>
+            <h3 className="font-bold text-slate-800 text-base mb-1">Supprimer cette disponibilité ?</h3>
+            <p className="text-slate-400 text-sm">
+              {deleting ? 'Suppression en cours…' : 'Cette action est irréversible.'}
+            </p>
+          </div>
+
+          <div className="flex gap-3">
+            <button
+              onClick={onCancel}
+              disabled={deleting}
+              className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition disabled:opacity-40"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={deleting}
+              className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              {deleting ? <><Loader2 size={14} className="animate-spin" /> Suppression…</> : 'Supprimer'}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>,
+    document.body
+  );
+}
+
+/* ─── DISPO CARD ─────────────────────────────────────────────────── */
+function DispoCard({ dispo, onEdit, onDelete, passee, saving }) {
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: 10 }}
+      className={`relative flex items-center justify-between bg-white border rounded-xl px-4 py-3 transition-all overflow-hidden ${
+        passee ? 'border-slate-100' : 'border-slate-200 hover:shadow-sm'
+      }`}
+    >
+      {/* Barre de progression si cette card est en cours de sauvegarde */}
+      {saving && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-slate-100 overflow-hidden">
+          <motion.div
+            className="h-full bg-indigo-400"
+            initial={{ width: '0%' }}
+            animate={{ width: '90%' }}
+            transition={{ duration: 15, ease: 'easeOut' }}
+          />
+        </div>
+      )}
+
+      <div>
+        <p className="font-semibold text-slate-700 text-sm capitalize">
+          {formatDate(dispo.date)}
+        </p>
+        <div className="flex items-center gap-2 mt-0.5">
+          <p className="text-xs text-slate-400">
+            🕒 {formatHeure(dispo.heureDebut)} → {formatHeure(dispo.heureFin)}
+          </p>
+          {saving && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+              <Loader2 size={9} className="animate-spin" />
+              En cours…
+            </span>
+          )}
+        </div>
+      </div>
+
+      {!passee && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onEdit(dispo)}
+            disabled={saving}
+            className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition disabled:opacity-30"
+            title="Modifier"
+          >
+            <Pencil size={15} />
+          </button>
+          <button
+            onClick={onDelete}
+            disabled={saving}
+            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-30"
+            title="Supprimer"
+          >
+            <Trash2 size={15} />
+          </button>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
+/* ─── COMPOSANT PRINCIPAL ────────────────────────────────────────── */
 const Disponibilite = ({ proId }) => {
   const [disponibilites, setDisponibilites] = useState([]);
-  const [formData, setFormData] = useState({ date: '', heureDebut: '', heureFin: '' });
-  const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState({ type: '', text: '' });
-  const [loading, setLoading] = useState(false);
-  const [showForm, setShowForm] = useState(false);
+  const [formData, setFormData]             = useState({ date: '', heureDebut: '', heureFin: '' });
+  const [editingId, setEditingId]           = useState(null);
+  const [message, setMessage]               = useState({ type: '', text: '' });
+  const [loading, setLoading]               = useState(false);
+  const [showForm, setShowForm]             = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  // États de chargement spécifiques
+  const [formSubmitting, setFormSubmitting] = useState(false);   // submit formulaire
+  const [deletingId, setDeletingId]         = useState(null);    // suppression en cours
+  const [waking, setWaking]                 = useState(false);   // Railway en veille
 
   useEffect(() => { if (proId) chargerDisponibilites(); }, [proId]);
 
-  // Auto-clear message
   useEffect(() => {
-    if (message.text) {
-      const t = setTimeout(() => setMessage({ type: '', text: '' }), 4000);
-      return () => clearTimeout(t);
-    }
+    if (!message.text) return;
+    const t = setTimeout(() => setMessage({ type: '', text: '' }), 4000);
+    return () => clearTimeout(t);
   }, [message]);
 
   const chargerDisponibilites = async () => {
     try {
       setLoading(true);
       const data = await getDisponibilitesByProId(proId);
-      // Trier : à venir d'abord, passées ensuite
       const sorted = [...data].sort((a, b) => {
         const aP = isPassee(a), bP = isPassee(b);
         if (aP !== bP) return aP ? 1 : -1;
@@ -64,9 +254,10 @@ const Disponibilite = ({ proId }) => {
       });
       setDisponibilites(sorted);
     } catch (err) {
-      console.error(err);
       setMessage({ type: 'error', text: 'Erreur lors du chargement des disponibilités.' });
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const resetForm = () => {
@@ -87,19 +278,31 @@ const Disponibilite = ({ proId }) => {
       setMessage({ type: 'error', text: "L'heure de fin doit être après l'heure de début." });
       return;
     }
+
+    setFormSubmitting(true);
+
+    // Délai avant d'afficher le banner wake-up
+    const wakeTimer = setTimeout(() => setWaking(true), 1200);
+
     try {
-      if (editingId) {
-        await modifierDisponibilite(editingId, formData);
-        setMessage({ type: 'success', text: 'Disponibilité modifiée avec succès.' });
-      } else {
-        await ajouterDisponibilite(formData);
-        setMessage({ type: 'success', text: 'Disponibilité ajoutée avec succès.' });
-      }
+      const fn = editingId
+        ? () => modifierDisponibilite(editingId, formData)
+        : () => ajouterDisponibilite(formData);
+
+      await wakeUpAndRetry(fn);
+
+      clearTimeout(wakeTimer);
+      setWaking(false);
+      setMessage({ type: 'success', text: editingId ? 'Disponibilité modifiée.' : 'Disponibilité ajoutée.' });
       resetForm();
       chargerDisponibilites();
     } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Erreur lors de la sauvegarde.' });
+      clearTimeout(wakeTimer);
+      setWaking(false);
+      const msg = err?.response?.data?.message || 'Erreur lors de la sauvegarde.';
+      setMessage({ type: 'error', text: msg });
+    } finally {
+      setFormSubmitting(false);
     }
   };
 
@@ -110,20 +313,35 @@ const Disponibilite = ({ proId }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async () => {
+    if (!confirmDeleteId) return;
+    const id = confirmDeleteId;
+
+    setDeletingId(id);
+
+    // Wake-up silencieux pendant la suppression
+    const wakeTimer = setTimeout(() => setWaking(true), 1200);
+
     try {
-      await supprimerDisponibilite(id);
+      await wakeUpAndRetry(() => supprimerDisponibilite(id));
+      clearTimeout(wakeTimer);
+      setWaking(false);
       setMessage({ type: 'success', text: 'Disponibilité supprimée.' });
       setConfirmDeleteId(null);
+      await new Promise(r => setTimeout(r, 0)); // flush avant mutation liste
       chargerDisponibilites();
     } catch (err) {
-      console.error(err);
-      setMessage({ type: 'error', text: 'Erreur lors de la suppression.' });
+      clearTimeout(wakeTimer);
+      setWaking(false);
+      const msg = err?.response?.data?.message || 'Erreur lors de la suppression.';
+      setMessage({ type: 'error', text: msg });
+    } finally {
+      setDeletingId(null);
     }
   };
 
-  const aVenir = disponibilites.filter(d => !isPassee(d));
-  const passees = disponibilites.filter(d => isPassee(d));
+  const aVenir  = disponibilites.filter(d => !isPassee(d));
+  const passees = disponibilites.filter(d =>  isPassee(d));
 
   return (
     <div className="space-y-5 max-w-2xl" style={{ fontFamily: "'DM Sans', sans-serif" }}>
@@ -136,13 +354,18 @@ const Disponibilite = ({ proId }) => {
           <h2 className="text-xl font-bold text-slate-800">Mes disponibilités</h2>
         </div>
         {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95">
+          <button
+            onClick={() => setShowForm(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95"
+          >
             <Plus size={15} />
             Ajouter
           </button>
         )}
       </div>
+
+      {/* BANNER WAKE-UP */}
+      <WakeUpBanner visible={waking} />
 
       {/* MESSAGE */}
       <AnimatePresence>
@@ -166,48 +389,70 @@ const Disponibilite = ({ proId }) => {
         {showForm && (
           <motion.div
             initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}
-            className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5"
+            className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden"
           >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-slate-700 text-base">
-                {editingId ? 'Modifier la disponibilité' : 'Nouvelle disponibilité'}
-              </h3>
-              <button onClick={resetForm} className="text-slate-400 hover:text-slate-600 transition">
-                <X size={18} />
-              </button>
+            {/* Barre de progression pendant submit */}
+            <ProgressBar active={formSubmitting} />
+
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="font-semibold text-slate-700 text-base">
+                  {editingId ? 'Modifier la disponibilité' : 'Nouvelle disponibilité'}
+                </h3>
+                <button
+                  onClick={resetForm}
+                  disabled={formSubmitting}
+                  className="text-slate-400 hover:text-slate-600 transition disabled:opacity-30"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {[
+                    { label: 'Date',        name: 'date',      type: 'date', min: new Date().toISOString().split('T')[0] },
+                    { label: 'Heure début', name: 'heureDebut',type: 'time' },
+                    { label: 'Heure fin',   name: 'heureFin',  type: 'time' },
+                  ].map(({ label, name, type, min }) => (
+                    <div key={name} className="flex flex-col">
+                      <label className="text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">{label}</label>
+                      <input
+                        type={type}
+                        name={name}
+                        value={formData[name]}
+                        onChange={handleChange}
+                        required
+                        min={min}
+                        disabled={formSubmitting}
+                        className="border border-slate-200 bg-slate-50 px-3 py-2.5 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition disabled:opacity-50"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex justify-end gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    disabled={formSubmitting}
+                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition disabled:opacity-40"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={formSubmitting}
+                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95 disabled:opacity-60 flex items-center gap-2"
+                  >
+                    {formSubmitting
+                      ? <><Loader2 size={13} className="animate-spin" /> En cours…</>
+                      : editingId ? 'Enregistrer' : 'Ajouter'
+                    }
+                  </button>
+                </div>
+              </form>
             </div>
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Date</label>
-                  <input type="date" name="date" value={formData.date} onChange={handleChange} required
-                    min={new Date().toISOString().split('T')[0]}
-                    className="border border-slate-200 bg-slate-50 px-3 py-2.5 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Heure début</label>
-                  <input type="time" name="heureDebut" value={formData.heureDebut} onChange={handleChange} required
-                    className="border border-slate-200 bg-slate-50 px-3 py-2.5 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
-                </div>
-                <div className="flex flex-col">
-                  <label className="text-xs font-medium text-slate-500 mb-1.5 uppercase tracking-wide">Heure fin</label>
-                  <input type="time" name="heureFin" value={formData.heureFin} onChange={handleChange} required
-                    className="border border-slate-200 bg-slate-50 px-3 py-2.5 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition" />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-1">
-                <button type="button" onClick={resetForm}
-                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition">
-                  Annuler
-                </button>
-                <button type="submit"
-                  className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95">
-                  {editingId ? 'Enregistrer' : 'Ajouter'}
-                </button>
-              </div>
-            </form>
           </motion.div>
         )}
       </AnimatePresence>
@@ -225,7 +470,6 @@ const Disponibilite = ({ proId }) => {
         </div>
       ) : (
         <div className="space-y-5">
-          {/* À VENIR */}
           {aVenir.length > 0 && (
             <section>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2 px-1">
@@ -234,15 +478,20 @@ const Disponibilite = ({ proId }) => {
               <div className="space-y-2">
                 <AnimatePresence>
                   {aVenir.map(dispo => (
-                    <DispoCard key={dispo.id} dispo={dispo} onEdit={handleEdit}
-                      onDelete={() => setConfirmDeleteId(dispo.id)} passee={false} />
+                    <DispoCard
+                      key={dispo.id}
+                      dispo={dispo}
+                      onEdit={handleEdit}
+                      onDelete={() => setConfirmDeleteId(dispo.id)}
+                      passee={false}
+                      saving={deletingId === dispo.id}
+                    />
                   ))}
                 </AnimatePresence>
               </div>
             </section>
           )}
 
-          {/* PASSÉES */}
           {passees.length > 0 && (
             <section>
               <p className="text-xs font-semibold text-slate-300 uppercase tracking-widest mb-2 px-1">
@@ -251,8 +500,14 @@ const Disponibilite = ({ proId }) => {
               <div className="space-y-2 opacity-60">
                 <AnimatePresence>
                   {passees.map(dispo => (
-                    <DispoCard key={dispo.id} dispo={dispo} onEdit={handleEdit}
-                      onDelete={() => setConfirmDeleteId(dispo.id)} passee={true} />
+                    <DispoCard
+                      key={dispo.id}
+                      dispo={dispo}
+                      onEdit={handleEdit}
+                      onDelete={() => setConfirmDeleteId(dispo.id)}
+                      passee={true}
+                      saving={false}
+                    />
                   ))}
                 </AnimatePresence>
               </div>
@@ -261,75 +516,19 @@ const Disponibilite = ({ proId }) => {
         </div>
       )}
 
-      {/* CONFIRM DELETE MODAL */}
+      {/* CONFIRM DELETE — portal pour éviter conflits DOM */}
       <AnimatePresence>
         {confirmDeleteId && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-            onClick={() => setConfirmDeleteId(null)}>
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="text-center">
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                  <Trash2 className="text-red-500" size={22} />
-                </div>
-                <h3 className="font-bold text-slate-800 text-base mb-1">Supprimer cette disponibilité ?</h3>
-                <p className="text-slate-400 text-sm">Cette action est irréversible.</p>
-              </div>
-              <div className="flex gap-3 mt-5">
-                <button onClick={() => setConfirmDeleteId(null)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition">
-                  Annuler
-                </button>
-                <button onClick={() => handleDelete(confirmDeleteId)}
-                  className="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition">
-                  Supprimer
-                </button>
-              </div>
-            </motion.div>
-          </div>
+          <ConfirmModal
+            open={!!confirmDeleteId}
+            onCancel={() => !deletingId && setConfirmDeleteId(null)}
+            onConfirm={handleDelete}
+            deleting={!!deletingId}
+          />
         )}
       </AnimatePresence>
     </div>
   );
 };
-
-function DispoCard({ dispo, onEdit, onDelete, passee }) {
-  return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }}
-      className={`flex items-center justify-between bg-white border rounded-xl px-4 py-3 transition-all ${
-        passee ? 'border-slate-100' : 'border-slate-200 hover:shadow-sm'
-      }`}
-    >
-      <div>
-        <p className="font-semibold text-slate-700 text-sm capitalize">
-          {formatDate(dispo.date)}
-        </p>
-        <p className="text-xs text-slate-400 mt-0.5">
-          🕒 {formatHeure(dispo.heureDebut)} → {formatHeure(dispo.heureFin)}
-        </p>
-      </div>
-
-      {!passee && (
-        <div className="flex items-center gap-2">
-          <button onClick={() => onEdit(dispo)}
-            className="p-2 text-indigo-500 hover:text-indigo-700 hover:bg-indigo-50 rounded-lg transition"
-            title="Modifier" aria-label="Modifier">
-            <Pencil size={15} />
-          </button>
-          <button onClick={onDelete}
-            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition"
-            title="Supprimer" aria-label="Supprimer">
-            <Trash2 size={15} />
-          </button>
-        </div>
-      )}
-    </motion.div>
-  );
-}
 
 export default Disponibilite;
