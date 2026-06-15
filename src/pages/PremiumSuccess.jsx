@@ -8,20 +8,28 @@ const PremiumSuccess = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const refreshUser = async () => {
-      try {
-        const res = await api.get("/auth/me");
+   const refreshUser = async () => {
+  try {
+    const res = await api.get("/auth/me");
 
-        localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
-        window.dispatchEvent(new Event("roleChange"));
+    // Vérifier ce que retourne /auth/me APRÈS le paiement
+    console.log("User après paiement:", res.data);
 
-        if (isMounted) {
-          setTimeout(() => navigate("/ressources", { replace: true }), 300);
-        }
-      } catch (err) {
-        console.error(err);
-      }
-    };
+    // Si votre backend retourne un nouveau token ici, le stocker
+    if (res.data.token) {
+      localStorage.setItem("token", res.data.token);
+    }
+
+    localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
+    window.dispatchEvent(new Event("roleChange"));
+
+    if (isMounted) {
+      setTimeout(() => navigate("/ressources", { replace: true }), 300);
+    }
+  } catch (err) {
+    console.error(err);
+  }
+};
 
     refreshUser();
 
