@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import {
   CalendarCheck, Clock, CreditCard, TicketCheck,
-  SlidersHorizontal, XCircle, Stethoscope, Trash2, ChevronRight
+  SlidersHorizontal, XCircle, Stethoscope, Trash2, ChevronRight,
+  AlertTriangle
 } from 'lucide-react';
 import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,11 +27,11 @@ const isPassee = (dateStr) => {
 };
 
 const STATUT_CONFIG = {
-  EN_ATTENTE:          { label: 'En attente',            bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400'   },
-  EN_ATTENTE_PAIEMENT: { label: 'Attente paiement',      bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200',  dot: 'bg-orange-400'  },
-  PAYEE:               { label: 'Payée',                 bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
-  ANNULEE:             { label: 'Annulée',               bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',     dot: 'bg-red-400'     },
-  REFUSE:              { label: 'Refusée',               bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   dot: 'bg-slate-400'   },
+  EN_ATTENTE:          { label: 'En attente',       bg: 'bg-amber-50',   text: 'text-amber-700',   border: 'border-amber-200',   dot: 'bg-amber-400'   },
+  EN_ATTENTE_PAIEMENT: { label: 'Attente paiement', bg: 'bg-orange-50',  text: 'text-orange-700',  border: 'border-orange-200',  dot: 'bg-orange-400'  },
+  PAYEE:               { label: 'Payée',             bg: 'bg-emerald-50', text: 'text-emerald-700', border: 'border-emerald-200', dot: 'bg-emerald-500' },
+  ANNULEE:             { label: 'Annulée',           bg: 'bg-red-50',     text: 'text-red-600',     border: 'border-red-200',     dot: 'bg-red-400'     },
+  REFUSE:              { label: 'Refusée',           bg: 'bg-slate-50',   text: 'text-slate-500',   border: 'border-slate-200',   dot: 'bg-slate-400'   },
 };
 
 function StatutBadge({ statut }) {
@@ -58,6 +59,7 @@ const MesReservations = () => {
   const [error, setError] = useState(null);
   const [selected, setSelected] = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     api.get('/reservations/mes-reservations')
@@ -65,13 +67,19 @@ const MesReservations = () => {
       .catch(e => setError(e.message));
   }, []);
 
+  // Only ANNULEE or REFUSE can be deleted
+  const canDelete = (res) =>
+    res.statut === 'ANNULEE' || res.statut === 'REFUSE';
+
   const handleDownloadTicket = async (id) => {
     try {
       const response = await api.get(`/reservations/telecharger-recu/${id}`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       Object.assign(document.createElement('a'), { href: url, download: `recu_${id}.pdf` }).click();
       toast.success('Ticket téléchargé !');
-    } catch { toast.error('Erreur lors du téléchargement.'); }
+    } catch {
+      toast.error('Erreur lors du téléchargement.');
+    }
   };
 
   const handleAnnuler = async (res) => {
@@ -80,10 +88,31 @@ const MesReservations = () => {
       setReservations(prev => prev.filter(r => r.id !== res.id));
       setSelected(null);
       toast.success('Réservation annulée.');
-    } catch { toast.error("Erreur lors de l'annulation."); }
+    } catch {
+      toast.error("Erreur lors de l'annulation.");
+    }
   };
 
-   
+  const handleDelete = async (res) => {
+    setDeleting(true);
+    try {
+      await api.delete(`/reservations/supprimer/${res.id}`);
+      setReservations(prev => prev.filter(r => r.id !== res.id));
+      setConfirmDelete(null);
+      setSelected(null);
+      toast.success('Réservation supprimée.');
+    } catch {
+      toast.error('Erreur lors de la suppression.');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const openConfirmDelete = (e, res) => {
+    e.stopPropagation();
+    setSelected(null);      // close detail modal if open
+    setConfirmDelete(res);  // open confirm modal
+  };
 
   const filtered = reservations.filter(r => statut ? r.statut === statut : r.statut !== 'ANNULEE');
 
@@ -111,7 +140,9 @@ const MesReservations = () => {
         </div>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6">{error}</div>}
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6">{error}</div>
+      )}
 
       {filtered.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
@@ -144,9 +175,13 @@ const MesReservations = () => {
                     {res.prix != null && (
                       <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix}€</span>
                     )}
-                    {(isPassee(res.jourConsultation) || res.statut === 'ANNULEE' || res.statut === 'REFUSE') && (
-                      <button onClick={e => { e.stopPropagation(); setConfirmDelete(res); }}
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100">
+                    {/* Trash button — only visible on hover, only for ANNULEE or REFUSE */}
+                    {canDelete(res) && (
+                      <button
+                        onClick={(e) => openConfirmDelete(e, res)}
+                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                        title="Supprimer"
+                      >
                         <Trash2 size={15} />
                       </button>
                     )}
@@ -159,17 +194,19 @@ const MesReservations = () => {
         </div>
       )}
 
-      {/* MODAL DETAIL */}
+      {/* ── MODAL DETAIL ── */}
       <AnimatePresence>
         {selected && (
-          <motion.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
+          <motion.div
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setSelected(null)}>
+            onClick={() => setSelected(null)}
+          >
             <motion.div
               initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
               className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
-              onClick={e => e.stopPropagation()}>
-
+              onClick={e => e.stopPropagation()}
+            >
               {/* Modal header */}
               <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -198,25 +235,37 @@ const MesReservations = () => {
               {/* Modal actions */}
               <div className="px-6 pb-6 flex flex-col gap-2">
                 {selected.statut === 'PAYEE' && (
-                  <button onClick={() => handleDownloadTicket(selected.id)}
-                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
+                  <button
+                    onClick={() => handleDownloadTicket(selected.id)}
+                    className="w-full py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-sm flex items-center justify-center gap-2 transition"
+                  >
                     <TicketCheck size={16} /> Télécharger le ticket
                   </button>
                 )}
+
                 {(selected.statut === 'EN_ATTENTE' || selected.statut === 'EN_ATTENTE_PAIEMENT') && (
-                  <button onClick={() => handleAnnuler(selected)}
-                    className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
+                  <button
+                    onClick={() => handleAnnuler(selected)}
+                    className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition"
+                  >
                     <XCircle size={16} /> Annuler la réservation
                   </button>
                 )}
-                {(isPassee(selected.jourConsultation) || selected.statut === 'ANNULEE' || selected.statut === 'REFUSE') && (
-                  <button onClick={() => { setConfirmDelete(selected); setSelected(null); }}
-                    className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition">
-                    <Trash2 size={16} /> Supprimer
+
+                {/* Delete button — only for ANNULEE or REFUSE */}
+                {canDelete(selected) && (
+                  <button
+                    onClick={(e) => openConfirmDelete(e, selected)}
+                    className="w-full py-3 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm flex items-center justify-center gap-2 transition"
+                  >
+                    <Trash2 size={16} /> Supprimer la réservation
                   </button>
                 )}
-                <button onClick={() => setSelected(null)}
-                  className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm transition">
+
+                <button
+                  onClick={() => setSelected(null)}
+                  className="w-full py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 font-medium text-sm transition"
+                >
                   Fermer
                 </button>
               </div>
@@ -225,29 +274,75 @@ const MesReservations = () => {
         )}
       </AnimatePresence>
 
-      {/* MODAL CONFIRM DELETE */}
+      {/* ── MODAL CONFIRM DELETE ── */}
       <AnimatePresence>
         {confirmDelete && (
-          <motion.div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={() => setConfirmDelete(null)}>
+            onClick={() => !deleting && setConfirmDelete(null)}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center"
-              onClick={e => e.stopPropagation()}>
-              <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <Trash2 className="text-red-500" size={20} />
+              initial={{ opacity: 0, scale: 0.92, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.92, y: 16 }}
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Red top banner */}
+              <div className="bg-red-50 px-6 pt-6 pb-5 flex flex-col items-center border-b border-red-100">
+                <div className="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center mb-3">
+                  <AlertTriangle className="text-red-500" size={26} />
+                </div>
+                <h3 className="text-lg font-bold text-slate-800 text-center">Supprimer cette réservation ?</h3>
+                <p className="text-sm text-slate-500 text-center mt-1">Cette action est irréversible.</p>
               </div>
-              <h3 className="font-bold text-slate-800 mb-1">Supprimer cette réservation ?</h3>
-              <p className="text-sm text-slate-400 mb-5">
-                Consultation du {formatDate(confirmDelete.jourConsultation)} avec Dr {confirmDelete.professionnelNom}
-              </p>
-              <div className="flex gap-3">
-                <button onClick={() => setConfirmDelete(null)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition">
+
+              {/* Reservation summary */}
+              <div className="px-6 py-4 space-y-2">
+                <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                  <span className="text-xs text-slate-400 font-medium">Médecin</span>
+                  <span className="text-sm font-semibold text-slate-700">Dr {confirmDelete.professionnelNom}</span>
+                </div>
+                <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                  <span className="text-xs text-slate-400 font-medium">Consultation</span>
+                  <span className="text-sm font-semibold text-slate-700">{formatDate(confirmDelete.jourConsultation)}</span>
+                </div>
+                <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
+                  <span className="text-xs text-slate-400 font-medium">Statut</span>
+                  <StatutBadge statut={confirmDelete.statut} />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="px-6 pb-6 flex gap-3">
+                <button
+                  onClick={() => setConfirmDelete(null)}
+                  disabled={deleting}
+                  className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition disabled:opacity-50"
+                >
                   Annuler
                 </button>
-                 
+                <button
+                  onClick={() => handleDelete(confirmDelete)}
+                  disabled={deleting}
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl text-sm font-semibold transition disabled:opacity-60 flex items-center justify-center gap-2"
+                >
+                  {deleting ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Suppression…
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={15} /> Supprimer
+                    </>
+                  )}
+                </button>
               </div>
             </motion.div>
           </motion.div>
