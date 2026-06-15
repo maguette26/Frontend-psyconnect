@@ -1,609 +1,749 @@
 // src/pages/Forum.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import Layout from '../components/commun/Layout';
+import Layout from '../components/commun/Layout'; 
 import { getCurrentUserInfo } from '../services/serviceAuth';
-import {
-  getForumSujets, creerForumSujet, getForumReponses,
-  envoyerForumReponse, modifierForumSujet, supprimerForumSujet,
-  modifierForumReponse, supprimerForumReponse
+import { 
+    getForumSujets, 
+    creerForumSujet, 
+    getProfil, 
+    getForumReponses, 
+    envoyerForumReponse,
+    modifierForumSujet,    
+    supprimerForumSujet,   
+    modifierForumReponse,  
+    supprimerForumReponse  
 } from '../services/serviceUtilisateur';
-import {
-  MessageSquare, Clock, UserCircle2, Edit, Trash2,
-  ChevronLeft, Send, Plus, Check, X, Heart, Leaf, Shield
+import { 
+    MessageSquare, 
+    Clock, 
+    User, 
+    UserCircle2, 
+    Edit, 
+    Trash2, 
+    ChevronLeft, 
+    Send, 
+    Plus, 
+    Check, 
+    X 
 } from 'lucide-react';
 
-/* ─── HELPERS ─────────────────────────────────────────────── */
-const getInitial = (author, isAnon) => {
-  if (isAnon) return 'A';
-  if (author?.prenom) return author.prenom.charAt(0).toUpperCase();
-  if (author?.nom) return author.nom.charAt(0).toUpperCase();
-  if (author?.email) return author.email.charAt(0).toUpperCase();
-  return '?';
+// Fonction utilitaire pour obtenir l'initiale de l'auteur pour l'avatar
+const getAuthorInitial = (author, isAnonymous) => {
+    if (isAnonymous) return 'A';
+    if (author?.nom) return author.nom.charAt(0).toUpperCase();
+    if (author?.prenom) return author.prenom.charAt(0).toUpperCase();
+    if (author?.email) return author.email.charAt(0).toUpperCase();
+    return '?';
 };
 
-const getDisplayName = (author, isAnon) => {
-  if (isAnon) return 'Membre anonyme';
-  if (author?.nom && author?.prenom) return `${author.prenom} ${author.nom}`;
-  if (author?.email) return author.email;
-  return 'Membre';
+// Fonction utilitaire pour formater le temps de manière relative
+const formatRelativeTime = (dateTimeString) => {
+    if (!dateTimeString) return 'Date inconnue';
+    const date = new Date(dateTimeString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+
+    if (seconds < 60) return `il y a ${seconds}s`;
+    const minutes = Math.floor(seconds / 60);
+    if (minutes < 60) return `il y a ${minutes}min`;
+    const hours = Math.floor(minutes / 60);
+    if (hours < 24) return `il y a ${hours}h`;
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `il y a ${days}j`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `il y a ${months}mois`;
+    const years = Math.floor(months / 12);
+    return `il y a ${years}an${years > 1 ? 's' : ''}`;
 };
 
-const relativeTime = (dateStr) => {
-  if (!dateStr) return '';
-  const diff = (new Date() - new Date(dateStr)) / 1000;
-  if (diff < 60) return `il y a ${Math.floor(diff)}s`;
-  if (diff < 3600) return `il y a ${Math.floor(diff / 60)}min`;
-  if (diff < 86400) return `il y a ${Math.floor(diff / 3600)}h`;
-  if (diff < 2592000) return `il y a ${Math.floor(diff / 86400)}j`;
-  return `il y a ${Math.floor(diff / 2592000)}mois`;
-};
-
-/* ─── AVATAR ──────────────────────────────────────────────── */
-const Avatar = ({ author, isAnon, size = 'md' }) => {
-  const initial = getInitial(author, isAnon);
-  const colors = ['#2E7D8C', '#3B8A6E', '#5B6E8C', '#7C5C8C', '#8C6B3E'];
-  const idx = initial.charCodeAt(0) % colors.length;
-  const sz = size === 'lg' ? 'w-14 h-14 text-xl' : size === 'sm' ? 'w-8 h-8 text-xs' : 'w-10 h-10 text-sm';
-  return (
-    <div
-      className={`${sz} rounded-2xl flex items-center justify-center font-bold text-white flex-shrink-0 shadow-sm`}
-      style={{ background: `linear-gradient(135deg, ${colors[idx]}, ${colors[(idx + 1) % colors.length]})` }}
-    >
-      {initial}
-    </div>
-  );
-};
-
-/* ─── BADGE ANONYMOUS ─────────────────────────────────────── */
-const AnonBadge = () => (
-  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-teal-50 text-teal-600 border border-teal-200">
-    <Shield size={9} /> Anonyme
-  </span>
-);
-
-/* ─── TOAST ───────────────────────────────────────────────── */
-const Toast = ({ msg, type, onClose }) => {
-  useEffect(() => { const t = setTimeout(onClose, 3500); return () => clearTimeout(t); }, [onClose]);
-  const styles = {
-    success: 'bg-teal-50 border-teal-200 text-teal-700',
-    error: 'bg-red-50 border-red-200 text-red-600',
-  };
-  return (
-    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl border shadow-xl text-sm font-medium backdrop-blur-sm ${styles[type] || 'bg-white border-gray-200 text-gray-700'}`}>
-      {type === 'success' ? <Check size={15} /> : <X size={15} />}
-      {msg}
-    </div>
-  );
-};
-
-/* ─── TOPIC CARD ──────────────────────────────────────────── */
-const TopicCard = ({ sujet, onClick, onEdit, onDelete, isAuthorFn, isAdminFn, editingId, editingTitre, editingContenu, setEditingTitre, setEditingContenu, onUpdateSujet, setEditingId }) => {
-  const isEditing = editingId === sujet.id;
-  return (
-    <div
-      className="group bg-white rounded-3xl border border-sand-100 shadow-sm hover:shadow-lg transition-all duration-300 overflow-hidden cursor-pointer"
-      style={{ borderColor: '#EDE8DF' }}
-      onClick={isEditing ? undefined : onClick}
-    >
-      <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #2E7D8C, #A8D5C2)' }} />
-
-      {isEditing ? (
-        <form onSubmit={onUpdateSujet} className="p-6 space-y-4" onClick={e => e.stopPropagation()}>
-          <h3 className="font-semibold text-gray-700 text-sm uppercase tracking-wider">Modifier la discussion</h3>
-          <input
-            value={editingTitre}
-            onChange={e => setEditingTitre(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300"
-            style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }}
-            placeholder="Titre"
-            required
-          />
-          <textarea
-            rows={3}
-            value={editingContenu}
-            onChange={e => setEditingContenu(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none"
-            style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }}
-            required
-          />
-          <div className="flex gap-2 justify-end">
-            <button type="button" onClick={e => { e.stopPropagation(); setEditingId(null); }} className="px-4 py-2 rounded-xl text-sm border text-gray-500 hover:bg-gray-50 transition" style={{ borderColor: '#D8D0C4' }}>Annuler</button>
-            <button type="submit" onClick={e => e.stopPropagation()} className="px-4 py-2 rounded-xl text-sm font-semibold text-white transition" style={{ background: '#2E7D8C' }}>Enregistrer</button>
-          </div>
-        </form>
-      ) : (
-        <div className="p-6">
-          <div className="flex gap-4">
-            <Avatar author={sujet.auteur} isAnon={sujet.anonyme} />
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-sm font-semibold" style={{ color: '#0F2B3D' }}>
-                  {getDisplayName(sujet.auteur, sujet.anonyme)}
-                </span>
-                {sujet.anonyme && <AnonBadge />}
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Clock size={11} />{relativeTime(sujet.dateCreation)}
-                </span>
-              </div>
-              <h3 className="text-base font-bold mb-1.5 leading-snug group-hover:text-teal-700 transition-colors" style={{ color: '#0F2B3D' }}>
-                {sujet.titre}
-              </h3>
-              <p className="text-sm text-gray-500 line-clamp-2 leading-relaxed">{sujet.contenu}</p>
-            </div>
-          </div>
-
-          <div className="mt-4 pt-4 flex items-center justify-between" style={{ borderTop: '1px solid #EDE8DF' }}>
-            <span className="flex items-center gap-1.5 text-xs font-medium" style={{ color: '#2E7D8C' }}>
-              <MessageSquare size={13} />
-              {sujet.reponsesCount || 0} réponse{sujet.reponsesCount !== 1 ? 's' : ''}
-            </span>
-            {sujet.auteur && (isAuthorFn(sujet.auteur.email) || isAdminFn()) && (
-              <div className="flex gap-3" onClick={e => e.stopPropagation()}>
-                <button onClick={() => onEdit(sujet)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-teal-600 transition">
-                  <Edit size={12} /> Modifier
-                </button>
-                <button onClick={() => onDelete(sujet.id)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition">
-                  <Trash2 size={12} /> Supprimer
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ─── REPLY CARD ──────────────────────────────────────────── */
-const ReplyCard = ({ reponse, isAuthorFn, isAdminFn, onEdit, onDelete, editingId, editingMsg, setEditingMsg, onUpdate, setEditingId }) => {
-  const isEditing = editingId === reponse.id;
-  return (
-    <div className="bg-white rounded-2xl border shadow-sm" style={{ borderColor: '#EDE8DF' }}>
-      {isEditing ? (
-        <form onSubmit={onUpdate} className="p-4 space-y-3">
-          <textarea
-            rows={3}
-            value={editingMsg}
-            onChange={e => setEditingMsg(e.target.value)}
-            className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none"
-            style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }}
-            required
-          />
-          <div className="flex gap-2 justify-end">
-            <button type="button" onClick={() => setEditingId(null)} className="px-3 py-1.5 rounded-lg text-xs border text-gray-500 hover:bg-gray-50 transition" style={{ borderColor: '#D8D0C4' }}>Annuler</button>
-            <button type="submit" className="px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition" style={{ background: '#2E7D8C' }}>Enregistrer</button>
-          </div>
-        </form>
-      ) : (
-        <div className="p-4">
-          <div className="flex gap-3">
-            <Avatar author={reponse.auteur} isAnon={reponse.anonyme} size="sm" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap mb-1">
-                <span className="text-sm font-semibold" style={{ color: '#0F2B3D' }}>
-                  {getDisplayName(reponse.auteur, reponse.anonyme)}
-                </span>
-                {reponse.anonyme && <AnonBadge />}
-                <span className="text-xs text-gray-400 flex items-center gap-1">
-                  <Clock size={10} />{relativeTime(reponse.dateReponse)}
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{reponse.message}</p>
-            </div>
-          </div>
-          {reponse.auteur && (isAuthorFn(reponse.auteur.email) || isAdminFn()) && (
-            <div className="mt-3 pt-3 flex justify-end gap-3" style={{ borderTop: '1px solid #EDE8DF' }}>
-              <button onClick={() => onEdit(reponse)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-teal-600 transition">
-                <Edit size={11} /> Modifier
-              </button>
-              <button onClick={() => onDelete(reponse.id)} className="flex items-center gap-1 text-xs text-gray-400 hover:text-red-500 transition">
-                <Trash2 size={11} /> Supprimer
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-};
-
-/* ─── COMPOSANT PRINCIPAL ─────────────────────────────────── */
 const Forum = () => {
-  const [sujets, setSujets] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [toast, setToast] = useState(null);
-  const [nouveauTitre, setNouveauTitre] = useState('');
-  const [nouveauContenu, setNouveauContenu] = useState('');
-  const [isSujetAnonyme, setIsSujetAnonyme] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [currentUserEmail, setCurrentUserEmail] = useState(null);
-  const [currentUserRole, setCurrentUserRole] = useState(null);
-  const [selectedTopic, setSelectedTopic] = useState(null);
-  const [reponses, setReponses] = useState([]);
-  const [nouveauMsg, setNouveauMsg] = useState('');
-  const [isReponseAnonyme, setIsReponseAnonyme] = useState(false);
-  const [loadingReponses, setLoadingReponses] = useState(false);
-  const [editingSujetId, setEditingSujetId] = useState(null);
-  const [editingSujetTitre, setEditingSujetTitre] = useState('');
-  const [editingSujetContenu, setEditingSujetContenu] = useState('');
-  const [editingReponseId, setEditingReponseId] = useState(null);
-  const [editingReponseMessage, setEditingReponseMessage] = useState('');
-  const [showNewForm, setShowNewForm] = useState(false);
+    const [sujets, setSujets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [successMessage, setSuccessMessage] = useState(null);
+    const [nouveauTitre, setNouveauTitre] = useState('');
+    const [nouveauContenu, setNouveauContenu] = useState('');
+    const [isSujetAnonyme, setIsSujetAnonyme] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [currentUserEmail, setCurrentUserEmail] = useState(null);
+    const [currentUserRole, setCurrentUserRole] = useState(null);
+    const [currentUserId, setCurrentUserId] = useState(null);
+    const [selectedTopic, setSelectedTopic] = useState(null);
+    const [reponses, setReponses] = useState([]);
+    const [nouveauMessageReponse, setNouveauMessageReponse] = useState('');
+    const [isReponseAnonyme, setIsReponseAnonyme] = useState(false);
+    const [loadingReponses, setLoadingReponses] = useState(false);
+    const [errorReponses, setErrorReponses] = useState(null);
+    const [successMessageReponse, setSuccessMessageReponse] = useState(null);
+    const [editingSujetId, setEditingSujetId] = useState(null);
+    const [editingSujetTitre, setEditingSujetTitre] = useState('');
+    const [editingSujetContenu, setEditingSujetContenu] = useState('');
+    const [editingReponseId, setEditingReponseId] = useState(null);
+    const [editingReponseMessage, setEditingReponseMessage] = useState('');
 
-  const showToast = (msg, type = 'success') => setToast({ msg, type });
+    const getAuthorDisplayName = (author, isAnonymous) => {
+        if (isAnonymous) return 'Anonyme';
+        if (author?.nom && author?.prenom) return `${author.nom} ${author.prenom}`;
+        if (author?.email) return author.email;
+        return 'Auteur inconnu';
+    };
 
-  const isAuthor = (email) => isAuthenticated && currentUserEmail === email;
-  const isAdmin = () => isAuthenticated && currentUserRole === 'ADMIN';
+    const isAuthor = (authorEmail) => {
+        return isAuthenticated && currentUserEmail && currentUserEmail === authorEmail;
+    };
 
-  const fetchSujets = useCallback(async () => {
-    setLoading(true);
+    const isAdmin = () => {
+        return isAuthenticated && currentUserRole === 'ADMIN';
+    };
+
+    const handleBackToList = () => {
+        setSelectedTopic(null);
+        setReponses([]);
+        setNouveauMessageReponse('');
+        setIsReponseAnonyme(false);
+        setErrorReponses(null);
+        setSuccessMessageReponse(null);
+        fetchSujets();
+    };
+
+    const fetchSujets = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await getForumSujets();
+            const formattedSujets = data.map(sujet => ({
+                ...sujet,
+                reponsesCount: parseInt(sujet.reponsesCount, 10) || 0
+            }));
+            setSujets(formattedSujets);
+        } catch (err) {
+            setError("Impossible de charger les sujets du forum. Veuillez réessayer plus tard.");
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+       const fetchAuthStatus = async () => {
     try {
-      const data = await getForumSujets();
-      setSujets(data.map(s => ({ ...s, reponsesCount: parseInt(s.reponsesCount, 10) || 0 })));
-    } catch { setError("Impossible de charger les discussions."); }
-    finally { setLoading(false); }
-  }, []);
-
-  useEffect(() => {
-    try {
-      const info = getCurrentUserInfo();
-      if (info?.token) {
-        setIsAuthenticated(true);
-        setCurrentUserEmail(info.email);
-        setCurrentUserRole(info.role);
-      }
-    } catch {}
-    fetchSujets();
-  }, [fetchSujets]);
-
-  useEffect(() => {
-    if (!selectedTopic?.id) { setReponses([]); return; }
-    setLoadingReponses(true);
-    getForumReponses(selectedTopic.id)
-      .then(setReponses)
-      .catch(() => {})
-      .finally(() => setLoadingReponses(false));
-  }, [selectedTopic]);
-
-  const handleSubmitSujet = async (e) => {
-    e.preventDefault();
-    if (!nouveauTitre.trim() || !nouveauContenu.trim()) return;
-    try {
-      const sujet = await creerForumSujet(nouveauTitre, nouveauContenu, isSujetAnonyme);
-      setSujets(prev => [{ ...sujet, reponsesCount: 0 }, ...prev]);
-      setNouveauTitre(''); setNouveauContenu(''); setIsSujetAnonyme(false);
-      setShowNewForm(false);
-      showToast('Discussion créée avec succès !');
+        const profilData = getCurrentUserInfo(); // importe depuis serviceAuth
+        
+        if (profilData && profilData.token) {
+            setIsAuthenticated(true);
+            setCurrentUserEmail(profilData.email);
+            setCurrentUserRole(profilData.role);
+            setCurrentUserId(profilData.id);
+        } else {
+            setIsAuthenticated(false);
+            // Supprimer le setError ici — ne pas bloquer l'affichage du forum
+        }
     } catch (err) {
-      showToast(err.response?.data?.message || 'Certains mots ne sont pas autorisés.', 'error');
+        setIsAuthenticated(false);
     }
-  };
+};
+        fetchAuthStatus();
+        fetchSujets();
+    }, [fetchSujets]);
 
-  const handleSubmitReponse = async (e) => {
-    e.preventDefault();
-    if (!nouveauMsg.trim()) return;
-    try {
-      const rep = await envoyerForumReponse(selectedTopic.id, nouveauMsg, isReponseAnonyme);
-      setReponses(prev => [...prev, rep]);
-      setNouveauMsg(''); setIsReponseAnonyme(false);
-      setSelectedTopic(prev => ({ ...prev, reponsesCount: (prev.reponsesCount || 0) + 1 }));
-      showToast('Réponse envoyée !');
-    } catch (err) {
-      showToast(err.response?.data?.message || 'Certains mots ne sont pas autorisés.', 'error');
-    }
-  };
+    useEffect(() => {
+        const fetchReponses = async () => {
+            if (!selectedTopic?.id) {
+                setReponses([]);
+                setLoadingReponses(false);
+                return;
+            }
+            setLoadingReponses(true);
+            setErrorReponses(null);
+            try {
+                const data = await getForumReponses(selectedTopic.id);
+                setReponses(data);
+            } catch (err) {
+                setErrorReponses("Impossible de charger les réponses du sujet.");
+            } finally {
+                setLoadingReponses(false);
+            }
+        };
+        fetchReponses();
+    }, [selectedTopic]);
 
-  const handleUpdateSujet = async (e) => {
-    e.preventDefault();
-    try {
-      await modifierForumSujet(editingSujetId, editingSujetTitre, editingSujetContenu);
-      setSujets(prev => prev.map(s => s.id === editingSujetId ? { ...s, titre: editingSujetTitre, contenu: editingSujetContenu } : s));
-      setEditingSujetId(null);
-      showToast('Discussion modifiée.');
-    } catch { showToast('Erreur lors de la modification.', 'error'); }
-  };
+    const handleSubmitSujet = async (e) => {
+        e.preventDefault();
+        setError(null);
+        setSuccessMessage(null);
 
-  const handleDeleteSujet = async (id) => {
-    if (!window.confirm('Supprimer cette discussion ?')) return;
-    try {
-      await supprimerForumSujet(id);
-      setSujets(prev => prev.filter(s => s.id !== id));
-      if (selectedTopic?.id === id) { setSelectedTopic(null); setReponses([]); }
-      showToast('Discussion supprimée.');
-    } catch { showToast('Erreur lors de la suppression.', 'error'); }
-  };
+        if (!nouveauTitre.trim() || !nouveauContenu.trim()) {
+            setError("Le titre et le contenu du sujet ne peuvent pas être vides.");
+            return;
+        }
+        if (!isAuthenticated) {
+            setError("Vous devez être connecté pour créer un sujet.");
+            return;
+        }
 
-  const handleUpdateReponse = async (e) => {
-    e.preventDefault();
-    try {
-      await modifierForumReponse(editingReponseId, editingReponseMessage);
-      setReponses(prev => prev.map(r => r.id === editingReponseId ? { ...r, message: editingReponseMessage } : r));
-      setEditingReponseId(null);
-      showToast('Réponse modifiée.');
-    } catch { showToast('Erreur lors de la modification.', 'error'); }
-  };
+        try {
+            const nouveauSujet = await creerForumSujet(nouveauTitre, nouveauContenu, isSujetAnonyme);
+            setSujets(prev => [{ ...nouveauSujet, reponsesCount: 0 }, ...prev]);
+            setNouveauTitre('');
+            setNouveauContenu('');
+            setIsSujetAnonyme(false);
+            setSuccessMessage("Sujet créé avec succès !");
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            setError(err.response?.data?.message || "certains mots utilisés ne sont pas autorisés dans la création du sujet. Veuillez reformuler.");
+        }
+    };
 
-  const handleDeleteReponse = async (id) => {
-    if (!window.confirm('Supprimer cette réponse ?')) return;
-    try {
-      await supprimerForumReponse(id);
-      setReponses(prev => prev.filter(r => r.id !== id));
-      showToast('Réponse supprimée.');
-    } catch { showToast('Erreur.', 'error'); }
-  };
+    const handleSubmitReponse = async (e) => {
+        e.preventDefault();
+        setErrorReponses(null);
+        setSuccessMessageReponse(null);
 
-  return (
-    <Layout>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Inter:wght@400;500;600&display=swap');
-        .forum-root { font-family: 'Inter', sans-serif; background: #FAF8F5; min-height: 100vh; }
-        .forum-hero { background: linear-gradient(135deg, #0F2B3D 0%, #1A4A5C 50%, #2E7D8C 100%); }
-        .display-font { font-family: 'Playfair Display', serif; }
-        .wave-divider { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1440 60'%3E%3Cpath fill='%23FAF8F5' d='M0,40 C360,80 1080,0 1440,40 L1440,60 L0,60 Z'/%3E%3C/svg%3E") no-repeat bottom; background-size: 100%; }
-        .anoncheck:checked { accent-color: #2E7D8C; }
-        .chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; }
-      `}</style>
+        if (!nouveauMessageReponse.trim()) {
+            setErrorReponses("Votre message ne peut pas être vide.");
+            return;
+        }
+        if (!isAuthenticated) {
+            setErrorReponses("Vous devez être connecté pour répondre.");
+            return;
+        }
+        if (!selectedTopic?.id) {
+            setErrorReponses("Aucun sujet sélectionné pour la réponse.");
+            return;
+        }
 
-      <div className="forum-root">
-        {/* HERO */}
-        <div className="forum-hero wave-divider pb-16 pt-12 px-4">
-          <div className="max-w-3xl mx-auto text-center text-white">
-            <div className="inline-flex items-center gap-2 mb-4 px-4 py-1.5 rounded-full text-xs font-semibold" style={{ background: 'rgba(168,213,194,0.2)', border: '1px solid rgba(168,213,194,0.3)' }}>
-              <Leaf size={12} style={{ color: '#A8D5C2' }} />
-              <span style={{ color: '#A8D5C2' }}>Espace communautaire bienveillant</span>
-            </div>
-            <h1 className="display-font text-4xl md:text-5xl font-bold mb-3 leading-tight">
-              Forum d'entraide
-            </h1>
-            <p className="text-lg mb-6" style={{ color: '#A8D5C2' }}>
-              Partagez, écoutez, soutenez — en toute sécurité.
-            </p>
-            <div className="flex justify-center gap-6 text-sm" style={{ color: 'rgba(255,255,255,0.6)' }}>
-              {[['🤝', 'Bienveillance'], ['🔒', 'Confidentialité'], ['💚', 'Sans jugement']].map(([icon, label]) => (
-                <span key={label} className="flex items-center gap-1.5">{icon} {label}</span>
-              ))}
-            </div>
-          </div>
-        </div>
+        try {
+            const nouvelleReponse = await envoyerForumReponse(selectedTopic.id, nouveauMessageReponse, isReponseAnonyme);
+            setReponses(prev => [...prev, nouvelleReponse]);
+            setNouveauMessageReponse('');
+            setIsReponseAnonyme(false);
+            setSuccessMessageReponse("Réponse envoyée avec succès !");
+            setTimeout(() => setSuccessMessageReponse(null), 3000);
+            
+            setSelectedTopic(prev => ({
+                ...prev,
+                reponsesCount: (prev.reponsesCount || 0) + 1
+            }));
+            fetchSujets();
+        } catch (err) {
+            setErrorReponses(err.response?.data?.message || "Erreur lors de l'envoi de la réponse,certains mots utilisés ne sont pas autorisés dans la réponse. Veuillez reformuler.");
+        }
+    };
 
-        <div className="max-w-3xl mx-auto px-4 pb-16">
+    const handleEditSujetClick = (sujet) => {
+        setEditingSujetId(sujet.id);
+        setEditingSujetTitre(sujet.titre);
+        setEditingSujetContenu(sujet.contenu);
+    };
 
-          {/* ERREUR GLOBALE */}
-          {error && (
-            <div className="mb-6 flex items-center gap-2 px-4 py-3 rounded-2xl text-sm text-red-600 bg-red-50 border border-red-200">
-              <X size={15} />{error}
-            </div>
-          )}
+    const handleUpdateSujet = async (e) => {
+        e.preventDefault();
+        setError(null);
+        setSuccessMessage(null);
 
-          {/* VUE TOPIC */}
-          {selectedTopic ? (
-            <div className="space-y-5">
-              <button
-                onClick={() => { setSelectedTopic(null); setReponses([]); fetchSujets(); }}
-                className="flex items-center gap-2 text-sm font-medium transition hover:gap-3"
-                style={{ color: '#2E7D8C' }}
-              >
-                <ChevronLeft size={18} />Retour aux discussions
-              </button>
+        if (!editingSujetTitre.trim() || !editingSujetContenu.trim()) {
+            setError("Le titre et le contenu du sujet ne peuvent pas être vides.");
+            return;
+        }
 
-              {/* Sujet principal */}
-              <div className="bg-white rounded-3xl shadow-sm overflow-hidden" style={{ border: '1px solid #EDE8DF' }}>
-                <div className="h-1" style={{ background: 'linear-gradient(90deg, #2E7D8C, #A8D5C2)' }} />
-                {editingSujetId === selectedTopic.id ? (
-                  <form onSubmit={handleUpdateSujet} className="p-6 space-y-4">
-                    <p className="text-sm font-semibold text-gray-500 uppercase tracking-wider">Modifier</p>
-                    <input value={editingSujetTitre} onChange={e => setEditingSujetTitre(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300" style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }} required />
-                    <textarea rows={4} value={editingSujetContenu} onChange={e => setEditingSujetContenu(e.target.value)} className="w-full px-4 py-2.5 rounded-xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none" style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }} required />
-                    <div className="flex gap-2 justify-end">
-                      <button type="button" onClick={() => setEditingSujetId(null)} className="px-4 py-2 rounded-xl text-sm border text-gray-500" style={{ borderColor: '#D8D0C4' }}>Annuler</button>
-                      <button type="submit" className="px-4 py-2 rounded-xl text-sm font-semibold text-white" style={{ background: '#2E7D8C' }}>Enregistrer</button>
+        try {
+            await modifierForumSujet(editingSujetId, editingSujetTitre, editingSujetContenu);
+            setSujets(prev => prev.map(s => 
+                s.id === editingSujetId ? { ...s, titre: editingSujetTitre, contenu: editingSujetContenu } : s
+            ));
+            setSuccessMessage("Sujet modifié avec succès !");
+            setEditingSujetId(null);
+            setTimeout(() => setSuccessMessage(null), 3000);
+        } catch (err) {
+            setError(err.response?.data?.message || "Erreur lors de la modification du sujet.");
+        }
+    };
+
+    const handleDeleteSujet = async (sujetId) => {
+        if (window.confirm("Êtes-vous sûr de vouloir supprimer ce sujet ?")) {
+            try {
+                await supprimerForumSujet(sujetId);
+                setSujets(prev => prev.filter(s => s.id !== sujetId));
+                setSuccessMessage("Sujet supprimé avec succès !");
+                if (selectedTopic?.id === sujetId) {
+                    setSelectedTopic(null);
+                    setReponses([]);
+                }
+                setTimeout(() => setSuccessMessage(null), 3000);
+            } catch (err) {
+                setError(err.response?.data?.message || "Erreur lors de la suppression du sujet.");
+            }
+        }
+    };
+
+    const handleEditReponseClick = (reponse) => {
+        setEditingReponseId(reponse.id);
+        setEditingReponseMessage(reponse.message);
+    };
+
+    const handleUpdateReponse = async (e) => {
+        e.preventDefault();
+        setErrorReponses(null);
+        setSuccessMessageReponse(null);
+
+        if (!editingReponseMessage.trim()) {
+            setErrorReponses("Le message de la réponse ne peut pas être vide.");
+            return;
+        }
+
+        try {
+            await modifierForumReponse(editingReponseId, editingReponseMessage);
+            setReponses(prev => prev.map(r => 
+                r.id === editingReponseId ? { ...r, message: editingReponseMessage } : r
+            ));
+            setSuccessMessageReponse("Réponse modifiée avec succès !");
+            setEditingReponseId(null);
+            setTimeout(() => setSuccessMessageReponse(null), 3000);
+        } catch (err) {
+            setErrorReponses(err.response?.data?.message || "Erreur lors de la modification de la réponse.");
+        }
+    };
+
+    const handleDeleteReponse = async (reponseId) => {
+        if (window.confirm("Êtes-vous sûr de vouloir supprimer cette réponse ?")) {
+            try {
+                await supprimerForumReponse(reponseId);
+                setReponses(prev => prev.filter(r => r.id !== reponseId));
+                setSuccessMessageReponse("Réponse supprimée avec succès !");
+                setSujets(prev => prev.map(sujet =>
+                    sujet.id === selectedTopic.id
+                        ? { ...sujet, reponsesCount: Math.max(0, (sujet.reponsesCount || 0) - 1 )}
+                        : sujet
+                ));
+                setTimeout(() => setSuccessMessageReponse(null), 3000);
+            } catch (err) {
+                setErrorReponses(err.response?.data?.message || "Erreur lors de la suppression de la réponse.");
+            }
+        }
+    };
+
+    return (
+        <Layout>
+            <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+                <div className="max-w-4xl mx-auto">
+                    <div className="mb-8 text-center">
+                        <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                            Forum Communautaire
+                        </h1>
+                        <p className="mt-3 text-xl text-gray-500">
+                            Échangez avec la communauté
+                        </p>
                     </div>
-                  </form>
-                ) : (
-                  <div className="p-6">
-                    <div className="flex gap-4">
-                      <Avatar author={selectedTopic.auteur} isAnon={selectedTopic.anonyme} size="lg" />
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <span className="font-semibold" style={{ color: '#0F2B3D' }}>{getDisplayName(selectedTopic.auteur, selectedTopic.anonyme)}</span>
-                          {selectedTopic.anonyme && <AnonBadge />}
-                          <span className="text-xs text-gray-400 flex items-center gap-1"><Clock size={11} />{relativeTime(selectedTopic.dateCreation)}</span>
+
+                    {error && (
+                        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center">
+                            <X className="w-5 h-5 mr-2" />
+                            {error}
                         </div>
-                        <h2 className="display-font text-2xl font-bold mb-3" style={{ color: '#0F2B3D' }}>{selectedTopic.titre}</h2>
-                        <p className="text-gray-600 leading-relaxed whitespace-pre-line">{selectedTopic.contenu}</p>
-                      </div>
-                    </div>
-                    {selectedTopic.auteur && (isAuthor(selectedTopic.auteur.email) || isAdmin()) && (
-                      <div className="mt-4 pt-4 flex justify-end gap-4" style={{ borderTop: '1px solid #EDE8DF' }}>
-                        <button onClick={() => { setEditingSujetId(selectedTopic.id); setEditingSujetTitre(selectedTopic.titre); setEditingSujetContenu(selectedTopic.contenu); }} className="flex items-center gap-1 text-sm text-gray-400 hover:text-teal-600 transition"><Edit size={14} /> Modifier</button>
-                        <button onClick={() => handleDeleteSujet(selectedTopic.id)} className="flex items-center gap-1 text-sm text-gray-400 hover:text-red-500 transition"><Trash2 size={14} /> Supprimer</button>
-                      </div>
                     )}
-                  </div>
-                )}
-              </div>
+                    {successMessage && (
+                        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-center">
+                            <Check className="w-5 h-5 mr-2" />
+                            {successMessage}
+                        </div>
+                    )}
 
-              {/* Réponses */}
-              <div>
-                <h3 className="text-base font-semibold mb-3 flex items-center gap-2" style={{ color: '#0F2B3D' }}>
-                  <MessageSquare size={16} style={{ color: '#2E7D8C' }} />
-                  {reponses.length} réponse{reponses.length !== 1 ? 's' : ''}
-                </h3>
+                    {selectedTopic ? (
+                        <div className="space-y-6">
+                            <button
+                                onClick={handleBackToList}
+                                className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
+                            >
+                                <ChevronLeft className="w-5 h-5 mr-1" />
+                                Retour aux discussions
+                            </button>
 
-                {loadingReponses ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="w-8 h-8 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2E7D8C', borderTopColor: 'transparent' }} />
-                  </div>
-                ) : reponses.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-8 text-center" style={{ border: '1px solid #EDE8DF' }}>
-                    <Heart size={28} className="mx-auto mb-2" style={{ color: '#A8D5C2' }} />
-                    <p className="text-sm text-gray-500">Soyez le premier à répondre avec bienveillance.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {reponses.map(r => (
-                      <ReplyCard
-                        key={r.id} reponse={r}
-                        isAuthorFn={isAuthor} isAdminFn={isAdmin}
-                        onEdit={rep => { setEditingReponseId(rep.id); setEditingReponseMessage(rep.message); }}
-                        onDelete={handleDeleteReponse}
-                        editingId={editingReponseId}
-                        editingMsg={editingReponseMessage}
-                        setEditingMsg={setEditingReponseMessage}
-                        onUpdate={handleUpdateReponse}
-                        setEditingId={setEditingReponseId}
-                      />
-                    ))}
-                  </div>
-                )}
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                {editingSujetId === selectedTopic.id ? (
+                                    <form onSubmit={handleUpdateSujet} className="p-6 space-y-4">
+                                        <h2 className="text-xl font-bold text-gray-800">Modifier le sujet</h2>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+                                            <input
+                                                type="text"
+                                                value={editingSujetTitre}
+                                                onChange={(e) => setEditingSujetTitre(e.target.value)}
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">Contenu</label>
+                                            <textarea
+                                                rows="4"
+                                                value={editingSujetContenu}
+                                                onChange={(e) => setEditingSujetContenu(e.target.value)}
+                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="flex justify-end space-x-3">
+                                            <button
+                                                type="button"
+                                                onClick={() => setEditingSujetId(null)}
+                                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                            >
+                                                Annuler
+                                            </button>
+                                            <button
+                                                type="submit"
+                                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                            >
+                                                Enregistrer
+                                            </button>
+                                        </div>
+                                    </form>
+                                ) : (
+                                    <div className="p-6">
+                                        <div className="flex items-start space-x-4">
+                                            <div className="flex-shrink-0">
+                                                <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                                                    {getAuthorInitial(selectedTopic.auteur, selectedTopic.anonyme)}
+                                                </div>
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center text-sm space-x-2">
+                                                    <span className="font-medium text-gray-900 truncate">
+                                                        {getAuthorDisplayName(selectedTopic.auteur, selectedTopic.anonyme)}
+                                                    </span>
+                                                    <span className="text-gray-500 flex items-center">
+                                                        <Clock className="w-3 h-3 mr-1" />
+                                                        {formatRelativeTime(selectedTopic.dateCreation)}
+                                                    </span>
+                                                </div>
+                                                <h2 className="mt-1 text-xl font-bold text-gray-900">
+                                                    {selectedTopic.titre}
+                                                </h2>
+                                                <p className="mt-2 text-gray-600 whitespace-pre-line">
+                                                    {selectedTopic.contenu}
+                                                </p>
+                                            </div>
+                                        </div>
 
-                {/* Formulaire réponse */}
-                <div className="mt-5 bg-white rounded-3xl p-6" style={{ border: '1px solid #EDE8DF' }}>
-                  {!isAuthenticated ? (
-                    <div className="text-center py-4">
-                      <p className="text-sm text-gray-500 mb-3">Connectez-vous pour participer.</p>
-                      <a href="/connexion" className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition" style={{ background: '#2E7D8C' }}>
-                        <UserCircle2 size={16} /> Se connecter
-                      </a>
-                    </div>
-                  ) : (
-                    <form onSubmit={handleSubmitReponse} className="space-y-3">
-                      <p className="text-sm font-semibold" style={{ color: '#0F2B3D' }}>Votre réponse</p>
-                      <textarea
-                        rows={4}
-                        placeholder="Partagez votre expérience ou votre soutien..."
-                        value={nouveauMsg}
-                        onChange={e => setNouveauMsg(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none transition"
-                        style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }}
-                        required
-                      />
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
-                          <input type="checkbox" className="anoncheck rounded" checked={isReponseAnonyme} onChange={e => setIsReponseAnonyme(e.target.checked)} />
-                          Répondre anonymement
-                        </label>
-                        <button type="submit" className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition active:scale-95" style={{ background: '#2E7D8C' }}>
-                          <Send size={14} /> Envoyer
-                        </button>
-                      </div>
-                    </form>
-                  )}
+                                        {(selectedTopic.auteur && (isAuthor(selectedTopic.auteur.email) || isAdmin()) && (
+                                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-4">
+                                                <button
+                                                    onClick={() => handleEditSujetClick(selectedTopic)}
+                                                    className="text-indigo-600 hover:text-indigo-800 flex items-center text-sm"
+                                                >
+                                                    <Edit className="w-4 h-4 mr-1" />
+                                                    Modifier
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDeleteSujet(selectedTopic.id)}
+                                                    className="text-red-600 hover:text-red-800 flex items-center text-sm"
+                                                >
+                                                    <Trash2 className="w-4 h-4 mr-1" />
+                                                    Supprimer
+                                                </button>
+                                            </div>
+                                       ) )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+                                    <MessageSquare className="w-5 h-5 mr-2 text-indigo-600" />
+                                    Réponses ({reponses.length})
+                                </h3>
+
+                                {loadingReponses ? (
+                                    <div className="text-center py-8">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                    </div>
+                                ) : reponses.length === 0 ? (
+                                    <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500">
+                                        Aucune réponse pour le moment. Soyez le premier à répondre !
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {reponses.map(reponse => (
+                                            <div key={reponse.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                                                {editingReponseId === reponse.id ? (
+                                                    <form onSubmit={handleUpdateReponse} className="p-4">
+                                                        <textarea
+                                                            rows="3"
+                                                            value={editingReponseMessage}
+                                                            onChange={(e) => setEditingReponseMessage(e.target.value)}
+                                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                            required
+                                                        />
+                                                        <div className="mt-2 flex justify-end space-x-2">
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setEditingReponseId(null)}
+                                                                className="px-3 py-1 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                                                            >
+                                                                Annuler
+                                                            </button>
+                                                            <button
+                                                                type="submit"
+                                                                className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                                                            >
+                                                                Enregistrer
+                                                            </button>
+                                                        </div>
+                                                    </form>
+                                                ) : (
+                                                    <div className="p-4">
+                                                        <div className="flex items-start space-x-3">
+                                                            <div className="flex-shrink-0">
+                                                                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold">
+                                                                    {getAuthorInitial(reponse.auteur, reponse.anonyme)}
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <div className="flex items-center text-sm space-x-2">
+                                                                    <span className="font-medium text-gray-900">
+                                                                        {getAuthorDisplayName(reponse.auteur, reponse.anonyme)}
+                                                                    </span>
+                                                                    <span className="text-gray-500 flex items-center">
+                                                                        <Clock className="w-3 h-3 mr-1" />
+                                                                        {formatRelativeTime(reponse.dateReponse)}
+                                                                    </span>
+                                                                </div>
+                                                                <p className="mt-1 text-gray-600 whitespace-pre-line">
+                                                                    {reponse.message}
+                                                                </p>
+                                                            </div>
+                                                        </div>
+
+                                                        {(reponse.auteur && (isAuthor(reponse.auteur.email) || isAdmin()) && (
+                                                            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end space-x-4">
+                                                                <button
+                                                                    onClick={() => handleEditReponseClick(reponse)}
+                                                                    className="text-indigo-600 hover:text-indigo-800 flex items-center text-xs"
+                                                                >
+                                                                    <Edit className="w-3 h-3 mr-1" />
+                                                                    Modifier
+                                                                </button>
+                                                                <button
+                                                                    onClick={() => handleDeleteReponse(reponse.id)}
+                                                                    className="text-red-600 hover:text-red-800 flex items-center text-xs"
+                                                                >
+                                                                    <Trash2 className="w-3 h-3 mr-1" />
+                                                                    Supprimer
+                                                                </button>
+                                                            </div>
+                                                       ) )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <div className="bg-white rounded-lg border border-gray-200 p-6">
+                                    <h4 className="text-md font-medium text-gray-900 mb-4">Ajouter une réponse</h4>
+                                    {!isAuthenticated ? (
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                                            <p className="text-blue-800 mb-2">Connectez-vous pour participer à la discussion</p>
+                                            <a 
+                                                href="/connexion" 
+                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                            >
+                                                <UserCircle2 className="w-4 h-4 mr-2" />
+                                                Se connecter
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <form onSubmit={handleSubmitReponse} className="space-y-4">
+                                            <textarea
+                                                rows="4"
+                                                placeholder="Écrivez votre réponse ici..."
+                                                value={nouveauMessageReponse}
+                                                onChange={(e) => setNouveauMessageReponse(e.target.value)}
+                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                required
+                                            />
+                                            <div className="flex items-center justify-between">
+                                                <label className="inline-flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                        checked={isReponseAnonyme}
+                                                        onChange={(e) => setIsReponseAnonyme(e.target.checked)}
+                                                    />
+                                                    <span className="ml-2 text-sm text-gray-600">Publier anonymement</span>
+                                                </label>
+                                                <button
+                                                    type="submit"
+                                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                                >
+                                                    <Send className="w-4 h-4 mr-2" />
+                                                    Envoyer
+                                                </button>
+                                            </div>
+                                        </form>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                                <div className="p-6">
+                                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
+                                        <Plus className="w-5 h-5 mr-2 text-indigo-600" />
+                                        Nouvelle discussion
+                                    </h2>
+                                    {!isAuthenticated ? (
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                                            <p className="text-blue-800 mb-2">Connectez-vous pour créer une nouvelle discussion</p>
+                                            <a 
+                                                href="/connexion" 
+                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                            >
+                                                <UserCircle2 className="w-4 h-4 mr-2" />
+                                                Se connecter
+                                            </a>
+                                        </div>
+                                    ) : (
+                                        <form onSubmit={handleSubmitSujet} className="space-y-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+                                                <input
+                                                    type="text"
+                                                    value={nouveauTitre}
+                                                    onChange={(e) => setNouveauTitre(e.target.value)}
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    placeholder="Titre de votre discussion"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">Contenu</label>
+                                                <textarea
+                                                    rows="4"
+                                                    value={nouveauContenu}
+                                                    onChange={(e) => setNouveauContenu(e.target.value)}
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    placeholder="Détaillez votre discussion ici..."
+                                                    required
+                                                />
+                                            </div>
+                                            <div className="flex items-center justify-between">
+                                                <label className="inline-flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                        checked={isSujetAnonyme}
+                                                        onChange={(e) => setIsSujetAnonyme(e.target.checked)}
+                                                    />
+                                                    <span className="ml-2 text-sm text-gray-600">Publier anonymement</span>
+                                                </label>
+                                                <button
+                                                    type="submit"
+                                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                                >
+                                                    <Send className="w-4 h-4 mr-2" />
+                                                    Publier
+                                                </button>
+                                            </div>
+                                        </form>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+                                    <MessageSquare className="w-6 h-6 mr-2 text-indigo-600" />
+                                    Discussions récentes
+                                </h2>
+
+                                {loading ? (
+                                    <div className="text-center py-12">
+                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
+                                        <p className="mt-4 text-gray-500">Chargement des discussions...</p>
+                                    </div>
+                                ) : sujets.length === 0 ? (
+                                    <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
+                                        <MessageSquare className="w-10 h-10 mx-auto text-gray-400" />
+                                        <h3 className="mt-4 text-lg font-medium text-gray-900">Aucune discussion</h3>
+                                        <p className="mt-2 text-gray-500">Soyez le premier à lancer une discussion !</p>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {sujets.map(sujet => (
+                                            <div 
+                                                key={sujet.id} 
+                                                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                                                onClick={() => setSelectedTopic(sujet)}
+                                            >
+                                                <div className="p-6">
+                                                    <div className="flex items-start space-x-4">
+                                                        <div className="flex-shrink-0">
+                                                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
+                                                                {getAuthorInitial(sujet.auteur, sujet.anonyme)}
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex items-center text-sm space-x-2">
+                                                                <span className="font-medium text-gray-900">
+                                                                    {getAuthorDisplayName(sujet.auteur, sujet.anonyme)}
+                                                                </span>
+                                                                <span className="text-gray-500 flex items-center">
+                                                                    <Clock className="w-3 h-3 mr-1" />
+                                                                    {formatRelativeTime(sujet.dateCreation)}
+                                                                </span>
+                                                            </div>
+                                                            <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                                                                {sujet.titre}
+                                                            </h3>
+                                                            <p className="mt-2 text-gray-600 line-clamp-2">
+                                                                {sujet.contenu}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
+                                                        <div className="flex items-center text-sm text-indigo-600">
+                                                            <MessageSquare className="w-4 h-4 mr-1" />
+                                                            {sujet.reponsesCount} réponse{sujet.reponsesCount !== 1 ? 's' : ''}
+                                                        </div>
+
+                                                        {(sujet.auteur && (isAuthor(sujet.auteur.email) || isAdmin())) && (
+                                                            <div className="flex space-x-4">
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleEditSujetClick(sujet);
+                                                                    }}
+                                                                    className="text-indigo-600 hover:text-indigo-800 flex items-center text-sm"
+                                                                >
+                                                                    <Edit className="w-4 h-4 mr-1" />
+                                                                    Modifier
+                                                                </button>
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        handleDeleteSujet(sujet.id);
+                                                                    }}
+                                                                    className="text-red-600 hover:text-red-800 flex items-center text-sm"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4 mr-1" />
+                                                                    Supprimer
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
                 </div>
-              </div>
             </div>
-          ) : (
-            /* ─── LISTE DES SUJETS ─── */
-            <div className="space-y-6">
-              {/* Bouton nouvelle discussion */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="display-font text-2xl font-bold" style={{ color: '#0F2B3D' }}>Discussions</h2>
-                  <p className="text-sm text-gray-400 mt-0.5">{sujets.length} sujet{sujets.length !== 1 ? 's' : ''} dans la communauté</p>
-                </div>
-                {isAuthenticated && (
-                  <button
-                    onClick={() => setShowNewForm(v => !v)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-white text-sm font-semibold transition active:scale-95 shadow-sm"
-                    style={{ background: showNewForm ? '#0F2B3D' : '#2E7D8C' }}
-                  >
-                    {showNewForm ? <X size={15} /> : <Plus size={15} />}
-                    {showNewForm ? 'Annuler' : 'Nouvelle discussion'}
-                  </button>
-                )}
-              </div>
-
-              {/* Formulaire nouvelle discussion */}
-              {showNewForm && isAuthenticated && (
-                <div className="bg-white rounded-3xl p-6 shadow-sm" style={{ border: '1px solid #EDE8DF' }}>
-                  <h3 className="display-font text-lg font-bold mb-4" style={{ color: '#0F2B3D' }}>Lancer une discussion</h3>
-                  <form onSubmit={handleSubmitSujet} className="space-y-4">
-                    <input
-                      type="text"
-                      placeholder="Titre de votre discussion"
-                      value={nouveauTitre}
-                      onChange={e => setNouveauTitre(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 transition"
-                      style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }}
-                      required
-                    />
-                    <textarea
-                      rows={4}
-                      placeholder="Partagez votre vécu, vos questions, vos pensées..."
-                      value={nouveauContenu}
-                      onChange={e => setNouveauContenu(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl border text-sm focus:outline-none focus:ring-2 focus:ring-teal-300 resize-none transition"
-                      style={{ borderColor: '#D8D0C4', background: '#FAF8F5' }}
-                      required
-                    />
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
-                        <input type="checkbox" className="anoncheck rounded" checked={isSujetAnonyme} onChange={e => setIsSujetAnonyme(e.target.checked)} />
-                        Publier anonymement
-                      </label>
-                      <button type="submit" className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition active:scale-95 shadow-sm" style={{ background: '#2E7D8C' }}>
-                        <Send size={14} /> Publier
-                      </button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {!isAuthenticated && (
-                <div className="rounded-3xl p-5 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, #EBF5F2, #F0F8FF)', border: '1px solid #C8E6DD' }}>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: '#0F2B3D' }}>Rejoignez la conversation</p>
-                    <p className="text-xs text-gray-500 mt-0.5">Connectez-vous pour partager et soutenir.</p>
-                  </div>
-                  <a href="/connexion" className="flex items-center gap-2 px-4 py-2 rounded-xl text-white text-sm font-semibold" style={{ background: '#2E7D8C' }}>
-                    <UserCircle2 size={15} /> Se connecter
-                  </a>
-                </div>
-              )}
-
-              {/* Liste */}
-              {loading ? (
-                <div className="flex flex-col items-center py-16 gap-3">
-                  <div className="w-10 h-10 rounded-full border-2 border-t-transparent animate-spin" style={{ borderColor: '#2E7D8C', borderTopColor: 'transparent' }} />
-                  <p className="text-sm text-gray-400">Chargement des discussions…</p>
-                </div>
-              ) : sujets.length === 0 ? (
-                <div className="bg-white rounded-3xl p-12 text-center" style={{ border: '1px solid #EDE8DF' }}>
-                  <MessageSquare size={36} className="mx-auto mb-3" style={{ color: '#A8D5C2' }} />
-                  <p className="font-semibold text-gray-600">Aucune discussion pour l'instant</p>
-                  <p className="text-sm text-gray-400 mt-1">Soyez le premier à briser la glace.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {sujets.map(sujet => (
-                    <TopicCard
-                      key={sujet.id}
-                      sujet={sujet}
-                      onClick={() => setSelectedTopic(sujet)}
-                      onEdit={s => { setEditingSujetId(s.id); setEditingSujetTitre(s.titre); setEditingSujetContenu(s.contenu); }}
-                      onDelete={handleDeleteSujet}
-                      isAuthorFn={isAuthor}
-                      isAdminFn={isAdmin}
-                      editingId={editingSujetId}
-                      editingTitre={editingSujetTitre}
-                      editingContenu={editingSujetContenu}
-                      setEditingTitre={setEditingSujetTitre}
-                      setEditingContenu={setEditingSujetContenu}
-                      onUpdateSujet={handleUpdateSujet}
-                      setEditingId={setEditingSujetId}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {toast && <Toast msg={toast.msg} type={toast.type} onClose={() => setToast(null)} />}
-    </Layout>
-  );
+        </Layout>
+    );
 };
 
 export default Forum;
