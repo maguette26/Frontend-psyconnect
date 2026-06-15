@@ -5,29 +5,35 @@ import api from "../services/api";
 const PremiumSuccess = () => {
   const navigate = useNavigate();
 
- useEffect(() => {
-  const refreshUser = async () => {
-    try {
-      const res = await api.get("/auth/me");
+  useEffect(() => {
+    let isMounted = true;
 
-      localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
-      localStorage.setItem("role", res.data.role);
+    const refreshUser = async () => {
+      try {
+        const res = await api.get("/auth/me");
 
-      // 🔥 NOTIFIER TOUTES LES PAGES
-      window.dispatchEvent(new Event("user-updated"));
+        localStorage.setItem("role", res.data.role);
 
-    } catch (e) {}
-  };
+        window.dispatchEvent(new Event("roleChange"));
+        window.dispatchEvent(new Event("storage"));
 
-  refreshUser();
+        if (isMounted) {
+          setTimeout(() => {
+            navigate("/ressources", { replace: true });
+          }, 300);
+        }
 
-  // redirection après sync
-  const timer = setTimeout(() => {
-    navigate("/ressources"); // 👈 mieux que window.location
-  }, 2000);
+      } catch (err) {
+        console.error(err);
+      }
+    };
 
-  return () => clearTimeout(timer);
-}, []);
+    refreshUser();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [navigate]);
 
   return (
     <div className="flex flex-col items-center justify-center h-screen">

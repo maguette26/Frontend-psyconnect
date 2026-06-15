@@ -9,7 +9,7 @@ import { useRessource } from './RessourceContext.jsx';
 const Ressources = () => {
   const navigate = useNavigate();
   const { selectedCategory, setSelectedCategory, categoriesOrder } = useRessource();
-
+const [userReady, setUserReady] = useState(false);
   const [fonctionnalites, setFonctionnalites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -52,14 +52,16 @@ const Ressources = () => {
 useEffect(() => {
   const syncUser = () => {
     const role = localStorage.getItem("role");
+
     setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+    setUserReady(true);
   };
 
   syncUser();
 
-  window.addEventListener("user-updated", syncUser);
+  window.addEventListener("roleChange", syncUser);
 
-  return () => window.removeEventListener("user-updated", syncUser);
+  return () => window.removeEventListener("roleChange", syncUser);
 }, []);
 
 // 2. Load user + data
