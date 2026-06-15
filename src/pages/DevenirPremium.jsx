@@ -42,6 +42,7 @@ const DevenirPremium = () => {
 
   const currentPlan =
     plans[selectedPlan];
+    console.log(api.defaults.baseURL);
 
   const handleStripeCheckout = async () => {
 
@@ -88,7 +89,7 @@ const DevenirPremium = () => {
       setLoading(false);
     }
   };
-console.log(api.defaults.baseURL);
+
   return (
     <Layout>
 
