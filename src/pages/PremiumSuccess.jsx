@@ -12,17 +12,12 @@ const PremiumSuccess = () => {
       try {
         const res = await api.get("/auth/me");
 
-        localStorage.setItem("role", res.data.role);
-
+        localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
         window.dispatchEvent(new Event("roleChange"));
-        window.dispatchEvent(new Event("storage"));
 
         if (isMounted) {
-          setTimeout(() => {
-            navigate("/ressources", { replace: true });
-          }, 300);
+          setTimeout(() => navigate("/ressources", { replace: true }), 300);
         }
-
       } catch (err) {
         console.error(err);
       }
