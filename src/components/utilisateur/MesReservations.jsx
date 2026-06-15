@@ -9,12 +9,12 @@ import { toast, ToastContainer } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
 
-// ── Injecter la font une seule fois dans <head>, jamais dans le JSX ──────────
-if (!document.getElementById('dm-sans-font')) {
-  const link = document.createElement('link');
-  link.id   = 'dm-sans-font';
-  link.rel  = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap';
+// Injecter la font une seule fois dans <head>
+if (typeof document !== 'undefined' && !document.getElementById('dm-sans-font')) {
+  const link = Object.assign(document.createElement('link'), {
+    id: 'dm-sans-font', rel: 'stylesheet',
+    href: 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap'
+  });
   document.head.appendChild(link);
 }
 
@@ -25,9 +25,9 @@ const formatDate = (dateStr) => {
   });
 };
 
-const formatHeure = (heureStr) => {
-  if (!heureStr) return '—';
-  return heureStr.replace('H', ':').substring(0, 5);
+const formatHeure = (h) => {
+  if (!h) return '—';
+  return h.replace('H', ':').substring(0, 5);
 };
 
 const STATUT_CONFIG = {
@@ -59,13 +59,51 @@ function InfoRow({ label, value }) {
   );
 }
 
+// Carte sans animation Framer — CSS transition uniquement
+function ReservationCard({ res, onOpen, onDelete, canDelete }) {
+  return (
+    <div
+      className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+      onClick={() => onOpen(res)}
+    >
+      <div className="flex items-center gap-4 p-4">
+        <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
+          <Stethoscope size={20} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold text-slate-800 truncate">Dr {res.professionnelNom}</p>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Réservé le {formatDate(res.dateReservation)} · {formatHeure(res.heureReservation)}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <StatutBadge statut={res.statut} />
+          {res.prix != null && (
+            <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix}€</span>
+          )}
+          {canDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(e, res); }}
+              className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+              title="Supprimer"
+            >
+              <Trash2 size={15} />
+            </button>
+          )}
+          <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MesReservations = () => {
-  const [reservations, setReservations] = useState([]);
-  const [statut, setStatut]             = useState('');
-  const [error, setError]               = useState(null);
-  const [selected, setSelected]         = useState(null);
+  const [reservations, setReservations]   = useState([]);
+  const [statut, setStatut]               = useState('');
+  const [error, setError]                 = useState(null);
+  const [selected, setSelected]           = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [deleting, setDeleting]         = useState(false);
+  const [deleting, setDeleting]           = useState(false);
 
   useEffect(() => {
     api.get('/reservations/mes-reservations')
@@ -77,8 +115,8 @@ const MesReservations = () => {
 
   const handleDownloadTicket = async (id) => {
     try {
-      const response = await api.get(`/reservations/telecharger-recu/${id}`, { responseType: 'blob' });
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+      const res = await api.get(`/reservations/telecharger-recu/${id}`, { responseType: 'blob' });
+      const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       Object.assign(document.createElement('a'), { href: url, download: `recu_${id}.pdf` }).click();
       toast.success('Ticket téléchargé !');
     } catch {
@@ -90,9 +128,7 @@ const MesReservations = () => {
     try {
       await api.delete(`/reservations/annuler/${res.id}`);
       setSelected(null);
-      setTimeout(() => {
-        setReservations(prev => prev.filter(r => r.id !== res.id));
-      }, 300);
+      setReservations(prev => prev.filter(r => r.id !== res.id));
       toast.success('Réservation annulée.');
     } catch {
       toast.error("Erreur lors de l'annulation.");
@@ -103,11 +139,11 @@ const MesReservations = () => {
     setDeleting(true);
     try {
       await api.delete(`/reservations/supprimer/${res.id}`);
+      // Fermer les modals ET mettre à jour la liste dans le même tick
+      // pour éviter tout conflit de reconciliation React/Framer
       setConfirmDelete(null);
       setSelected(null);
-      setTimeout(() => {
-        setReservations(prev => prev.filter(r => r.id !== res.id));
-      }, 350);
+      setReservations(prev => prev.filter(r => r.id !== res.id));
       toast.success('Réservation supprimée.');
     } catch {
       toast.error('Erreur lors de la suppression.');
@@ -119,7 +155,7 @@ const MesReservations = () => {
   const openConfirmDelete = (e, res) => {
     e.stopPropagation();
     setSelected(null);
-    setTimeout(() => setConfirmDelete(res), 150);
+    setConfirmDelete(res);
   };
 
   const filtered = reservations.filter(r =>
@@ -161,7 +197,7 @@ const MesReservations = () => {
         </div>
       )}
 
-      {/* LISTE */}
+      {/* LISTE — pas d'AnimatePresence ici, uniquement du CSS */}
       {filtered.length === 0 ? (
         <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
           <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -171,52 +207,19 @@ const MesReservations = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          <AnimatePresence mode="popLayout">
-            {filtered.map(res => (
-              <motion.div
-                key={res.id}
-                layout
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
-                onClick={() => setSelected(res)}
-              >
-                <div className="flex items-center gap-4 p-4">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
-                    <Stethoscope size={20} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 truncate">Dr {res.professionnelNom}</p>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      Réservé le {formatDate(res.dateReservation)} · {formatHeure(res.heureReservation)}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
-                    <StatutBadge statut={res.statut} />
-                    {res.prix != null && (
-                      <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix}€</span>
-                    )}
-                    {canDelete(res) && (
-                      <button
-                        onClick={(e) => openConfirmDelete(e, res)}
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
-                        title="Supprimer"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition" />
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
+          {filtered.map(res => (
+            <ReservationCard
+              key={res.id}
+              res={res}
+              onOpen={setSelected}
+              onDelete={openConfirmDelete}
+              canDelete={canDelete(res)}
+            />
+          ))}
         </div>
       )}
 
-      {/* ── MODAL DÉTAIL ── */}
+      {/* ── MODAL DÉTAIL — AnimatePresence uniquement sur les modals ── */}
       <AnimatePresence>
         {selected && (
           <motion.div
