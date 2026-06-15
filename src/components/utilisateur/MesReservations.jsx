@@ -94,6 +94,7 @@ const MesReservations = () => {
   };
 
   const handleDelete = async (res) => {
+     console.log("Suppression réservation ID:", res.id, "| objet complet:", res);
     setDeleting(true);
     try {
       await api.delete(`/reservations/supprimer/${res.id}`);

@@ -60,6 +60,7 @@ const MesConsultations = () => {
   }, []);
 
   const handleSupprimer = async (c) => {
+    console.log("Suppression consultation ID:", c.id, "| objet complet:", c);
     try {
       await api.delete(`/consultations/supprimer/${c.id}`);
       setConsultations(prev => prev.filter(x => x.id !== c.id));
