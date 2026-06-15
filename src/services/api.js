@@ -28,7 +28,13 @@ api.interceptors.request.use(config => {
   }
   return config;
 });
-
+api.interceptors.response.use(async (response) => {
+  if (response.config.url?.includes("/auth/me")) {
+    localStorage.setItem("currentUserInfo", JSON.stringify(response.data));
+    localStorage.setItem("role", response.data.role);
+  }
+  return response;
+});
 api.interceptors.response.use(
   response => response,
   error => {

@@ -47,37 +47,39 @@ const Ressources = () => {
     setLoading(false);
   }
 }, []);
+useEffect(() => {
+  useEffect(() => {
+  const syncUser = () => {
+    const role = localStorage.getItem("role");
+    setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+  };
+
+  syncUser();
+
+  window.addEventListener("user-updated", syncUser);
+
+  return () => window.removeEventListener("user-updated", syncUser);
+}, []);
  useEffect(() => {
-  const token = localStorage.getItem('token');
+  const token = localStorage.getItem("token");
 
   if (!token) {
-    setNotConnectedMessage(
-      '⚠️ Vous devez être connecté pour accéder aux ressources.'
-    );
-
-    setLoading(false);
-    setFonctionnalites([]);
-    setIsUserPremium(false);
-
-    const timer = setTimeout(() => {
-      navigate('/connexion');
-    }, 3000);
-
-    return () => clearTimeout(timer);
+    setNotConnectedMessage("⚠️ Vous devez être connecté");
+    navigate("/connexion");
+    return;
   }
 
   const fetchUserInfo = async () => {
     try {
-      const res = await api.get('/auth/me');
+      const res = await api.get("/auth/me");
 
       const role = res.data.role;
 
-      setIsUserPremium(role === 'PREMIUM' || role === 'ADMIN');
+      setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
 
-      // optionnel mais utile
       localStorage.setItem("role", role);
 
-    } catch (e) {
+    } catch {
       setIsUserPremium(false);
     } finally {
       fetchFonctionnalites();
