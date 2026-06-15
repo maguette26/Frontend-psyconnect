@@ -508,7 +508,7 @@ export default function ListeReservations({ proId }) {
               <ReservationCard
                 key={r.id}
                 res={r}
-                onAccept={id => handleUpdate(id, 'PAYEE')}
+                onAccept={id => handleUpdate(id, 'VALIDE')}
                 onRefuse={id => handleUpdate(id, 'REFUSE')}
                 onDetails={setSelected}
               />
