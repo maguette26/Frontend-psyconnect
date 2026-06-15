@@ -238,11 +238,15 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
 
   const handleConfirm = async () => {
-    setPending(true);
+    const action = confirming; // capture avant le reset
     setConfirming(null);
-    if (confirming === 'accept') await onAccept(res.id);
-    else await onRefuse(res.id);
-    setPending(false);
+    setPending(true);
+    try {
+      if (action === 'accept') await onAccept(res.id);
+      else await onRefuse(res.id);
+    } finally {
+      setPending(false);
+    }
   };
 
   return (
@@ -381,25 +385,22 @@ export default function ListeReservations({ proId }) {
     return () => clearInterval(id);
   }, [proId, load]);
 
-  // Optimistic update : on change le statut localement tout de suite,
-  // puis on appelle le serveur en arrière-plan. Si ça échoue, on rollback.
-  const handleUpdate = async (id, statut) => {
-    // 1. Snapshot pour rollback
-    const snapshot = reservations;
+  const reservationsRef = React.useRef(reservations);
+  useEffect(() => { reservationsRef.current = reservations; }, [reservations]);
 
-    // 2. Mise à jour immédiate de l'UI
+  const handleUpdate = async (id, statut) => {
+    const snapshot = reservationsRef.current;
+
     setReservations(prev =>
       prev.map(r => r.id === id ? { ...r, statut } : r)
     );
 
-    // 3. Appel serveur en arrière-plan
     try {
       await updateReservationStatus(id, statut);
       setToast({ msg: 'Statut mis à jour', type: 'success' });
-      // Resync silencieuse pour s'assurer que les données sont à jour
       load(true);
-    } catch {
-      // 4. Rollback si erreur
+    } catch (err) {
+      console.error('updateReservationStatus error:', err);
       setReservations(snapshot);
       setToast({ msg: 'Erreur — modification annulée.', type: 'error' });
     }
