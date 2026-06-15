@@ -19,8 +19,6 @@ const STATUT_CONFIG = {
 };
 
 /* ─── HELPERS ────────────────────────────────────────────────────── */
-
-// "2026-06-12" → "vendredi 12 juin 2026"
 const fmtDate = (d) => {
   if (!d) return '—';
   try {
@@ -32,7 +30,6 @@ const fmtDate = (d) => {
   } catch { return '—'; }
 };
 
-// "2026-06-12" → "ven. 12 juin"
 const fmtDateShort = (d) => {
   if (!d) return '—';
   try {
@@ -42,7 +39,6 @@ const fmtDateShort = (d) => {
   } catch { return '—'; }
 };
 
-// "19:30" → "19h30"
 const fmtHeure = (h) => {
   if (!h) return '—';
   if (typeof h === 'string') {
@@ -112,10 +108,8 @@ function DetailsModal({ res, onClose }) {
         className="bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        {/* Poignée mobile */}
         <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto mt-3 sm:hidden" />
 
-        {/* Header */}
         <div className={`bg-gradient-to-r ${bar} px-6 pt-5 pb-6 text-white`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
@@ -139,16 +133,11 @@ function DetailsModal({ res, onClose }) {
         </div>
 
         <div className="px-6 py-5 space-y-4">
-
-          {/* Statut */}
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold uppercase tracking-wider text-slate-400">Statut</span>
             <StatutBadge statut={res.statut} />
           </div>
-
           <hr className="border-slate-100" />
-
-          {/* Bloc réservation */}
           <div className="rounded-xl overflow-hidden border border-slate-100">
             <div className="bg-indigo-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
               <CalendarDays size={13} className="text-indigo-500" />
@@ -165,8 +154,6 @@ function DetailsModal({ res, onClose }) {
               </div>
             </div>
           </div>
-
-          {/* Bloc consultation */}
           <div className="rounded-xl overflow-hidden border border-slate-100">
             <div className="bg-emerald-50 px-4 py-2 flex items-center gap-2 border-b border-slate-100">
               <CalendarClock size={13} className="text-emerald-500" />
@@ -185,7 +172,6 @@ function DetailsModal({ res, onClose }) {
               </div>
             </div>
           </div>
-
         </div>
 
         <div className="px-6 pb-6">
@@ -201,11 +187,63 @@ function DetailsModal({ res, onClose }) {
   );
 }
 
+/* ─── POPOVER DE CONFIRMATION INLINE ─────────────────────────────── */
+// Apparaît directement sur la card, sans bloquer toute l'UI
+function ConfirmPopover({ action, onConfirm, onCancel }) {
+  const isAccept = action === 'accept';
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.92, y: -4 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.92, y: -4 }}
+      transition={{ duration: 0.12 }}
+      className={`absolute inset-0 z-10 rounded-2xl flex items-center justify-between gap-3 px-4 py-3 ${
+        isAccept
+          ? 'bg-emerald-50 border border-emerald-200'
+          : 'bg-red-50 border border-red-200'
+      }`}
+    >
+      <p className={`text-xs font-semibold ${isAccept ? 'text-emerald-700' : 'text-red-600'}`}>
+        {isAccept ? 'Accepter cette réservation ?' : 'Refuser cette réservation ?'}
+      </p>
+      <div className="flex gap-2 flex-shrink-0">
+        <button
+          onClick={onCancel}
+          className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 transition"
+        >
+          Annuler
+        </button>
+        <button
+          onClick={onConfirm}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition active:scale-95 ${
+            isAccept
+              ? 'bg-emerald-500 hover:bg-emerald-600'
+              : 'bg-red-500 hover:bg-red-600'
+          }`}
+        >
+          Confirmer
+        </button>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ─── CARD RÉSERVATION ───────────────────────────────────────────── */
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
+  const [confirming, setConfirming] = useState(null); // 'accept' | 'refuse' | null
+  const [pending, setPending]       = useState(false);
+
   const cfg = STATUT_CONFIG[res.statut];
   const bar = cfg?.bar || 'from-slate-300 to-slate-300';
   const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
+
+  const handleConfirm = async () => {
+    setPending(true);
+    setConfirming(null);
+    if (confirming === 'accept') await onAccept(res.id);
+    else await onRefuse(res.id);
+    setPending(false);
+  };
 
   return (
     <motion.div
@@ -214,12 +252,23 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.97 }}
       transition={{ duration: 0.18 }}
-      className="bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
+      className="relative bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden"
     >
       {/* Barre colorée */}
       <div className={`h-1 w-full bg-gradient-to-r ${bar}`} />
 
-      <div className="px-4 py-3 flex items-center gap-3">
+      {/* Popover de confirmation — s'affiche par dessus la card */}
+      <AnimatePresence>
+        {confirming && (
+          <ConfirmPopover
+            action={confirming}
+            onConfirm={handleConfirm}
+            onCancel={() => setConfirming(null)}
+          />
+        )}
+      </AnimatePresence>
+
+      <div className={`px-4 py-3 flex items-center gap-3 transition-opacity ${pending ? 'opacity-50 pointer-events-none' : ''}`}>
 
         {/* Avatar */}
         <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${bar} flex items-center justify-center text-white font-bold text-sm shadow-sm flex-shrink-0`}>
@@ -235,10 +284,17 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
               </p>
               <p className="text-xs text-slate-400 truncate">{res.utilisateur?.email}</p>
             </div>
-            <StatutBadge statut={res.statut} />
+            {/* Badge avec spinner si en cours */}
+            {pending ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border bg-slate-50 text-slate-400 border-slate-200">
+                <RefreshCw size={11} className="animate-spin" />
+                Mise à jour…
+              </span>
+            ) : (
+              <StatutBadge statut={res.statut} />
+            )}
           </div>
 
-          {/* Dates */}
           <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-0.5">
             <span className="inline-flex items-center gap-1 text-xs text-slate-500">
               <CalendarDays size={11} className="text-indigo-400 shrink-0" />
@@ -253,9 +309,8 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           </div>
         </div>
 
-        {/* ── BOUTONS D'ACTION ── */}
+        {/* BOUTONS D'ACTION */}
         <div className="flex flex-col gap-1.5 flex-shrink-0 ml-1">
-
           <button
             onClick={() => onDetails(res)}
             title="Voir les détails"
@@ -268,7 +323,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
           {res.statut === 'EN_ATTENTE' && (
             <div className="flex gap-1.5">
               <button
-                onClick={() => onAccept(res.id)}
+                onClick={() => setConfirming('accept')}
                 title="Accepter la réservation"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
               >
@@ -276,7 +331,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
                 <span>Accepter</span>
               </button>
               <button
-                onClick={() => onRefuse(res.id)}
+                onClick={() => setConfirming('refuse')}
                 title="Refuser la réservation"
                 className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition active:scale-95 shadow-sm"
               >
@@ -286,7 +341,6 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
             </div>
           )}
         </div>
-
       </div>
     </motion.div>
   );
@@ -327,15 +381,27 @@ export default function ListeReservations({ proId }) {
     return () => clearInterval(id);
   }, [proId, load]);
 
+  // Optimistic update : on change le statut localement tout de suite,
+  // puis on appelle le serveur en arrière-plan. Si ça échoue, on rollback.
   const handleUpdate = async (id, statut) => {
-    const label = statut === 'PAYEE' ? "l'acceptation" : 'le refus';
-    if (!window.confirm(`Confirmer ${label} de cette réservation ?`)) return;
+    // 1. Snapshot pour rollback
+    const snapshot = reservations;
+
+    // 2. Mise à jour immédiate de l'UI
+    setReservations(prev =>
+      prev.map(r => r.id === id ? { ...r, statut } : r)
+    );
+
+    // 3. Appel serveur en arrière-plan
     try {
       await updateReservationStatus(id, statut);
-      setToast({ msg: 'Statut mis à jour avec succès', type: 'success' });
-      load();
+      setToast({ msg: 'Statut mis à jour', type: 'success' });
+      // Resync silencieuse pour s'assurer que les données sont à jour
+      load(true);
     } catch {
-      setToast({ msg: 'Erreur — réessayez dans quelques instants.', type: 'error' });
+      // 4. Rollback si erreur
+      setReservations(snapshot);
+      setToast({ msg: 'Erreur — modification annulée.', type: 'error' });
     }
   };
 
