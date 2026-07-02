@@ -10,18 +10,20 @@ import {
   User,
   ArrowRightCircle,
   ArrowLeftCircle,
-  ArrowRight,
-  ArrowUpRight,
   Sparkles,
   Search,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  Brain,
   ShieldCheck,
-  BadgeCheck,
-  Zap,
-  CreditCard,
+  Heart,
+  CheckCircle2,
+  Users,
+  Smile,
+  Star,
+  Lock,
+  Quote,
+  Sprout,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
@@ -40,153 +42,6 @@ const getInitiales = (prenom, nom) => {
   const n = nom?.charAt(0)?.toUpperCase() || '';
   return `${p}${n}` || '?';
 };
-
-/* ------------------------------------------------------------------ */
-/*  Illustration Hero — scène vectorielle : psychologue / patient / outils */
-/* ------------------------------------------------------------------ */
-const HeroIllustration = () => {
-  return (
-    <div className="relative w-full max-w-[560px] mx-auto select-none" aria-hidden="true">
-      <svg viewBox="0 0 560 560" className="w-full h-auto overflow-visible">
-        <defs>
-          <linearGradient id="blobGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#EFF6FF" />
-            <stop offset="100%" stopColor="#DBEAFE" />
-          </linearGradient>
-          <linearGradient id="cardGrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2563EB" />
-            <stop offset="100%" stopColor="#3B82F6" />
-          </linearGradient>
-          <filter id="softShadow" x="-40%" y="-40%" width="180%" height="180%">
-            <feDropShadow dx="0" dy="10" stdDeviation="14" floodColor="#1E3A8A" floodOpacity="0.12" />
-          </filter>
-        </defs>
-
-        <motion.path
-          d="M280 40C400 30 520 110 530 250C540 390 430 500 290 520C150 540 30 450 25 300C20 150 160 50 280 40Z"
-          fill="url(#blobGrad)"
-          animate={{ scale: [1, 1.015, 1] }}
-          transition={{ duration: 8, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ transformOrigin: '280px 280px' }}
-        />
-
-        <ellipse cx="280" cy="470" rx="180" ry="14" fill="#BFDBFE" opacity="0.4" />
-        <rect x="150" y="360" width="260" height="14" rx="7" fill="#1E3A8A" opacity="0.08" />
-
-        <g filter="url(#softShadow)">
-          <rect x="205" y="300" width="150" height="96" rx="10" fill="#0F172A" />
-          <rect x="213" y="308" width="134" height="72" rx="4" fill="#EFF6FF" />
-          <rect x="222" y="317" width="60" height="6" rx="3" fill="#93C5FD" />
-          <rect x="222" y="329" width="90" height="6" rx="3" fill="#BFDBFE" />
-          <circle cx="280" cy="352" r="16" fill="#2563EB" />
-          <path d="M274 352l4 4 8-8" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-          <path d="M195 396h170l10 16H185z" fill="#1E293B" />
-        </g>
-
-        <motion.g animate={{ y: [0, -6, 0] }} transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}>
-          <ellipse cx="170" cy="330" rx="46" ry="58" fill="#2563EB" />
-          <circle cx="170" cy="245" r="34" fill="#FDE9DC" />
-          <path d="M136 240a34 34 0 0168 0v-6c0-20-15-32-34-32s-34 12-34 32z" fill="#1E293B" />
-          <rect x="150" y="298" width="40" height="30" rx="10" fill="white" opacity="0.9" />
-        </motion.g>
-
-        <motion.g
-          animate={{ y: [0, -5, 0] }}
-          transition={{ duration: 5.6, repeat: Infinity, ease: 'easeInOut', delay: 0.4 }}
-        >
-          <ellipse cx="390" cy="335" rx="44" ry="55" fill="#60A5FA" />
-          <circle cx="390" cy="253" r="32" fill="#FBD5C0" />
-          <path d="M358 250a32 32 0 0164 0c0-22-14-36-32-36s-32 14-32 36z" fill="#334155" />
-        </motion.g>
-
-        <motion.g animate={{ y: [0, -10, 0] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}>
-          <rect x="245" y="150" width="72" height="46" rx="16" fill="white" filter="url(#softShadow)" />
-          <circle cx="266" cy="173" r="4" fill="#2563EB" />
-          <circle cx="281" cy="173" r="4" fill="#93C5FD" />
-          <circle cx="296" cy="173" r="4" fill="#93C5FD" />
-        </motion.g>
-
-        <motion.g
-          animate={{ y: [0, 8, 0] }}
-          transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut', delay: 0.6 }}
-        >
-          <rect x="60" y="140" width="90" height="82" rx="16" fill="white" filter="url(#softShadow)" />
-          <rect x="60" y="140" width="90" height="24" rx="16" fill="url(#cardGrad)" />
-          <rect x="76" y="176" width="14" height="14" rx="3" fill="#DBEAFE" />
-          <rect x="98" y="176" width="14" height="14" rx="3" fill="#2563EB" />
-          <rect x="120" y="176" width="14" height="14" rx="3" fill="#DBEAFE" />
-          <rect x="76" y="196" width="14" height="14" rx="3" fill="#DBEAFE" />
-          <rect x="98" y="196" width="14" height="14" rx="3" fill="#DBEAFE" />
-        </motion.g>
-
-        <motion.g
-          animate={{ y: [0, -7, 0], rotate: [0, 1.5, 0] }}
-          transition={{ duration: 5.2, repeat: Infinity, ease: 'easeInOut', delay: 0.2 }}
-          style={{ transformOrigin: '450px 300px' }}
-        >
-          <rect x="415" y="255" width="70" height="94" rx="12" fill="white" filter="url(#softShadow)" />
-          <rect x="423" y="266" width="54" height="70" rx="4" fill="#DBEAFE" />
-          <circle cx="450" cy="253" r="1.6" fill="#94A3B8" />
-          <path d="M438 300a12 12 0 0124 0" stroke="#2563EB" strokeWidth="3" fill="none" strokeLinecap="round" />
-          <circle cx="450" cy="292" r="3" fill="#2563EB" />
-        </motion.g>
-
-        <motion.g
-          animate={{ scale: [1, 1.12, 1] }}
-          transition={{ duration: 2.4, repeat: Infinity, ease: 'easeInOut' }}
-          style={{ transformOrigin: '440px 180px' }}
-        >
-          <circle cx="440" cy="180" r="22" fill="white" filter="url(#softShadow)" />
-          <path d="M440 190s-11-7-11-15a7 7 0 0111-5.5A7 7 0 01451 175c0 8-11 15-11 15z" fill="#2563EB" />
-        </motion.g>
-      </svg>
-    </div>
-  );
-};
-
-/* ------------------------------------------------------------------ */
-/*  Carte profil (Psychologue / Psychiatre)                            */
-/* ------------------------------------------------------------------ */
-const ProfileCard = ({ icon, title, text, delay }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 24 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: '-60px' }}
-    transition={{ duration: 0.6, delay, ease: 'easeOut' }}
-    whileHover={{ y: -4 }}
-    className="group relative bg-white rounded-[28px] p-7 border border-slate-100 shadow-[0_2px_20px_-4px_rgba(15,23,42,0.06)] hover:shadow-[0_20px_40px_-12px_rgba(37,99,235,0.18)] transition-shadow duration-500"
-  >
-    <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 mb-5 group-hover:bg-blue-600 group-hover:text-white transition-colors duration-500">
-      {icon}
-    </div>
-    <h3 className="text-lg font-bold text-slate-900 mb-2 tracking-tight">{title}</h3>
-    <p className="text-[15px] text-slate-500 leading-relaxed mb-6">{text}</p>
-    <button className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:gap-2.5 transition-all">
-      En savoir plus
-      <ArrowUpRight size={16} />
-    </button>
-  </motion.div>
-);
-
-/* ------------------------------------------------------------------ */
-/*  Carte "Pourquoi choisir PsyConnect"                                 */
-/* ------------------------------------------------------------------ */
-const FeatureCard = ({ icon, title, text, delay }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: '-60px' }}
-    transition={{ duration: 0.5, delay, ease: 'easeOut' }}
-    whileHover={{ y: -5 }}
-    className="group bg-white rounded-3xl p-6 border border-slate-100 shadow-[0_2px_16px_-4px_rgba(15,23,42,0.05)] hover:border-blue-200 hover:shadow-[0_16px_32px_-12px_rgba(37,99,235,0.15)] transition-all duration-400"
-  >
-    <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 text-white flex items-center justify-center mb-4 shadow-sm shadow-blue-600/25 group-hover:scale-110 transition-transform duration-400">
-      {icon}
-    </div>
-    <h4 className="text-[15px] font-bold text-slate-900 mb-1.5">{title}</h4>
-    <p className="text-sm text-slate-500 leading-relaxed">{text}</p>
-  </motion.div>
-);
 
 const ListeProfessionnels = () => {
   const [step, setStep] = useState(1);
@@ -373,149 +228,189 @@ const ListeProfessionnels = () => {
       <Header />
       <ToastContainer position="top-right" />
       <main
-        className="max-w-7xl mx-auto px-6 min-h-[70vh]"
+        className="max-w-6xl mx-auto px-6 min-h-[70vh]"
         style={{ fontFamily: "'Poppins', sans-serif" }}
       >
         <AnimatePresence mode="wait">
           {step === 1 && (
             <motion.section
               key="intro"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1, transition: { duration: 0.5 } }}
-              exit={{ opacity: 0, transition: { duration: 0.4 } }}
-              className="relative w-full overflow-hidden bg-white rounded-3xl mt-6"
+              variants={{
+                initial: { opacity: 0, y: 20 },
+                animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: 'easeOut' } },
+                exit: { opacity: 0, y: -20, transition: { duration: 0.4, ease: 'easeIn' } }
+              }}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              className="py-10 space-y-10"
             >
-              {/* Halos dégradés décoratifs */}
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute -top-40 right-[-10%] w-[640px] h-[640px] rounded-full bg-gradient-to-br from-blue-100 via-blue-50 to-transparent blur-3xl opacity-70"
-              />
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute top-[30%] -left-40 w-[420px] h-[420px] rounded-full bg-blue-50 blur-3xl opacity-60"
-              />
+              {/* ---------- Bloc principal : titre + image ---------- */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+                <div>
+                  <span className="inline-flex items-center gap-2 bg-white text-blue-600 text-xs font-semibold px-4 py-2 rounded-full shadow-sm border border-blue-100 mb-5">
+                    <ShieldCheck size={14} />
+                    Plateforme de santé mentale sécurisée
+                  </span>
 
-              <div className="relative px-6 lg:px-10 pt-14 pb-10">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
-                  {/* Colonne texte */}
-                  <div>
-                    <motion.span
-                      initial={{ opacity: 0, y: 12 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.6 }}
-                      className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-[13px] font-semibold px-4 py-2 rounded-full mb-7 border border-blue-100"
-                    >
-                      <Sparkles className="w-3.5 h-3.5" />
-                      Votre santé mentale mérite le meilleur accompagnement
-                    </motion.span>
+                  <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 leading-[1.15] mb-4">
+                    Prenez soin de votre
+                    <br />
+                    <span className="inline-flex items-center gap-2 text-blue-600">
+                      santé mentale
+                      <Heart className="w-8 h-8 sm:w-9 sm:h-9 text-blue-500 fill-blue-100" />
+                    </span>
+                  </h1>
 
-                    <motion.h1
-                      initial={{ opacity: 0, y: 18 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.7, delay: 0.1 }}
-                      className="text-[2.5rem] sm:text-5xl lg:text-[3.4rem] font-extrabold text-slate-900 leading-[1.08] tracking-tight mb-6"
-                    >
-                      Prenez rendez-vous avec un professionnel de santé mentale en toute confiance
-                      <span className="text-blue-600">.</span>
-                    </motion.h1>
-
-                    <motion.p
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.7, delay: 0.2 }}
-                      className="text-[17px] text-slate-500 leading-relaxed max-w-lg mb-9"
-                    >
-                      Discutez avec des psychologues et psychiatres qualifiés, réservez une
-                      consultation en quelques clics et bénéficiez d'un accompagnement sécurisé.
-                    </motion.p>
-
-                    <motion.div
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.7, delay: 0.3 }}
-                    >
-                      <motion.button
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        onClick={() => setStep(2)}
-                        className="group inline-flex items-center gap-2.5 bg-blue-600 text-white font-semibold rounded-2xl px-7 py-4 shadow-lg shadow-blue-600/25 hover:bg-blue-700 hover:shadow-blue-600/35 transition-all duration-300"
-                        aria-label="Découvrir nos professionnels"
-                      >
-                        Découvrir nos professionnels
-                        <ArrowRight className="w-4.5 h-4.5 group-hover:translate-x-1 transition-transform duration-300" />
-                      </motion.button>
-                    </motion.div>
-                  </div>
-
-                  {/* Colonne illustration */}
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.92 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.9, delay: 0.15, ease: 'easeOut' }}
-                  >
-                    <HeroIllustration />
-                  </motion.div>
+                  <p className="text-slate-500 text-base leading-relaxed max-w-md">
+                    PsyConnect vous met en relation avec des professionnels qualifiés, à l'écoute de
+                    vos besoins, pour vous accompagner vers un mieux-être durable.
+                  </p>
                 </div>
 
-                {/* Deux grandes cartes premium */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6 lg:mt-2">
-                  <ProfileCard
-                    icon={<Brain size={24} />}
-                    title="Psychologue"
-                    text="Les psychologues accompagnent les personnes grâce à la thérapie, l'écoute active et des méthodes adaptées pour améliorer le bien-être psychologique."
-                    delay={0.1}
-                  />
-                  <ProfileCard
-                    icon={<Stethoscope size={24} />}
-                    title="Psychiatre"
-                    text="Les psychiatres sont des médecins spécialisés pouvant établir un diagnostic médical, prescrire des traitements et assurer un suivi clinique."
-                    delay={0.2}
-                  />
+                <div className="relative">
+                  <div className="rounded-3xl overflow-hidden shadow-lg aspect-[4/3] bg-gradient-to-br from-blue-100 to-blue-50">
+                    {/* Remplacer par la photo définitive du projet */}
+                    <img
+                      src="https://picsum.photos/id/1027/900/700"
+                      alt="Personne détendue chez elle"
+                      className="w-full h-full object-cover"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                  </div>
+
+                  <div className="absolute left-5 -bottom-6 sm:left-8 sm:-bottom-7 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-4 max-w-[260px] border border-slate-100">
+                    <Quote className="w-5 h-5 text-blue-400 mb-1.5" />
+                    <p className="text-slate-700 text-sm leading-snug">
+                      La santé mentale est aussi importante que la santé physique. Vous n'êtes pas
+                      seul.
+                    </p>
+                    <Heart className="w-4 h-4 text-blue-400 fill-blue-100 ml-auto mt-1" />
+                  </div>
                 </div>
               </div>
 
-              {/* Pourquoi choisir PsyConnect */}
-              <div className="relative px-6 lg:px-10 py-20">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true, margin: '-80px' }}
-                  transition={{ duration: 0.6 }}
-                  className="text-center mb-12"
-                >
-                  <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight mb-3">
-                    Pourquoi choisir <span className="text-blue-600">PsyConnect</span> ?
-                  </h2>
-                  <p className="text-slate-500 text-[15px] max-w-md mx-auto">
-                    Une expérience pensée pour votre tranquillité d'esprit, du premier clic au suivi.
-                  </p>
-                </motion.div>
+              {/* ---------- Comparatif Psychologue / Psychiatre ---------- */}
+              <div className="pt-6">
+                <h2 className="flex items-center justify-center gap-3 text-center text-lg sm:text-xl font-bold text-slate-800 mb-6">
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  Psychologue ou Psychiatre, quelle différence ?
+                  <Sparkles className="w-4 h-4 text-blue-400" />
+                </h2>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-                  <FeatureCard
-                    icon={<ShieldCheck size={20} />}
-                    title="Consultation sécurisée"
-                    text="Vos échanges sont chiffrés et confidentiels, à chaque étape."
-                    delay={0}
-                  />
-                  <FeatureCard
-                    icon={<BadgeCheck size={20} />}
-                    title="Professionnels certifiés"
-                    text="Psychologues et psychiatres vérifiés et diplômés."
-                    delay={0.08}
-                  />
-                  <FeatureCard
-                    icon={<Zap size={20} />}
-                    title="Réservation rapide"
-                    text="Trouvez un créneau adapté en quelques clics, sans attendre."
-                    delay={0.16}
-                  />
-                  <FeatureCard
-                    icon={<CreditCard size={20} />}
-                    title="Paiement sécurisé"
-                    text="Transactions protégées, sans jamais transiter par nos serveurs."
-                    delay={0.24}
-                  />
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+                  {/* Psychologue */}
+                  <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6">
+                    <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
+                      <User className="w-6 h-6 text-purple-600" />
+                    </div>
+                    <h3 className="text-purple-700 font-bold text-lg mb-1">Psychologue</h3>
+                    <p className="text-slate-500 text-sm mb-4">
+                      Spécialiste de l'écoute et de l'accompagnement par la parole.
+                    </p>
+                    <ul className="space-y-2.5 mb-4">
+                      {[
+                        'Formé en psychologie (bac +5 minimum)',
+                        'Accompagnement, thérapies et soutien psychologique',
+                        'Ne prescrit pas de médicaments',
+                      ].map((item) => (
+                        <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
+                          <CheckCircle2 className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="bg-purple-50 rounded-xl p-3 text-xs text-purple-700 leading-relaxed">
+                      <span className="font-semibold">Idéal pour :</span> stress, anxiété, difficultés
+                      émotionnelles, confiance en soi, relations…
+                    </div>
+                  </div>
+
+                  {/* Psychiatre */}
+                  <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+                      <Stethoscope className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <h3 className="text-blue-700 font-bold text-lg mb-1">Psychiatre</h3>
+                    <p className="text-slate-500 text-sm mb-4">
+                      Médecin spécialisé en santé mentale et en troubles psychiatriques.
+                    </p>
+                    <ul className="space-y-2.5 mb-4">
+                      {[
+                        'Médecin spécialiste (bac +10 minimum)',
+                        'Diagnostic médical et suivi thérapeutique',
+                        'Peut prescrire des traitements médicamenteux',
+                      ].map((item) => (
+                        <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
+                          <CheckCircle2 className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
+                          {item}
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700 leading-relaxed">
+                      <span className="font-semibold">Idéal pour :</span> troubles sévères, dépression,
+                      troubles bipolaires, schizophrénie, addictions…
+                    </div>
+                  </div>
+
+                  {/* Pourquoi choisir PsyConnect */}
+                  <div className="bg-blue-600 rounded-2xl shadow-sm p-6 text-white flex flex-col justify-center gap-4">
+                    <h3 className="font-bold text-lg mb-1">Pourquoi choisir PsyConnect ?</h3>
+                    {[
+                      { icon: ShieldCheck, title: 'Professionnels certifiés', desc: 'Des experts qualifiés et vérifiés.' },
+                      { icon: CalendarDays, title: 'Réservation simplifiée', desc: 'Trouvez et réservez en quelques clics.' },
+                      { icon: Lock, title: 'Confidentialité garantie', desc: 'Vos échanges sont 100% sécurisés.' },
+                      { icon: Heart, title: 'À votre rythme', desc: 'Des solutions adaptées à vos besoins.' },
+                    ].map(({ icon: Icon, title, desc }) => (
+                      <div key={title} className="flex items-start gap-3">
+                        <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
+                          <Icon className="w-4.5 h-4.5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{title}</p>
+                          <p className="text-blue-100 text-xs">{desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ---------- Stats + CTA ---------- */}
+              <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 items-stretch">
+                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+                  {[
+                    { icon: Users, value: '350+', label: 'Professionnels certifiés' },
+                    { icon: Smile, value: '12 000+', label: 'Patients accompagnés' },
+                    { icon: Star, value: '4,9/5', label: 'Satisfaction moyenne' },
+                    { icon: ShieldCheck, value: '100%', label: 'Données sécurisées' },
+                  ].map(({ icon: Icon, value, label }) => (
+                    <div key={label} className="flex items-start gap-2.5">
+                      <div className="shrink-0 w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
+                        <Icon className="w-4.5 h-4.5 text-blue-600" />
+                      </div>
+                      <div className="leading-tight">
+                        <p className="font-extrabold text-slate-900 text-lg">{value}</p>
+                        <p className="text-slate-400 text-xs">{label}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="relative overflow-hidden bg-white border border-slate-100 rounded-2xl shadow-sm p-5 flex flex-col justify-center gap-3">
+                  <Sprout className="absolute -bottom-2 -right-2 w-16 h-16 text-blue-50" />
+                  <p className="relative text-slate-800 font-semibold text-sm">
+                    Prêt à commencer votre parcours vers le mieux-être ?
+                  </p>
+                  <motion.button
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => setStep(2)}
+                    className="relative inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold rounded-xl px-5 py-2.5 shadow-md shadow-blue-600/25 hover:bg-blue-700 transition-all w-fit"
+                  >
+                    Découvrir nos professionnels
+                    <ArrowRightCircle className="w-4.5 h-4.5" />
+                  </motion.button>
                 </div>
               </div>
             </motion.section>
