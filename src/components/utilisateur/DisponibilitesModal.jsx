@@ -98,31 +98,14 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
             {/* Header */}
             <div className="relative px-6 sm:px-8 pt-6 pb-5 border-b border-slate-100">
               <motion.button
-  whileHover={{ scale: 1.08, rotate: 90 }}
-  whileTap={{ scale: 0.92 }}
-  onClick={onClose}
-  aria-label="Fermer"
-  className="
-    group
-    absolute top-5 right-5 z-20
-    w-10 h-10
-    rounded-full
-    bg-white
-    border border-slate-200
-    shadow-md
-    flex items-center justify-center
-    transition-all duration-300
-    hover:bg-red-50
-    hover:border-red-200
-    hover:shadow-xl
-  "
->
-  <X
-    size={20}
-    strokeWidth={2.5}
-    className="text-slate-500 group-hover:text-red-500 transition-colors"
-  />
-</motion.button>
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.94 }}
+                onClick={onClose}
+                aria-label="Fermer"
+                className="group absolute top-4 right-4 z-10 shrink-0 w-9 h-9 rounded-full bg-slate-100 border border-slate-300 shadow-sm hover:shadow-md hover:border-red-300 hover:bg-red-50 flex items-center justify-center transition-all duration-300"
+              >
+                <X size={18} strokeWidth={2.5} className="text-slate-600 group-hover:text-red-600 transition-colors duration-300" />
+              </motion.button>
 
               <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 pr-8">
                 <div className="flex items-center gap-4">
@@ -258,7 +241,7 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
                                 <span className="text-sm font-semibold">{formatHeureAvecH(heure)}</span>
                                 <span className="flex items-center gap-1 text-[11px] font-medium">
                                   <Lock size={12} />
-                                  Deja Réservé
+                                  Réservé
                                 </span>
                               </button>
                             );
