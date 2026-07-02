@@ -164,13 +164,13 @@ const Header = () => {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setUserMenuOpen(v => !v)}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-white hover:text-blue-50 transition"
                 >
-                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-50">
-                    <User className="w-3.5 h-3.5" />
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-white/20">
+                    <User className="w-3.5 h-3.5 text-white" />
                   </div>
                   Mon Espace
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-white transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 <AnimatePresence>
