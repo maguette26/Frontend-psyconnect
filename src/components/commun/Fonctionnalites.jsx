@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Stethoscope, BookOpen, Users, Bot, ArrowRight } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Stethoscope, BookOpen, Users, Bot, ArrowRight, LogIn, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { getCurrentUserInfo } from '../../services/serviceAuth';
 
 const fonctionnalites = [
   {
@@ -10,6 +11,7 @@ const fonctionnalites = [
     icon: Stethoscope,
     route: '/reservation',
     cta: 'Voir les professionnels',
+    requiresAuth: true,
   },
   {
     titre: 'Accéder à des ressources',
@@ -17,6 +19,7 @@ const fonctionnalites = [
     icon: BookOpen,
     route: '/ressources',
     cta: 'Explorer les ressources',
+    requiresAuth: true,
   },
   {
     titre: 'Partager avec la communauté',
@@ -24,6 +27,7 @@ const fonctionnalites = [
     icon: Users,
     route: '/forum',
     cta: 'Accéder au forum',
+    requiresAuth: true,
   },
   {
     titre: 'PsyBotAI',
@@ -31,11 +35,30 @@ const fonctionnalites = [
     icon: Bot,
     route: '/chatbot',
     cta: 'Parler à PsyBotAI',
+    requiresAuth: false, // accessible sans connexion
   },
 ];
 
 const Fonctionnalites = () => {
   const navigate = useNavigate();
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const isAuthenticated = () => {
+    try {
+      const profil = getCurrentUserInfo();
+      return !!(profil && profil.token);
+    } catch {
+      return false;
+    }
+  };
+
+  const handleNavigate = (fct) => {
+    if (fct.requiresAuth && !isAuthenticated()) {
+      setAuthModalOpen(true);
+      return;
+    }
+    navigate(fct.route);
+  };
 
   return (
     <section className="mt-12 sm:mt-20 max-w-7xl mx-auto px-4 text-center">
@@ -79,17 +102,75 @@ const Fonctionnalites = () => {
                 {fct.description}
               </p>
 
-              <button
-                onClick={() => navigate(fct.route)}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 hover:gap-2.5 transition-all"
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => handleNavigate(fct)}
+                className="inline-flex items-center gap-2 bg-blue-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl shadow-sm shadow-blue-600/20 hover:bg-blue-700 hover:shadow-md transition-all"
               >
                 {fct.cta}
                 <ArrowRight className="w-4 h-4" />
-              </button>
+              </motion.button>
             </motion.div>
           );
         })}
       </div>
+
+      {/* Modal auth requise */}
+      <AnimatePresence>
+        {authModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4"
+            onClick={() => setAuthModalOpen(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.94, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.94, y: 10 }}
+              transition={{ duration: 0.2 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center relative"
+            >
+              <button
+                onClick={() => setAuthModalOpen(false)}
+                className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Fermer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mx-auto w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-4">
+                <LogIn className="w-7 h-7 text-blue-600" />
+              </div>
+
+              <h3 className="text-lg font-bold text-slate-900 mb-2">
+                Connexion requise
+              </h3>
+              <p className="text-slate-500 text-sm mb-6">
+                Vous devez être connecté pour accéder à cette fonctionnalité.
+              </p>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => navigate('/connexion')}
+                  className="w-full bg-blue-600 text-white font-semibold py-2.5 rounded-xl shadow-sm shadow-blue-600/20 hover:bg-blue-700 transition-colors"
+                >
+                  Se connecter
+                </button>
+                <button
+                  onClick={() => setAuthModalOpen(false)}
+                  className="w-full text-slate-500 font-medium py-2 hover:text-slate-700 transition-colors text-sm"
+                >
+                  Annuler
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   );
 };

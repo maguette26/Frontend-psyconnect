@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Mic, Square, Send } from "lucide-react";
+import api from "../services/api";
+import { getCurrentUserInfo } from "../services/serviceAuth";
 
 const PSYBOT_URL = import.meta.env.VITE_PSYBOT_URL;
 
@@ -144,11 +146,24 @@ function useSpeech(onResult) {
   return { isRecording, supported, start, stop };
 }
 
+const formatTime = (dateLike) => {
+  const d = dateLike ? new Date(dateLike) : new Date();
+  return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+};
+
+const WELCOME_MESSAGE = {
+  id: 1, sender: "bot",
+  text: "Bonjour, je suis PsyBot. Je suis là pour vous écouter et vous accompagner.\n\nComment vous sentez-vous aujourd'hui ?",
+  time: formatTime(),
+};
+
 /* ─────────────────── MAIN CHATBOT ─────────────────── */
 export default function Chatbot() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
   const [userId, setUserId] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
@@ -156,25 +171,66 @@ export default function Chatbot() {
   const { isRecording, supported: micSupported, start: startMic, stop: stopMic } =
     useSpeech((text) => setInput(text));
 
+  // Sync statut auth + userId (même pattern que Forum.jsx)
   useEffect(() => {
-    const sync = () => setUserId(localStorage.getItem("userId"));
+    const sync = () => {
+      setUserId(localStorage.getItem("userId"));
+      try {
+        const profil = getCurrentUserInfo();
+        setIsAuthenticated(!!(profil && profil.token));
+      } catch {
+        setIsAuthenticated(false);
+      }
+    };
     sync();
     window.addEventListener("storage", sync);
     return () => window.removeEventListener("storage", sync);
   }, []);
 
+  // Chargement des messages : historique backend si connecté, sinon localStorage invité
   useEffect(() => {
-    const saved = localStorage.getItem(`psybot_${userId || "guest"}`);
-    setMessages(saved ? JSON.parse(saved) : [{
-      id: 1, sender: "bot",
-      text: "Bonjour, je suis PsyBot. Je suis là pour vous écouter et vous accompagner.\n\nComment vous sentez-vous aujourd'hui ?",
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    }]);
-  }, [userId]);
+    setHistoryLoaded(false);
 
+    const loadGuestMessages = () => {
+      const saved = localStorage.getItem(`psybot_guest`);
+      setMessages(saved ? JSON.parse(saved) : [WELCOME_MESSAGE]);
+      setHistoryLoaded(true);
+    };
+
+    const loadUserHistory = async () => {
+      try {
+        const res = await api.get("/psybot/historique");
+        if (Array.isArray(res.data) && res.data.length > 0) {
+          const mapped = res.data.map(m => ({
+            id: m.id,
+            sender: m.sender,
+            text: m.contenu,
+            time: formatTime(m.dateEnvoi),
+          }));
+          setMessages(mapped);
+        } else {
+          setMessages([WELCOME_MESSAGE]);
+        }
+      } catch (err) {
+        console.error("Erreur chargement historique PsyBot:", err);
+        setMessages([WELCOME_MESSAGE]);
+      } finally {
+        setHistoryLoaded(true);
+      }
+    };
+
+    if (isAuthenticated) {
+      loadUserHistory();
+    } else {
+      loadGuestMessages();
+    }
+  }, [isAuthenticated]);
+
+  // Sauvegarde locale uniquement pour les invités (les connectés sont persistés côté backend)
   useEffect(() => {
-    if (messages.length) localStorage.setItem(`psybot_${userId || "guest"}`, JSON.stringify(messages));
-  }, [messages, userId]);
+    if (!historyLoaded || isAuthenticated) return;
+    if (messages.length) localStorage.setItem(`psybot_guest`, JSON.stringify(messages));
+  }, [messages, isAuthenticated, historyLoaded]);
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
 
@@ -185,18 +241,31 @@ export default function Chatbot() {
     ta.style.height = Math.min(ta.scrollHeight, 130) + "px";
   };
 
+  // Sauvegarde un message côté backend, uniquement si connecté — n'échoue jamais l'UI si erreur
+  const persistMessage = async (sender, contenu) => {
+    if (!isAuthenticated) return;
+    try {
+      await api.post("/psybot/message", { sender, contenu });
+    } catch (err) {
+      console.error("Erreur sauvegarde message PsyBot:", err);
+    }
+  };
+
   const sendMessage = async (textOverride) => {
     const text = (textOverride || input).trim();
     if (!text) return;
     if (isRecording) stopMic();
     const userMsg = {
       id: Date.now(), sender: "user", text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      time: formatTime(),
     };
     setMessages(prev => [...prev, userMsg]);
     setInput("");
     if (textareaRef.current) textareaRef.current.style.height = "auto";
     setIsTyping(true);
+
+    persistMessage("user", text);
+
     try {
       const res = await fetch(`${PSYBOT_URL}/api/chat`, {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -206,17 +275,20 @@ export default function Chatbot() {
       setTimeout(() => {
         setMessages(prev => [...prev, {
           id: Date.now() + 1, sender: "bot", text: data.reply,
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+          time: formatTime(),
         }]);
         setIsTyping(false);
+        persistMessage("bot", data.reply);
       }, 500);
     } catch {
       setIsTyping(false);
+      const errText = "Une erreur est survenue. Veuillez réessayer.";
       setMessages(prev => [...prev, {
         id: Date.now() + 1, sender: "bot",
-        text: "Une erreur est survenue. Veuillez réessayer.",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        text: errText,
+        time: formatTime(),
       }]);
+      persistMessage("bot", errText);
     }
   };
 
@@ -263,6 +335,7 @@ export default function Chatbot() {
           </div>
           <p style={{ margin: 0, fontSize: 12.5, color: "#64748b", lineHeight: 1.5, maxWidth: 480, textAlign: "center" }}>
             Assistant de soutien psychologique — aide à exprimer les émotions, gérer le stress et trouver des ressources adaptées.
+            {!isAuthenticated && " Connectez-vous pour retrouver votre historique de conversations."}
           </p>
         </div>
       </div>

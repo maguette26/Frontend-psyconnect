@@ -35,13 +35,23 @@ const getAuthorInitial = (author, isAnonymous) => {
     return '?';
 };
 
+// FIX: certains backends renvoient dateCreation / createdAt / date selon le DTO.
+// On tente plusieurs clés au lieu de dépendre d'un seul nom de champ.
+const pickDate = (obj, ...keys) => {
+    for (const k of keys) {
+        if (obj?.[k]) return obj[k];
+    }
+    return null;
+};
+
 const formatRelativeTime = (dateTimeString) => {
     if (!dateTimeString) return 'Date inconnue';
     const date = new Date(dateTimeString);
+    if (isNaN(date.getTime())) return 'Date inconnue';
     const now = new Date();
     const seconds = Math.floor((now - date) / 1000);
 
-    if (seconds < 60) return `il y a ${seconds}s`;
+    if (seconds < 60) return `à l'instant`;
     const minutes = Math.floor(seconds / 60);
     if (minutes < 60) return `il y a ${minutes}min`;
     const hours = Math.floor(minutes / 60);
@@ -104,15 +114,26 @@ const Forum = () => {
         fetchSujets();
     };
 
+    // FIX: normalisation des champs date + tri par dernière activité
+    const normalizeSujet = (sujet) => {
+        const dateCreation = pickDate(sujet, 'dateCreation', 'createdAt', 'date');
+        const derniereActivite = pickDate(sujet, 'derniereActivite', 'dateDerniereReponse', 'updatedAt') || dateCreation;
+        return {
+            ...sujet,
+            dateCreation,
+            derniereActivite,
+            reponsesCount: parseInt(sujet.reponsesCount, 10) || 0
+        };
+    };
+
     const fetchSujets = useCallback(async () => {
         setLoading(true);
         setError(null);
         try {
             const data = await getForumSujets();
-            const formattedSujets = data.map(sujet => ({
-                ...sujet,
-                reponsesCount: parseInt(sujet.reponsesCount, 10) || 0
-            }));
+            const formattedSujets = data
+                .map(normalizeSujet)
+                .sort((a, b) => new Date(b.derniereActivite || 0) - new Date(a.derniereActivite || 0));
             setSujets(formattedSujets);
         } catch (err) {
             setError("Impossible de charger les sujets du forum. Veuillez réessayer plus tard.");
@@ -152,7 +173,11 @@ const Forum = () => {
             setErrorReponses(null);
             try {
                 const data = await getForumReponses(selectedTopic.id);
-                setReponses(data);
+                const formatted = data.map(r => ({
+                    ...r,
+                    dateReponse: pickDate(r, 'dateReponse', 'createdAt', 'date')
+                }));
+                setReponses(formatted);
             } catch (err) {
                 setErrorReponses("Impossible de charger les réponses du sujet.");
             } finally {
@@ -178,7 +203,7 @@ const Forum = () => {
 
         try {
             const nouveauSujet = await creerForumSujet(nouveauTitre, nouveauContenu, isSujetAnonyme);
-            setSujets(prev => [{ ...nouveauSujet, reponsesCount: 0 }, ...prev]);
+            setSujets(prev => [normalizeSujet({ ...nouveauSujet, reponsesCount: 0 }), ...prev]);
             setNouveauTitre('');
             setNouveauContenu('');
             setIsSujetAnonyme(false);
@@ -209,16 +234,28 @@ const Forum = () => {
 
         try {
             const nouvelleReponse = await envoyerForumReponse(selectedTopic.id, nouveauMessageReponse, isReponseAnonyme);
-            setReponses(prev => [...prev, nouvelleReponse]);
+            const dateReponse = pickDate(nouvelleReponse, 'dateReponse', 'createdAt', 'date') || new Date().toISOString();
+            setReponses(prev => [...prev, { ...nouvelleReponse, dateReponse }]);
             setNouveauMessageReponse('');
             setIsReponseAnonyme(false);
             setSuccessMessageReponse("Réponse envoyée avec succès !");
             setTimeout(() => setSuccessMessageReponse(null), 3000);
 
+            // FIX: mise à jour optimiste immédiate du compteur + de la dernière activité,
+            // à la fois sur le sujet ouvert et dans la liste, sans attendre le refetch.
             setSelectedTopic(prev => ({
                 ...prev,
-                reponsesCount: (prev.reponsesCount || 0) + 1
+                reponsesCount: (prev.reponsesCount || 0) + 1,
+                derniereActivite: dateReponse
             }));
+            setSujets(prev => prev
+                .map(s => s.id === selectedTopic.id
+                    ? { ...s, reponsesCount: (s.reponsesCount || 0) + 1, derniereActivite: dateReponse }
+                    : s)
+                .sort((a, b) => new Date(b.derniereActivite || 0) - new Date(a.derniereActivite || 0))
+            );
+
+            // Le backend reste la source de vérité : on resynchronise ensuite.
             fetchSujets();
         } catch (err) {
             setErrorReponses(err.response?.data?.message || "Erreur lors de l'envoi de la réponse, certains mots utilisés ne sont pas autorisés dans la réponse. Veuillez reformuler.");
@@ -538,10 +575,10 @@ const Forum = () => {
                                     {!isAuthenticated ? (
                                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
                                             <p className="text-blue-800 mb-3 text-sm">Connectez-vous pour participer à la discussion</p>
-                                            <a
+                                            
                                                 href="/connexion"
                                                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm shadow-blue-600/20"
-                                            >
+                                            <a>
                                                 <UserCircle2 className="w-4 h-4 mr-2" />
                                                 Se connecter
                                             </a>
@@ -695,10 +732,18 @@ const Forum = () => {
                                                     </div>
 
                                                     <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
-                                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full">
-                                                            <MessageSquare className="w-3.5 h-3.5" />
-                                                            {sujet.reponsesCount} réponse{sujet.reponsesCount !== 1 ? 's' : ''}
-                                                        </span>
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full">
+                                                                <MessageSquare className="w-3.5 h-3.5" />
+                                                                {sujet.reponsesCount} réponse{sujet.reponsesCount !== 1 ? 's' : ''}
+                                                            </span>
+                                                            {sujet.derniereActivite && sujet.reponsesCount > 0 && (
+                                                                <span className="inline-flex items-center gap-1.5 bg-slate-50 text-slate-500 text-xs font-medium px-3 py-1 rounded-full">
+                                                                    <Clock className="w-3.5 h-3.5" />
+                                                                    Dernière activité {formatRelativeTime(sujet.derniereActivite)}
+                                                                </span>
+                                                            )}
+                                                        </div>
 
                                                         {sujet.auteur && (isAuthor(sujet.auteur.email) || isAdmin()) && (
                                                             <div className="flex space-x-4">
