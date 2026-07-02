@@ -96,13 +96,13 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
-            <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-slate-100">
-               <motion.button
+            <div className="relative px-6 sm:px-8 pt-6 pb-5 border-b border-slate-100">
+              <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.94 }}
                 onClick={onClose}
                 aria-label="Fermer"
-                className="group shrink-0 flex items-center gap-2 bg-white border border-slate-200 rounded-full pl-2.5 pr-4 py-2 shadow-md hover:shadow-lg hover:border-red-200 hover:bg-red-50 transition-all duration-300"
+                className="group absolute top-4 right-4 sm:top-5 sm:right-6 z-10 shrink-0 flex items-center gap-2 bg-white border border-slate-200 rounded-full pl-2.5 pr-4 py-2 shadow-md hover:shadow-lg hover:border-red-200 hover:bg-red-50 transition-all duration-300"
               >
                 <span className="w-7 h-7 rounded-full bg-slate-50 group-hover:bg-red-100 flex items-center justify-center transition-colors duration-300">
                   <X size={16} className="text-slate-500 group-hover:text-red-500 transition-colors duration-300" />

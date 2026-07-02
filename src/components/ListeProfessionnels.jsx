@@ -27,6 +27,8 @@ import PaymentForm from './utilisateur/PaymentForm';
 import DisponibilitesModal from './utilisateur/DisponibilitesModal';
 import ModalPortal from './ModalPortal';
 
+import heroTherapieImg from '../assets/hero-therapie.png';
+
 const DUREE_CONSULTATION_MINUTES = 45;
 const ITEMS_PER_PAGE = 6;
 
@@ -35,83 +37,6 @@ const getInitiales = (prenom, nom) => {
   const n = nom?.charAt(0)?.toUpperCase() || '';
   return `${p}${n}` || '?';
 };
-
-/* ------------------------------------------------------------------ */
-/* Illustration Hero — scène dessinée, style Headspace / BetterHelp    */
-/* (personne rassurée en consultation, plantes, ordinateur, tons doux) */
-/* ------------------------------------------------------------------ */
-const HeroIllustration = () => (
-  <svg viewBox="0 0 520 460" className="w-full h-auto" role="img" aria-label="Illustration d'une consultation psychologique sereine">
-    <defs>
-      <linearGradient id="blob1" x1="0" y1="0" x2="1" y2="1">
-        <stop offset="0%" stopColor="#DBEAFE" />
-        <stop offset="100%" stopColor="#EFF6FF" />
-      </linearGradient>
-    </defs>
-
-    {/* Fond doux */}
-    <path
-      d="M80 60 C190 -10 400 10 460 110 C520 210 480 340 380 400 C270 465 100 440 50 340 C0 240 -20 130 80 60 Z"
-      fill="url(#blob1)"
-    />
-
-    {/* Petites formes décoratives */}
-    <circle cx="450" cy="90" r="14" fill="#BFDBFE" />
-    <circle cx="60" cy="120" r="9" fill="#93C5FD" />
-    <circle cx="470" cy="330" r="10" fill="#BFDBFE" />
-
-    {/* Bureau / table */}
-    <rect x="150" y="330" width="230" height="14" rx="7" fill="#93C5FD" />
-    <rect x="170" y="344" width="10" height="60" rx="4" fill="#93C5FD" />
-    <rect x="340" y="344" width="10" height="60" rx="4" fill="#93C5FD" />
-
-    {/* Ordinateur portable */}
-    <rect x="220" y="290" width="90" height="58" rx="8" fill="#2563EB" />
-    <rect x="228" y="298" width="74" height="40" rx="4" fill="#EFF6FF" />
-    <rect x="205" y="346" width="120" height="10" rx="5" fill="#1D4ED8" />
-
-    {/* Plante gauche */}
-    <rect x="70" y="360" width="40" height="34" rx="8" fill="#2563EB" />
-    <path d="M90 360 C70 330 60 300 90 280 C100 310 100 335 90 360 Z" fill="#86EFAC" />
-    <path d="M90 360 C110 335 130 310 120 285 C100 305 90 330 90 360 Z" fill="#4ADE80" />
-    <path d="M90 360 C95 335 90 315 75 300 C75 325 80 345 90 360 Z" fill="#22C55E" />
-
-    {/* Plante droite, plus petite */}
-    <rect x="410" y="370" width="30" height="26" rx="7" fill="#1D4ED8" />
-    <path d="M425 370 C412 350 408 330 425 315 C433 335 433 352 425 370 Z" fill="#4ADE80" />
-    <path d="M425 370 C438 350 442 332 428 318 C420 336 420 352 425 370 Z" fill="#86EFAC" />
-
-    {/* Fauteuil du praticien (droite) */}
-    <rect x="330" y="230" width="90" height="70" rx="20" fill="#1D4ED8" />
-    <circle cx="375" cy="205" r="30" fill="#F6C9A0" />
-    <path d="M345 205 C345 180 405 180 405 205 C405 190 395 178 375 178 C355 178 345 190 345 205 Z" fill="#3B2E2A" />
-    <rect x="352" y="232" width="46" height="52" rx="16" fill="#FFFFFF" />
-
-    {/* Personne accompagnée (gauche), posture détendue */}
-    <rect x="120" y="235" width="100" height="72" rx="24" fill="#2563EB" />
-    <circle cx="170" cy="205" r="32" fill="#F4B98A" />
-    <path d="M138 205 C138 175 202 175 202 205 C202 188 190 172 170 172 C150 172 138 188 138 205 Z" fill="#4B3621" />
-    <rect x="150" y="238" width="40" height="46" rx="14" fill="#EFF6FF" />
-
-    {/* Carte flottante « bien-être » */}
-    <g transform="translate(360 60)">
-      <rect x="0" y="0" width="120" height="56" rx="16" fill="#FFFFFF" stroke="#DBEAFE" strokeWidth="2" />
-      <circle cx="26" cy="28" r="12" fill="#DCFCE7" />
-      <path d="M20 28 L24 33 L33 22" stroke="#16A34A" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-      <rect x="48" y="18" width="58" height="8" rx="4" fill="#DBEAFE" />
-      <rect x="48" y="32" width="40" height="7" rx="3.5" fill="#EFF6FF" />
-    </g>
-
-    {/* Petit cœur flottant, à gauche */}
-    <g transform="translate(40 220)">
-      <rect x="0" y="0" width="70" height="70" rx="18" fill="#FFFFFF" stroke="#DBEAFE" strokeWidth="2" />
-      <path
-        d="M35 46 C20 34 22 20 33 20 C36 20 35 25 35 25 C35 25 34 20 37 20 C48 20 50 34 35 46 Z"
-        fill="#60A5FA"
-      />
-    </g>
-  </svg>
-);
 
 const ListeProfessionnels = () => {
   const [step, setStep] = useState(1);
@@ -386,7 +311,11 @@ const ListeProfessionnels = () => {
                   transition={{ duration: 0.7, ease: 'easeOut' }}
                   className="w-full max-w-md mx-auto lg:max-w-none"
                 >
-                  <HeroIllustration />
+                  <img
+                    src={heroTherapieImg}
+                    alt="Consultation entre une patiente et une psychologue dans un cabinet chaleureux"
+                    className="w-full h-auto rounded-3xl shadow-lg object-cover"
+                  />
                 </motion.div>
               </div>
 
