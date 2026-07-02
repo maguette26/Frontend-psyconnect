@@ -4,17 +4,17 @@ import { motion } from 'framer-motion';
 
 const points = [
   {
-    icon: <ShieldCheck className="h-8 w-8 text-indigo-600" />,
+    icon: ShieldCheck,
     titre: "Confidentialité garantie",
     texte: "Vos données et vos échanges sont strictement confidentiels, protégés et sécurisés.",
   },
   {
-    icon: <Heart className="h-8 w-8 text-indigo-600" />,
+    icon: Heart,
     titre: "Approche humaine",
     texte: "Notre mission est de vous accompagner avec bienveillance et respect.",
   },
   {
-    icon: <Headphones className="h-8 w-8 text-indigo-600" />,
+    icon: Headphones,
     titre: "Support réactif",
     texte: "Une équipe disponible pour vous aider à chaque étape.",
   },
@@ -23,27 +23,44 @@ const points = [
 const PourquoiNous = () => {
   return (
     <section className="mt-12 sm:mt-20 max-w-6xl mx-auto px-4 text-center">
-      <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-8 sm:mb-12">
-        Pourquoi choisir PsyConnect ?
-      </h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-10">
-        {points.map((point, index) => (
-          <motion.div
-            key={index}
-            className="bg-white p-6 rounded-xl shadow-md flex flex-col items-center text-center"
-            initial={{ opacity: 0, y: 40 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: index * 0.2 }}
-            viewport={{ once: true }}
-            whileHover={{ scale: 1.03, boxShadow: "0 12px 24px rgba(0,0,0,0.1)" }}
-          >
-            <div className="bg-indigo-50 p-4 rounded-xl mb-4">
-              {point.icon}
-            </div>
-            <h3 className="text-base sm:text-lg font-semibold text-gray-700 mb-2">{point.titre}</h3>
-            <p className="text-sm text-gray-500 leading-relaxed">{point.texte}</p>
-          </motion.div>
-        ))}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+        viewport={{ once: true }}
+        className="mb-10 sm:mb-14"
+      >
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-800 mb-2">
+          Pourquoi choisir PsyConnect ?
+        </h2>
+        <div className="w-12 h-1 bg-blue-600 rounded-full mx-auto mt-4" />
+      </motion.div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
+        {points.map((point, index) => {
+          const Icon = point.icon;
+          return (
+            <motion.div
+              key={point.titre}
+              initial={{ opacity: 0, y: 40 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: index * 0.15 }}
+              viewport={{ once: true }}
+              whileHover={{ y: -4 }}
+              className="bg-white border border-slate-100 p-7 rounded-2xl shadow-sm hover:shadow-xl transition-shadow flex flex-col items-center text-center"
+            >
+              <div className="flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 mb-5">
+                <Icon className="h-8 w-8 text-blue-600" strokeWidth={1.8} />
+              </div>
+              <h3 className="text-base sm:text-lg font-semibold text-slate-800 mb-2">
+                {point.titre}
+              </h3>
+              <p className="text-sm text-slate-500 leading-relaxed">
+                {point.texte}
+              </p>
+            </motion.div>
+          );
+        })}
       </div>
     </section>
   );
