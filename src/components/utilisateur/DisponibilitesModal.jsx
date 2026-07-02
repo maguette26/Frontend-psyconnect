@@ -8,9 +8,7 @@ import {
   Lock,
   CheckCircle2,
   XCircle,
-  ShieldCheck,
-  BadgeCheck,
-  LifeBuoy,
+  ArrowRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import ModalPortal from '../ModalPortal';
@@ -56,19 +54,25 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
     return dt.getTime() < Date.now();
   };
 
-  const legende = [
-    { label: 'Disponible', icon: CheckCircle2, classes: 'bg-green-50 text-green-700 border-green-200' },
-    { label: 'À payer', icon: CreditCard, classes: 'bg-amber-50 text-amber-700 border-amber-200' },
-    { label: 'Réservé', icon: Lock, classes: 'bg-slate-100 text-slate-500 border-slate-200' },
-    { label: 'Indisponible', icon: XCircle, classes: 'bg-slate-50 text-slate-400 border-slate-200' },
-  ];
+  const cardVariants = {
+    hidden: { opacity: 0, scale: 0.9, y: 8 },
+    visible: (i = 0) => ({
+      opacity: 1,
+      scale: 1,
+      y: 0,
+      transition: { duration: 0.35, delay: i * 0.04, ease: 'easeOut' },
+    }),
+  };
 
   if (loading) {
     return (
       <ModalPortal>
-        <div className="fixed inset-0 flex justify-center items-center bg-white bg-opacity-90 z-50">
-          <div className="animate-pulse p-8 rounded-lg shadow-lg bg-gray-100 text-gray-400 text-lg font-semibold">
-            Chargement des disponibilités...
+        <div className="fixed inset-0 flex justify-center items-center bg-white/90 backdrop-blur-sm z-50">
+          <div className="flex flex-col items-center gap-3 px-10 py-8 rounded-3xl shadow-xl bg-white border border-slate-100">
+            <div className="w-8 h-8 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
+            <p className="text-slate-500 text-sm font-semibold tracking-wide">
+              Chargement des disponibilités...
+            </p>
           </div>
         </div>
       </ModalPortal>
@@ -83,66 +87,58 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 flex justify-center items-center z-50 bg-slate-900/40 backdrop-blur-sm px-4"
+          className="fixed inset-0 flex justify-center items-center z-50 bg-slate-900/30 backdrop-blur-md px-3 sm:px-6"
           onClick={onClose}
         >
           <motion.div
             key={`modal-${pro?.id ?? 'unknown'}`}
-            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+            initial={{ scale: 0.94, opacity: 0, y: 16 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 10 }}
-            transition={{ duration: 0.25, ease: 'easeOut' }}
-            className="relative bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[88vh] overflow-hidden flex flex-col"
+            exit={{ scale: 0.94, opacity: 0, y: 16 }}
+            transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden rounded-[30px] border border-white/60 bg-gradient-to-br from-white via-blue-50/40 to-white shadow-[0_30px_80px_-20px_rgba(37,99,235,0.25)] backdrop-blur-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Header */}
-            <div className="px-6 sm:px-8 pt-6 pb-5 border-b border-slate-100">
-              <button
-                onClick={onClose}
-                className="absolute top-5 right-5 sm:top-6 sm:right-6 w-9 h-9 flex items-center justify-center rounded-full border border-slate-200 text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition"
-                aria-label="Fermer"
-              >
-                <X size={18} />
-              </button>
-
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  <div className="shrink-0 w-14 h-14 rounded-full bg-blue-50 border border-blue-100 flex items-center justify-center">
-                    <Stethoscope className="w-7 h-7 text-blue-600" />
-                  </div>
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-tight">
-                      Créneaux disponibles
-                    </h2>
-                    <p className="flex items-center gap-1.5 text-slate-700 font-semibold text-sm mt-0.5">
-                      Dr. {pro?.nom || ''}
-                      <BadgeCheck className="w-4 h-4 text-blue-500" />
-                    </p>
-                    <p className="text-slate-400 text-xs mt-0.5">
-                      Sélectionnez le créneau qui vous convient le mieux
-                    </p>
-                  </div>
+            {/* ------------------------- En-tête ------------------------- */}
+            <div className="sticky top-0 z-10 flex items-center justify-between gap-4 px-6 sm:px-9 py-6 bg-white/70 backdrop-blur-xl border-b border-slate-100/80">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="shrink-0 w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 shadow-lg shadow-blue-500/30 flex items-center justify-center">
+                  <Stethoscope className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-
-                {/* Légende */}
-                <div className="flex flex-wrap gap-2 pr-10 lg:pr-0">
-                  {legende.map(({ label, icon: Icon, classes }) => (
-                    <span
-                      key={label}
-                      className={`inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border ${classes}`}
-                    >
-                      <Icon size={14} />
-                      {label}
-                    </span>
-                  ))}
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-2xl font-bold text-slate-900 tracking-tight truncate">
+                    Disponibilités du Dr {pro?.nom || ''}
+                  </h2>
+                  {pro?.specialite && (
+                    <p className="text-sm font-semibold text-blue-600 tracking-wide">
+                      {pro.specialite}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.94 }}
+                onClick={onClose}
+                aria-label="Fermer"
+                className="group shrink-0 flex items-center gap-2 bg-white border border-slate-200 rounded-full pl-2.5 pr-4 py-2 shadow-md hover:shadow-lg hover:border-red-200 hover:bg-red-50 transition-all duration-300"
+              >
+                <span className="w-7 h-7 rounded-full bg-slate-50 group-hover:bg-red-100 flex items-center justify-center transition-colors duration-300">
+                  <X size={16} className="text-slate-500 group-hover:text-red-500 transition-colors duration-300" />
+                </span>
+                <span className="hidden sm:inline text-sm font-semibold text-slate-600 group-hover:text-red-600 transition-colors duration-300">
+                  Fermer
+                </span>
+              </motion.button>
             </div>
 
-            {/* Corps scrollable */}
-            <div className="overflow-y-auto px-6 sm:px-8 py-6 space-y-5">
+            {/* ------------------------- Corps ------------------------- */}
+            <div className="overflow-y-auto px-6 sm:px-9 py-8 space-y-7">
               {disponibilites.length === 0 ? (
-                <p className="text-center text-slate-400 text-base py-10">Aucune disponibilité trouvée.</p>
+                <p className="text-center text-slate-400 text-base font-medium py-16">
+                  Aucune disponibilité trouvée.
+                </p>
               ) : (
                 disponibilites.map((dispo, idx) => {
                   const sousCreneaux = genererSousCreneaux(dispo);
@@ -151,35 +147,36 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
                   if (sousCreneaux.length === 0 && reservationsActives.length === 0) return null;
 
                   const dateObj = new Date(dispo.date);
-                  const jourSemaine = dateObj.toLocaleDateString('fr-FR', { weekday: 'long' });
-                  const jourNombre = dateObj.toLocaleDateString('fr-FR', { day: 'numeric' });
-                  const moisAnnee = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+                  const dateLocale = dateObj.toLocaleDateString('fr-FR', {
+                    weekday: 'long',
+                    day: 'numeric',
+                    month: 'long',
+                  });
 
                   return (
-                    <section
+                    <motion.section
                       key={`${dispo.date}-${idx}`}
-                      className="bg-slate-50/70 border border-slate-100 rounded-2xl p-4 sm:p-5"
+                      initial={{ opacity: 0, y: 14 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.4, delay: idx * 0.06, ease: 'easeOut' }}
+                      className="rounded-3xl bg-white/80 border border-blue-50 shadow-sm p-5 sm:p-6"
                     >
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="shrink-0 w-11 h-11 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center">
-                            <CalendarDays className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <div className="leading-tight">
-                            <p className="text-blue-600 font-semibold text-sm capitalize">{jourSemaine}</p>
-                            <p className="text-slate-900 font-extrabold text-2xl">{jourNombre}</p>
-                            <p className="text-slate-400 text-xs capitalize">{moisAnnee}</p>
-                          </div>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-5">
+                        <div className="flex items-center gap-2.5">
+                          <CalendarDays className="w-5 h-5 text-blue-600" />
+                          <h3 className="font-bold text-slate-900 text-base sm:text-lg capitalize tracking-tight">
+                            {dateLocale}
+                          </h3>
                         </div>
-                        <div className="flex items-center gap-1.5 text-slate-500 text-sm font-medium">
-                          <Clock size={16} />
-                          <span>
-                            {formatHeureAvecH(dispo.heureDebut)} - {formatHeureAvecH(dispo.heureFin)}
-                          </span>
+                        <div className="flex items-center gap-1.5 text-slate-400 text-sm font-semibold tracking-wide">
+                          <Clock size={15} />
+                          <span>{formatHeureAvecH(dispo.heureDebut)}</span>
+                          <ArrowRight size={13} />
+                          <span>{formatHeureAvecH(dispo.heureFin)}</span>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-3">
+                      <div className="grid grid-cols-2 xs:grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
                         {sousCreneaux.map((heure, i) => {
                           const resvAPayer = reservationsActives.find(
                             (resv) =>
@@ -196,90 +193,89 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
 
                           if (estPasse && !resvAPayer && !estReserve) {
                             return (
-                              <button
+                              <motion.div
                                 key={`indispo-${dispo.id}-${heure}-${i}`}
-                                disabled
-                                className="flex flex-col items-center justify-center gap-1 min-w-[100px] rounded-xl border border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed py-3 px-4"
+                                custom={i}
+                                variants={cardVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-slate-100 bg-slate-50 text-slate-300 py-4 px-3 cursor-not-allowed select-none"
                                 title="Créneau indisponible"
                               >
-                                <span className="text-sm font-semibold">{formatHeureAvecH(heure)}</span>
-                                <span className="flex items-center gap-1 text-[11px] font-medium">
-                                  <XCircle size={12} />
-                                  Indisponible
-                                </span>
-                              </button>
+                                <XCircle size={18} />
+                                <span className="text-sm font-bold tracking-tight">{formatHeureAvecH(heure)}</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wide">Indisponible</span>
+                              </motion.div>
                             );
                           }
 
                           if (resvAPayer) {
                             return (
-                              <button
+                              <motion.button
                                 key={`payer-${resvAPayer.id}`}
+                                custom={i}
+                                variants={cardVariants}
+                                initial="hidden"
+                                animate="visible"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.97 }}
                                 onClick={() => onPayer(resvAPayer.id)}
-                                className="flex flex-col items-center justify-center gap-1 min-w-[100px] rounded-xl border border-amber-200 bg-amber-50 hover:bg-amber-100 text-amber-700 py-3 px-4 transition"
+                                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25 py-4 px-3 transition-shadow duration-300 hover:shadow-xl"
                                 title="Réservation en attente de paiement"
                               >
-                                <span className="text-sm font-semibold">{formatHeureAvecH(heure)}</span>
-                                <span className="flex items-center gap-1 text-[11px] font-medium">
-                                  <CreditCard size={12} />
-                                  À payer
+                                <CreditCard size={18} />
+                                <span className="text-sm font-bold tracking-tight">{formatHeureAvecH(heure)}</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wide text-orange-50">
+                                  Payer
                                 </span>
-                              </button>
+                              </motion.button>
                             );
                           }
 
                           if (estReserve) {
                             return (
-                              <button
+                              <motion.div
                                 key={`reserve-${dispo.id}-${heure}-${i}`}
-                                disabled
-                                className="flex flex-col items-center justify-center gap-1 min-w-[100px] rounded-xl border border-slate-200 bg-slate-100 text-slate-500 cursor-not-allowed py-3 px-4 select-none"
+                                custom={i}
+                                variants={cardVariants}
+                                initial="hidden"
+                                animate="visible"
+                                className="flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-slate-100 text-slate-400 py-4 px-3 cursor-not-allowed select-none"
                                 title="Créneau déjà réservé"
                               >
-                                <span className="text-sm font-semibold">{formatHeureAvecH(heure)}</span>
-                                <span className="flex items-center gap-1 text-[11px] font-medium">
-                                  <Lock size={12} />
-                                  Réservé
-                                </span>
-                              </button>
+                                <Lock size={18} />
+                                <span className="text-sm font-bold tracking-tight">{formatHeureAvecH(heure)}</span>
+                                <span className="text-[11px] font-semibold uppercase tracking-wide">Réservé</span>
+                              </motion.div>
                             );
                           }
 
                           return (
-                            <button
+                            <motion.button
                               key={`libre-${dispo.id}-${heure}-${i}`}
+                              custom={i}
+                              variants={cardVariants}
+                              initial="hidden"
+                              animate="visible"
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.97 }}
                               onClick={() => onReserver(dispo, heure)}
-                              className="flex flex-col items-center justify-center gap-1 min-w-[100px] rounded-xl border border-green-200 bg-green-50 hover:bg-green-100 text-green-700 py-3 px-4 transition"
+                              className="flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/25 py-4 px-3 transition-shadow duration-300 hover:shadow-xl"
                               title="Réserver ce créneau"
                             >
-                              <span className="text-sm font-semibold">{formatHeureAvecH(heure)}</span>
-                              <span className="flex items-center gap-1 text-[11px] font-medium">
-                                <CheckCircle2 size={12} />
+                              <CheckCircle2 size={18} />
+                              <span className="text-sm font-bold tracking-tight">{formatHeureAvecH(heure)}</span>
+                              <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-50">
                                 Disponible
                               </span>
-                            </button>
+                            </motion.button>
                           );
                         })}
                       </div>
-                    </section>
+                    </motion.section>
                   );
                 })
               )}
-            </div>
-
-            {/* Footer */}
-            <div className="px-6 sm:px-8 py-4 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2">
-              <p className="flex items-center gap-2 text-slate-500 text-xs">
-                <ShieldCheck size={16} className="text-blue-500" />
-                Vos données sont sécurisées et vos paiements sont protégés.
-              </p>
-              <a
-                href="#contact"
-                className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-xs font-semibold"
-              >
-                <LifeBuoy size={14} />
-                Besoin d'aide ? Contactez-nous
-              </a>
             </div>
           </motion.div>
         </motion.div>

@@ -1,29 +1,22 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import api from '../services/api';
 import { toast, ToastContainer } from 'react-toastify';
 import {
   UserCheck,
   CalendarDays,
   Filter,
-  HeartPulse,
   Stethoscope,
   User,
   ArrowRightCircle,
   ArrowLeftCircle,
-  Sparkles,
   Search,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
-  ShieldCheck,
-  Heart,
-  CheckCircle2,
-  Users,
-  Smile,
-  Star,
-  Lock,
-  Quote,
-  Sprout,
+  BadgeCheck,
+  MessagesSquare,
+  CalendarCheck2,
+  Leaf,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
@@ -43,6 +36,83 @@ const getInitiales = (prenom, nom) => {
   return `${p}${n}` || '?';
 };
 
+/* ------------------------------------------------------------------ */
+/* Illustration Hero — scène dessinée, style Headspace / BetterHelp    */
+/* (personne rassurée en consultation, plantes, ordinateur, tons doux) */
+/* ------------------------------------------------------------------ */
+const HeroIllustration = () => (
+  <svg viewBox="0 0 520 460" className="w-full h-auto" role="img" aria-label="Illustration d'une consultation psychologique sereine">
+    <defs>
+      <linearGradient id="blob1" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#DBEAFE" />
+        <stop offset="100%" stopColor="#EFF6FF" />
+      </linearGradient>
+    </defs>
+
+    {/* Fond doux */}
+    <path
+      d="M80 60 C190 -10 400 10 460 110 C520 210 480 340 380 400 C270 465 100 440 50 340 C0 240 -20 130 80 60 Z"
+      fill="url(#blob1)"
+    />
+
+    {/* Petites formes décoratives */}
+    <circle cx="450" cy="90" r="14" fill="#BFDBFE" />
+    <circle cx="60" cy="120" r="9" fill="#93C5FD" />
+    <circle cx="470" cy="330" r="10" fill="#BFDBFE" />
+
+    {/* Bureau / table */}
+    <rect x="150" y="330" width="230" height="14" rx="7" fill="#93C5FD" />
+    <rect x="170" y="344" width="10" height="60" rx="4" fill="#93C5FD" />
+    <rect x="340" y="344" width="10" height="60" rx="4" fill="#93C5FD" />
+
+    {/* Ordinateur portable */}
+    <rect x="220" y="290" width="90" height="58" rx="8" fill="#2563EB" />
+    <rect x="228" y="298" width="74" height="40" rx="4" fill="#EFF6FF" />
+    <rect x="205" y="346" width="120" height="10" rx="5" fill="#1D4ED8" />
+
+    {/* Plante gauche */}
+    <rect x="70" y="360" width="40" height="34" rx="8" fill="#2563EB" />
+    <path d="M90 360 C70 330 60 300 90 280 C100 310 100 335 90 360 Z" fill="#86EFAC" />
+    <path d="M90 360 C110 335 130 310 120 285 C100 305 90 330 90 360 Z" fill="#4ADE80" />
+    <path d="M90 360 C95 335 90 315 75 300 C75 325 80 345 90 360 Z" fill="#22C55E" />
+
+    {/* Plante droite, plus petite */}
+    <rect x="410" y="370" width="30" height="26" rx="7" fill="#1D4ED8" />
+    <path d="M425 370 C412 350 408 330 425 315 C433 335 433 352 425 370 Z" fill="#4ADE80" />
+    <path d="M425 370 C438 350 442 332 428 318 C420 336 420 352 425 370 Z" fill="#86EFAC" />
+
+    {/* Fauteuil du praticien (droite) */}
+    <rect x="330" y="230" width="90" height="70" rx="20" fill="#1D4ED8" />
+    <circle cx="375" cy="205" r="30" fill="#F6C9A0" />
+    <path d="M345 205 C345 180 405 180 405 205 C405 190 395 178 375 178 C355 178 345 190 345 205 Z" fill="#3B2E2A" />
+    <rect x="352" y="232" width="46" height="52" rx="16" fill="#FFFFFF" />
+
+    {/* Personne accompagnée (gauche), posture détendue */}
+    <rect x="120" y="235" width="100" height="72" rx="24" fill="#2563EB" />
+    <circle cx="170" cy="205" r="32" fill="#F4B98A" />
+    <path d="M138 205 C138 175 202 175 202 205 C202 188 190 172 170 172 C150 172 138 188 138 205 Z" fill="#4B3621" />
+    <rect x="150" y="238" width="40" height="46" rx="14" fill="#EFF6FF" />
+
+    {/* Carte flottante « bien-être » */}
+    <g transform="translate(360 60)">
+      <rect x="0" y="0" width="120" height="56" rx="16" fill="#FFFFFF" stroke="#DBEAFE" strokeWidth="2" />
+      <circle cx="26" cy="28" r="12" fill="#DCFCE7" />
+      <path d="M20 28 L24 33 L33 22" stroke="#16A34A" strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <rect x="48" y="18" width="58" height="8" rx="4" fill="#DBEAFE" />
+      <rect x="48" y="32" width="40" height="7" rx="3.5" fill="#EFF6FF" />
+    </g>
+
+    {/* Petit cœur flottant, à gauche */}
+    <g transform="translate(40 220)">
+      <rect x="0" y="0" width="70" height="70" rx="18" fill="#FFFFFF" stroke="#DBEAFE" strokeWidth="2" />
+      <path
+        d="M35 46 C20 34 22 20 33 20 C36 20 35 25 35 25 C35 25 34 20 37 20 C48 20 50 34 35 46 Z"
+        fill="#60A5FA"
+      />
+    </g>
+  </svg>
+);
+
 const ListeProfessionnels = () => {
   const [step, setStep] = useState(1);
   const [professionnels, setProfessionnels] = useState([]);
@@ -59,6 +129,8 @@ const ListeProfessionnels = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('nom'); // 'nom' | 'specialite'
   const [currentPage, setCurrentPage] = useState(1);
+
+  const comparatifRef = useRef(null);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -223,6 +295,26 @@ const ListeProfessionnels = () => {
     return <UserCheck className="w-6 h-6 text-blue-600" />;
   };
 
+  // Va à la liste (step 2), en pré-filtrant éventuellement sur une spécialité
+  const allerVersListe = (motCle) => {
+    if (motCle) {
+      const match = specialites.find((s) => s.toLowerCase().includes(motCle));
+      setSelectedSpecialite(match || 'all');
+    }
+    setStep(2);
+  };
+
+  const scrollVersComparatif = () => {
+    comparatifRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const etapes = [
+    { icon: UserCheck, title: 'Choisissez un professionnel', desc: 'Parcourez les profils vérifiés et trouvez celui qui vous correspond.' },
+    { icon: CalendarDays, title: 'Consultez les disponibilités', desc: "Visualisez les créneaux libres en temps réel." },
+    { icon: CalendarCheck2, title: 'Réservez un créneau', desc: "Confirmez votre rendez-vous en quelques clics." },
+    { icon: MessagesSquare, title: 'Échangez avec votre professionnel', desc: 'Votre consultation se déroule en toute confidentialité.' },
+  ];
+
   return (
     <>
       <Header />
@@ -243,174 +335,146 @@ const ListeProfessionnels = () => {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="py-10 space-y-10"
+              className="py-12 space-y-20"
             >
-              {/* ---------- Bloc principal : titre + image ---------- */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+              {/* ---------------------------- HERO ---------------------------- */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
                 <div>
-                  <span className="inline-flex items-center gap-2 bg-white text-blue-600 text-xs font-semibold px-4 py-2 rounded-full shadow-sm border border-blue-100 mb-5">
-                    <ShieldCheck size={14} />
-                    Plateforme de santé mentale sécurisée
+                  <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 text-sm font-medium px-4 py-2 rounded-full mb-6">
+                    <Leaf size={16} />
+                    Prenez soin de votre santé mentale
                   </span>
 
-                  <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 leading-[1.15] mb-4">
-                    Prenez soin de votre
+                  <h1 className="text-4xl sm:text-5xl font-extrabold text-slate-900 leading-[1.2] mb-5">
+                    Vous n'êtes pas seul.
                     <br />
-                    <span className="inline-flex items-center gap-2 text-blue-600">
-                      santé mentale
-                      <Heart className="w-8 h-8 sm:w-9 sm:h-9 text-blue-500 fill-blue-100" />
-                    </span>
+                    <span className="text-blue-600">Des professionnels sont là pour vous accompagner.</span>
                   </h1>
 
-                  <p className="text-slate-500 text-base leading-relaxed max-w-md">
-                    PsyConnect vous met en relation avec des professionnels qualifiés, à l'écoute de
-                    vos besoins, pour vous accompagner vers un mieux-être durable.
+                  <p className="text-slate-500 text-base leading-relaxed max-w-lg mb-8">
+                    Que vous traversiez une période difficile, que vous ressentiez du stress, de
+                    l'anxiété, ou que vous souhaitiez simplement échanger avec un professionnel,
+                    PsyConnect vous permet de prendre rendez-vous facilement avec un psychologue ou
+                    un psychiatre qualifié.
                   </p>
+
+                  <div className="flex flex-wrap gap-4">
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => allerVersListe()}
+                      className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold rounded-2xl px-7 py-3.5 shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition-all"
+                    >
+                      Trouver un professionnel
+                      <ArrowRightCircle className="w-5 h-5" />
+                    </motion.button>
+
+                    <motion.button
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
+                      onClick={scrollVersComparatif}
+                      className="inline-flex items-center justify-center gap-2 bg-white text-slate-700 font-semibold rounded-2xl px-7 py-3.5 border border-slate-200 hover:bg-slate-50 transition-all"
+                    >
+                      Comment choisir ?
+                    </motion.button>
+                  </div>
                 </div>
 
-                <div className="relative">
-                  <div className="rounded-3xl overflow-hidden shadow-lg aspect-[4/3] bg-gradient-to-br from-blue-100 to-blue-50">
-                    {/* Remplacer par la photo définitive du projet */}
-                    <img
-                      src="https://picsum.photos/id/1027/900/700"
-                      alt="Personne détendue chez elle"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  </div>
-
-                  <div className="absolute left-5 -bottom-6 sm:left-8 sm:-bottom-7 bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl p-4 max-w-[260px] border border-slate-100">
-                    <Quote className="w-5 h-5 text-blue-400 mb-1.5" />
-                    <p className="text-slate-700 text-sm leading-snug">
-                      La santé mentale est aussi importante que la santé physique. Vous n'êtes pas
-                      seul.
-                    </p>
-                    <Heart className="w-4 h-4 text-blue-400 fill-blue-100 ml-auto mt-1" />
-                  </div>
-                </div>
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.7, ease: 'easeOut' }}
+                  className="w-full max-w-md mx-auto lg:max-w-none"
+                >
+                  <HeroIllustration />
+                </motion.div>
               </div>
 
-              {/* ---------- Comparatif Psychologue / Psychiatre ---------- */}
-              <div className="pt-6">
-                <h2 className="flex items-center justify-center gap-3 text-center text-lg sm:text-xl font-bold text-slate-800 mb-6">
-                  <Sparkles className="w-4 h-4 text-blue-400" />
-                  Psychologue ou Psychiatre, quelle différence ?
-                  <Sparkles className="w-4 h-4 text-blue-400" />
-                </h2>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-                  {/* Psychologue */}
-                  <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6">
-                    <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
-                      <User className="w-6 h-6 text-purple-600" />
-                    </div>
-                    <h3 className="text-purple-700 font-bold text-lg mb-1">Psychologue</h3>
-                    <p className="text-slate-500 text-sm mb-4">
-                      Spécialiste de l'écoute et de l'accompagnement par la parole.
-                    </p>
-                    <ul className="space-y-2.5 mb-4">
-                      {[
-                        'Formé en psychologie (bac +5 minimum)',
-                        'Accompagnement, thérapies et soutien psychologique',
-                        'Ne prescrit pas de médicaments',
-                      ].map((item) => (
-                        <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-purple-500 mt-0.5 shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="bg-purple-50 rounded-xl p-3 text-xs text-purple-700 leading-relaxed">
-                      <span className="font-semibold">Idéal pour :</span> stress, anxiété, difficultés
-                      émotionnelles, confiance en soi, relations…
-                    </div>
+              {/* ------------------- COMPARATIF PSYCHOLOGUE / PSYCHIATRE ------------------- */}
+              <div ref={comparatifRef} className="grid grid-cols-1 md:grid-cols-2 gap-6 scroll-mt-24">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.5 }}
+                  className="bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow p-8 flex flex-col"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-5">
+                    <User className="w-7 h-7 text-blue-600" />
                   </div>
-
-                  {/* Psychiatre */}
-                  <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-6">
-                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
-                      <Stethoscope className="w-6 h-6 text-blue-600" />
-                    </div>
-                    <h3 className="text-blue-700 font-bold text-lg mb-1">Psychiatre</h3>
-                    <p className="text-slate-500 text-sm mb-4">
-                      Médecin spécialisé en santé mentale et en troubles psychiatriques.
-                    </p>
-                    <ul className="space-y-2.5 mb-4">
-                      {[
-                        'Médecin spécialiste (bac +10 minimum)',
-                        'Diagnostic médical et suivi thérapeutique',
-                        'Peut prescrire des traitements médicamenteux',
-                      ].map((item) => (
-                        <li key={item} className="flex items-start gap-2 text-sm text-slate-600">
-                          <CheckCircle2 className="w-4 h-4 text-blue-500 mt-0.5 shrink-0" />
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="bg-blue-50 rounded-xl p-3 text-xs text-blue-700 leading-relaxed">
-                      <span className="font-semibold">Idéal pour :</span> troubles sévères, dépression,
-                      troubles bipolaires, schizophrénie, addictions…
-                    </div>
-                  </div>
-
-                  {/* Pourquoi choisir PsyConnect */}
-                  <div className="bg-blue-600 rounded-2xl shadow-sm p-6 text-white flex flex-col justify-center gap-4">
-                    <h3 className="font-bold text-lg mb-1">Pourquoi choisir PsyConnect ?</h3>
-                    {[
-                      { icon: ShieldCheck, title: 'Professionnels certifiés', desc: 'Des experts qualifiés et vérifiés.' },
-                      { icon: CalendarDays, title: 'Réservation simplifiée', desc: 'Trouvez et réservez en quelques clics.' },
-                      { icon: Lock, title: 'Confidentialité garantie', desc: 'Vos échanges sont 100% sécurisés.' },
-                      { icon: Heart, title: 'À votre rythme', desc: 'Des solutions adaptées à vos besoins.' },
-                    ].map(({ icon: Icon, title, desc }) => (
-                      <div key={title} className="flex items-start gap-3">
-                        <div className="shrink-0 w-9 h-9 rounded-lg bg-white/15 flex items-center justify-center">
-                          <Icon className="w-4.5 h-4.5" />
-                        </div>
-                        <div>
-                          <p className="font-semibold text-sm">{title}</p>
-                          <p className="text-blue-100 text-xs">{desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-
-              {/* ---------- Stats + CTA ---------- */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-5 items-stretch">
-                <div className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[
-                    { icon: Users, value: '350+', label: 'Professionnels certifiés' },
-                    { icon: Smile, value: '12 000+', label: 'Patients accompagnés' },
-                    { icon: Star, value: '4,9/5', label: 'Satisfaction moyenne' },
-                    { icon: ShieldCheck, value: '100%', label: 'Données sécurisées' },
-                  ].map(({ icon: Icon, value, label }) => (
-                    <div key={label} className="flex items-start gap-2.5">
-                      <div className="shrink-0 w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center">
-                        <Icon className="w-4.5 h-4.5 text-blue-600" />
-                      </div>
-                      <div className="leading-tight">
-                        <p className="font-extrabold text-slate-900 text-lg">{value}</p>
-                        <p className="text-slate-400 text-xs">{label}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="relative overflow-hidden bg-white border border-slate-100 rounded-2xl shadow-sm p-5 flex flex-col justify-center gap-3">
-                  <Sprout className="absolute -bottom-2 -right-2 w-16 h-16 text-blue-50" />
-                  <p className="relative text-slate-800 font-semibold text-sm">
-                    Prêt à commencer votre parcours vers le mieux-être ?
+                  <h3 className="text-slate-900 font-bold text-xl mb-3">Psychologue</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed mb-6 flex-1">
+                    Le psychologue accompagne les personnes grâce à l'écoute, au dialogue et à
+                    différentes approches thérapeutiques. Il aide à mieux comprendre ses émotions,
+                    gérer le stress, l'anxiété, les difficultés personnelles ou relationnelles. Il
+                    ne prescrit pas de médicaments.
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.03 }}
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => setStep(2)}
-                    className="relative inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold rounded-xl px-5 py-2.5 shadow-md shadow-blue-600/25 hover:bg-blue-700 transition-all w-fit"
+                  <button
+                    onClick={() => allerVersListe('psychologue')}
+                    className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold rounded-xl px-5 py-3 hover:bg-blue-700 transition-colors w-fit"
                   >
-                    Découvrir nos professionnels
+                    Choisir un psychologue
                     <ArrowRightCircle className="w-4.5 h-4.5" />
-                  </motion.button>
+                  </button>
+                </motion.div>
+
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true, amount: 0.3 }}
+                  transition={{ duration: 0.5, delay: 0.1 }}
+                  className="bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-md transition-shadow p-8 flex flex-col"
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-blue-50 flex items-center justify-center mb-5">
+                    <Stethoscope className="w-7 h-7 text-blue-600" />
+                  </div>
+                  <h3 className="text-slate-900 font-bold text-xl mb-3">Psychiatre</h3>
+                  <p className="text-slate-500 text-sm leading-relaxed mb-6 flex-1">
+                    Le psychiatre est un médecin spécialisé en santé mentale. Il peut établir un
+                    diagnostic médical, prescrire un traitement si nécessaire et assurer un suivi
+                    clinique. Il intervient notamment dans les situations nécessitant une prise en
+                    charge médicale.
+                  </p>
+                  <button
+                    onClick={() => allerVersListe('psychiatre')}
+                    className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white font-semibold rounded-xl px-5 py-3 hover:bg-blue-700 transition-colors w-fit"
+                  >
+                    Choisir un psychiatre
+                    <ArrowRightCircle className="w-4.5 h-4.5" />
+                  </button>
+                </motion.div>
+              </div>
+
+              {/* --------------------- COMMENT SE DÉROULE LE RENDEZ-VOUS --------------------- */}
+              <div>
+                <div className="text-center mb-10">
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 mb-2">
+                    Comment se déroule votre prise de rendez-vous ?
+                  </h2>
+                  <p className="text-slate-500 text-sm">Un parcours simple, pensé pour vous mettre à l'aise</p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {etapes.map(({ icon: Icon, title, desc }, i) => (
+                    <motion.div
+                      key={title}
+                      initial={{ opacity: 0, y: 20 }}
+                      whileInView={{ opacity: 1, y: 0 }}
+                      viewport={{ once: true, amount: 0.3 }}
+                      transition={{ duration: 0.5, delay: i * 0.1 }}
+                      whileHover={{ y: -4 }}
+                      className="relative bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-md transition-shadow p-6"
+                    >
+                      <span className="absolute top-4 right-5 text-slate-100 font-extrabold text-3xl select-none">
+                        {String(i + 1).padStart(2, '0')}
+                      </span>
+                      <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center mb-4">
+                        <Icon className="w-5.5 h-5.5 text-blue-600" />
+                      </div>
+                      <h3 className="text-slate-900 font-semibold text-sm mb-1.5">{title}</h3>
+                      <p className="text-slate-500 text-xs leading-relaxed">{desc}</p>
+                    </motion.div>
+                  ))}
                 </div>
               </div>
             </motion.section>
@@ -488,10 +552,13 @@ const ListeProfessionnels = () => {
                   professionnelsPage.map((pro) => (
                     <motion.div
                       key={pro.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
                       whileHover={{ y: -6 }}
-                      className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 flex flex-col"
+                      transition={{ duration: 0.35 }}
+                      className="bg-white border border-slate-100 rounded-3xl shadow-sm hover:shadow-xl transition-shadow duration-300 p-6 flex flex-col"
                     >
-                      <div className="flex items-center gap-4 mb-4">
+                      <div className="flex items-center gap-4 mb-3">
                         <div className="shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
                           {getInitiales(pro.prenom, pro.nom)}
                         </div>
@@ -508,8 +575,9 @@ const ListeProfessionnels = () => {
                           {iconSpecialite(pro.specialite)}
                           {pro.specialite}
                         </span>
-                        <span className="inline-flex items-center bg-slate-50 text-slate-400 text-xs font-medium px-2.5 py-1 rounded-full">
-                          Nouveau professionnel
+                        <span className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                          <BadgeCheck size={13} />
+                          Professionnel vérifié
                         </span>
                       </div>
 
