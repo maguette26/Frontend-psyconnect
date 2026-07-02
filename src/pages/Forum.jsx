@@ -1,33 +1,32 @@
 // src/pages/Forum.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import Layout from '../components/commun/Layout'; 
+import Layout from '../components/commun/Layout';
 import { getCurrentUserInfo } from '../services/serviceAuth';
-import { 
-    getForumSujets, 
-    creerForumSujet, 
-    getProfil, 
-    getForumReponses, 
+import {
+    getForumSujets,
+    creerForumSujet,
+    getProfil,
+    getForumReponses,
     envoyerForumReponse,
-    modifierForumSujet,    
-    supprimerForumSujet,   
-    modifierForumReponse,  
-    supprimerForumReponse  
+    modifierForumSujet,
+    supprimerForumSujet,
+    modifierForumReponse,
+    supprimerForumReponse
 } from '../services/serviceUtilisateur';
-import { 
-    MessageSquare, 
-    Clock, 
-    User, 
-    UserCircle2, 
-    Edit, 
-    Trash2, 
-    ChevronLeft, 
-    Send, 
-    Plus, 
-    Check, 
-    X 
+import {
+    MessageSquare,
+    Clock,
+    User,
+    UserCircle2,
+    Edit,
+    Trash2,
+    ChevronLeft,
+    Send,
+    Plus,
+    Check,
+    X
 } from 'lucide-react';
 
-// Fonction utilitaire pour obtenir l'initiale de l'auteur pour l'avatar
 const getAuthorInitial = (author, isAnonymous) => {
     if (isAnonymous) return 'A';
     if (author?.nom) return author.nom.charAt(0).toUpperCase();
@@ -36,7 +35,6 @@ const getAuthorInitial = (author, isAnonymous) => {
     return '?';
 };
 
-// Fonction utilitaire pour formater le temps de manière relative
 const formatRelativeTime = (dateTimeString) => {
     if (!dateTimeString) return 'Date inconnue';
     const date = new Date(dateTimeString);
@@ -124,23 +122,21 @@ const Forum = () => {
     }, []);
 
     useEffect(() => {
-       const fetchAuthStatus = async () => {
-    try {
-        const profilData = getCurrentUserInfo(); // importe depuis serviceAuth
-        
-        if (profilData && profilData.token) {
-            setIsAuthenticated(true);
-            setCurrentUserEmail(profilData.email);
-            setCurrentUserRole(profilData.role);
-            setCurrentUserId(profilData.id);
-        } else {
-            setIsAuthenticated(false);
-            // Supprimer le setError ici — ne pas bloquer l'affichage du forum
-        }
-    } catch (err) {
-        setIsAuthenticated(false);
-    }
-};
+        const fetchAuthStatus = async () => {
+            try {
+                const profilData = getCurrentUserInfo();
+                if (profilData && profilData.token) {
+                    setIsAuthenticated(true);
+                    setCurrentUserEmail(profilData.email);
+                    setCurrentUserRole(profilData.role);
+                    setCurrentUserId(profilData.id);
+                } else {
+                    setIsAuthenticated(false);
+                }
+            } catch (err) {
+                setIsAuthenticated(false);
+            }
+        };
         fetchAuthStatus();
         fetchSujets();
     }, [fetchSujets]);
@@ -218,14 +214,14 @@ const Forum = () => {
             setIsReponseAnonyme(false);
             setSuccessMessageReponse("Réponse envoyée avec succès !");
             setTimeout(() => setSuccessMessageReponse(null), 3000);
-            
+
             setSelectedTopic(prev => ({
                 ...prev,
                 reponsesCount: (prev.reponsesCount || 0) + 1
             }));
             fetchSujets();
         } catch (err) {
-            setErrorReponses(err.response?.data?.message || "Erreur lors de l'envoi de la réponse,certains mots utilisés ne sont pas autorisés dans la réponse. Veuillez reformuler.");
+            setErrorReponses(err.response?.data?.message || "Erreur lors de l'envoi de la réponse, certains mots utilisés ne sont pas autorisés dans la réponse. Veuillez reformuler.");
         }
     };
 
@@ -247,7 +243,7 @@ const Forum = () => {
 
         try {
             await modifierForumSujet(editingSujetId, editingSujetTitre, editingSujetContenu);
-            setSujets(prev => prev.map(s => 
+            setSujets(prev => prev.map(s =>
                 s.id === editingSujetId ? { ...s, titre: editingSujetTitre, contenu: editingSujetContenu } : s
             ));
             setSuccessMessage("Sujet modifié avec succès !");
@@ -292,7 +288,7 @@ const Forum = () => {
 
         try {
             await modifierForumReponse(editingReponseId, editingReponseMessage);
-            setReponses(prev => prev.map(r => 
+            setReponses(prev => prev.map(r =>
                 r.id === editingReponseId ? { ...r, message: editingReponseMessage } : r
             ));
             setSuccessMessageReponse("Réponse modifiée avec succès !");
@@ -311,7 +307,7 @@ const Forum = () => {
                 setSuccessMessageReponse("Réponse supprimée avec succès !");
                 setSujets(prev => prev.map(sujet =>
                     sujet.id === selectedTopic.id
-                        ? { ...sujet, reponsesCount: Math.max(0, (sujet.reponsesCount || 0) - 1 )}
+                        ? { ...sujet, reponsesCount: Math.max(0, (sujet.reponsesCount || 0) - 1) }
                         : sujet
                 ));
                 setTimeout(() => setSuccessMessageReponse(null), 3000);
@@ -323,26 +319,29 @@ const Forum = () => {
 
     return (
         <Layout>
-            <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+            <div className="min-h-screen bg-slate-50 py-10 px-4 sm:px-6 lg:px-8">
                 <div className="max-w-4xl mx-auto">
-                    <div className="mb-8 text-center">
-                        <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl">
+                    <div className="mb-10 text-center">
+                        <span className="inline-flex items-center gap-2 bg-blue-50 text-blue-600 text-xs font-medium px-3 py-1.5 rounded-full mb-4">
+                            Espace communautaire
+                        </span>
+                        <h1 className="text-3xl font-extrabold text-slate-900 sm:text-4xl">
                             Forum Communautaire
                         </h1>
-                        <p className="mt-3 text-xl text-gray-500">
-                            Échangez avec la communauté
+                        <p className="mt-3 text-lg text-slate-500">
+                            Échangez, partagez et soutenez-vous dans un espace bienveillant et anonyme.
                         </p>
                     </div>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-lg border border-red-200 flex items-center">
-                            <X className="w-5 h-5 mr-2" />
+                        <div className="mb-6 p-4 bg-red-50 text-red-700 rounded-xl border border-red-200 flex items-center">
+                            <X className="w-5 h-5 mr-2 shrink-0" />
                             {error}
                         </div>
                     )}
                     {successMessage && (
-                        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-lg border border-green-200 flex items-center">
-                            <Check className="w-5 h-5 mr-2" />
+                        <div className="mb-6 p-4 bg-green-50 text-green-700 rounded-xl border border-green-200 flex items-center">
+                            <Check className="w-5 h-5 mr-2 shrink-0" />
                             {successMessage}
                         </div>
                     )}
@@ -351,33 +350,33 @@ const Forum = () => {
                         <div className="space-y-6">
                             <button
                                 onClick={handleBackToList}
-                                className="flex items-center text-indigo-600 hover:text-indigo-800 transition-colors"
+                                className="flex items-center gap-1 text-blue-600 hover:text-blue-700 font-medium transition-colors"
                             >
-                                <ChevronLeft className="w-5 h-5 mr-1" />
+                                <ChevronLeft className="w-5 h-5" />
                                 Retour aux discussions
                             </button>
 
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                                 {editingSujetId === selectedTopic.id ? (
                                     <form onSubmit={handleUpdateSujet} className="p-6 space-y-4">
-                                        <h2 className="text-xl font-bold text-gray-800">Modifier le sujet</h2>
+                                        <h2 className="text-xl font-bold text-slate-800">Modifier le sujet</h2>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Titre</label>
                                             <input
                                                 type="text"
                                                 value={editingSujetTitre}
                                                 onChange={(e) => setEditingSujetTitre(e.target.value)}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                 required
                                             />
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">Contenu</label>
+                                            <label className="block text-sm font-medium text-slate-700 mb-1">Contenu</label>
                                             <textarea
                                                 rows="4"
                                                 value={editingSujetContenu}
                                                 onChange={(e) => setEditingSujetContenu(e.target.value)}
-                                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                 required
                                             />
                                         </div>
@@ -385,13 +384,13 @@ const Forum = () => {
                                             <button
                                                 type="button"
                                                 onClick={() => setEditingSujetId(null)}
-                                                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                                                className="px-4 py-2 border border-slate-300 rounded-xl text-slate-700 hover:bg-slate-50 transition-colors"
                                             >
                                                 Annuler
                                             </button>
                                             <button
                                                 type="submit"
-                                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium"
                                             >
                                                 Enregistrer
                                             </button>
@@ -400,90 +399,88 @@ const Forum = () => {
                                 ) : (
                                     <div className="p-6">
                                         <div className="flex items-start space-x-4">
-                                            <div className="flex-shrink-0">
-                                                <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                                                    {getAuthorInitial(selectedTopic.auteur, selectedTopic.anonyme)}
-                                                </div>
+                                            <div className="shrink-0 h-11 w-11 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-sm">
+                                                {getAuthorInitial(selectedTopic.auteur, selectedTopic.anonyme)}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center text-sm space-x-2">
-                                                    <span className="font-medium text-gray-900 truncate">
+                                                    <span className="font-medium text-slate-900 truncate">
                                                         {getAuthorDisplayName(selectedTopic.auteur, selectedTopic.anonyme)}
                                                     </span>
-                                                    <span className="text-gray-500 flex items-center">
+                                                    <span className="text-slate-500 flex items-center">
                                                         <Clock className="w-3 h-3 mr-1" />
                                                         {formatRelativeTime(selectedTopic.dateCreation)}
                                                     </span>
                                                 </div>
-                                                <h2 className="mt-1 text-xl font-bold text-gray-900">
+                                                <h2 className="mt-1 text-xl font-bold text-slate-900">
                                                     {selectedTopic.titre}
                                                 </h2>
-                                                <p className="mt-2 text-gray-600 whitespace-pre-line">
+                                                <p className="mt-2 text-slate-600 whitespace-pre-line leading-relaxed">
                                                     {selectedTopic.contenu}
                                                 </p>
                                             </div>
                                         </div>
 
-                                        {(selectedTopic.auteur && (isAuthor(selectedTopic.auteur.email) || isAdmin()) && (
-                                            <div className="mt-4 pt-4 border-t border-gray-100 flex justify-end space-x-4">
+                                        {selectedTopic.auteur && (isAuthor(selectedTopic.auteur.email) || isAdmin()) && (
+                                            <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end space-x-4">
                                                 <button
                                                     onClick={() => handleEditSujetClick(selectedTopic)}
-                                                    className="text-indigo-600 hover:text-indigo-800 flex items-center text-sm"
+                                                    className="text-blue-600 hover:text-blue-700 flex items-center text-sm font-medium"
                                                 >
                                                     <Edit className="w-4 h-4 mr-1" />
                                                     Modifier
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteSujet(selectedTopic.id)}
-                                                    className="text-red-600 hover:text-red-800 flex items-center text-sm"
+                                                    className="text-red-600 hover:text-red-700 flex items-center text-sm font-medium"
                                                 >
                                                     <Trash2 className="w-4 h-4 mr-1" />
                                                     Supprimer
                                                 </button>
                                             </div>
-                                       ) )}
+                                        )}
                                     </div>
                                 )}
                             </div>
 
                             <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                                    <MessageSquare className="w-5 h-5 mr-2 text-indigo-600" />
+                                <h3 className="text-lg font-semibold text-slate-900 flex items-center">
+                                    <MessageSquare className="w-5 h-5 mr-2 text-blue-600" />
                                     Réponses ({reponses.length})
                                 </h3>
 
                                 {loadingReponses ? (
                                     <div className="text-center py-8">
-                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
                                     </div>
                                 ) : reponses.length === 0 ? (
-                                    <div className="bg-white rounded-lg border border-gray-200 p-6 text-center text-gray-500">
+                                    <div className="bg-white rounded-xl border border-slate-100 p-6 text-center text-slate-500">
                                         Aucune réponse pour le moment. Soyez le premier à répondre !
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
                                         {reponses.map(reponse => (
-                                            <div key={reponse.id} className="bg-white rounded-lg shadow-sm border border-gray-200">
+                                            <div key={reponse.id} className="bg-white rounded-xl shadow-sm border border-slate-100">
                                                 {editingReponseId === reponse.id ? (
                                                     <form onSubmit={handleUpdateReponse} className="p-4">
                                                         <textarea
                                                             rows="3"
                                                             value={editingReponseMessage}
                                                             onChange={(e) => setEditingReponseMessage(e.target.value)}
-                                                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                            className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                             required
                                                         />
                                                         <div className="mt-2 flex justify-end space-x-2">
                                                             <button
                                                                 type="button"
                                                                 onClick={() => setEditingReponseId(null)}
-                                                                className="px-3 py-1 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                                                                className="px-3 py-1 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition-colors text-sm"
                                                             >
                                                                 Annuler
                                                             </button>
                                                             <button
                                                                 type="submit"
-                                                                className="px-3 py-1 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                                                                className="px-3 py-1 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
                                                             >
                                                                 Enregistrer
                                                             </button>
@@ -492,45 +489,43 @@ const Forum = () => {
                                                 ) : (
                                                     <div className="p-4">
                                                         <div className="flex items-start space-x-3">
-                                                            <div className="flex-shrink-0">
-                                                                <div className="h-8 w-8 rounded-full bg-orange-100 flex items-center justify-center text-orange-600 font-bold">
-                                                                    {getAuthorInitial(reponse.auteur, reponse.anonyme)}
-                                                                </div>
+                                                            <div className="shrink-0 h-9 w-9 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 flex items-center justify-center text-white font-bold text-sm">
+                                                                {getAuthorInitial(reponse.auteur, reponse.anonyme)}
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <div className="flex items-center text-sm space-x-2">
-                                                                    <span className="font-medium text-gray-900">
+                                                                    <span className="font-medium text-slate-900">
                                                                         {getAuthorDisplayName(reponse.auteur, reponse.anonyme)}
                                                                     </span>
-                                                                    <span className="text-gray-500 flex items-center">
+                                                                    <span className="text-slate-500 flex items-center">
                                                                         <Clock className="w-3 h-3 mr-1" />
                                                                         {formatRelativeTime(reponse.dateReponse)}
                                                                     </span>
                                                                 </div>
-                                                                <p className="mt-1 text-gray-600 whitespace-pre-line">
+                                                                <p className="mt-1 text-slate-600 whitespace-pre-line leading-relaxed">
                                                                     {reponse.message}
                                                                 </p>
                                                             </div>
                                                         </div>
 
-                                                        {(reponse.auteur && (isAuthor(reponse.auteur.email) || isAdmin()) && (
-                                                            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end space-x-4">
+                                                        {reponse.auteur && (isAuthor(reponse.auteur.email) || isAdmin()) && (
+                                                            <div className="mt-3 pt-3 border-t border-slate-100 flex justify-end space-x-4">
                                                                 <button
                                                                     onClick={() => handleEditReponseClick(reponse)}
-                                                                    className="text-indigo-600 hover:text-indigo-800 flex items-center text-xs"
+                                                                    className="text-blue-600 hover:text-blue-700 flex items-center text-xs font-medium"
                                                                 >
                                                                     <Edit className="w-3 h-3 mr-1" />
                                                                     Modifier
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDeleteReponse(reponse.id)}
-                                                                    className="text-red-600 hover:text-red-800 flex items-center text-xs"
+                                                                    className="text-red-600 hover:text-red-700 flex items-center text-xs font-medium"
                                                                 >
                                                                     <Trash2 className="w-3 h-3 mr-1" />
                                                                     Supprimer
                                                                 </button>
                                                             </div>
-                                                       ) )}
+                                                        )}
                                                     </div>
                                                 )}
                                             </div>
@@ -538,14 +533,14 @@ const Forum = () => {
                                     </div>
                                 )}
 
-                                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                                    <h4 className="text-md font-medium text-gray-900 mb-4">Ajouter une réponse</h4>
+                                <div className="bg-white rounded-xl border border-slate-100 p-6">
+                                    <h4 className="text-md font-semibold text-slate-900 mb-4">Ajouter une réponse</h4>
                                     {!isAuthenticated ? (
-                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                            <p className="text-blue-800 mb-2">Connectez-vous pour participer à la discussion</p>
-                                            <a 
-                                                href="/connexion" 
-                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                                            <p className="text-blue-800 mb-3 text-sm">Connectez-vous pour participer à la discussion</p>
+                                            <a
+                                                href="/connexion"
+                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm shadow-blue-600/20"
                                             >
                                                 <UserCircle2 className="w-4 h-4 mr-2" />
                                                 Se connecter
@@ -558,22 +553,22 @@ const Forum = () => {
                                                 placeholder="Écrivez votre réponse ici..."
                                                 value={nouveauMessageReponse}
                                                 onChange={(e) => setNouveauMessageReponse(e.target.value)}
-                                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                 required
                                             />
                                             <div className="flex items-center justify-between">
                                                 <label className="inline-flex items-center">
                                                     <input
                                                         type="checkbox"
-                                                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                        className="h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                                                         checked={isReponseAnonyme}
                                                         onChange={(e) => setIsReponseAnonyme(e.target.checked)}
                                                     />
-                                                    <span className="ml-2 text-sm text-gray-600">Publier anonymement</span>
+                                                    <span className="ml-2 text-sm text-slate-600">Publier anonymement</span>
                                                 </label>
                                                 <button
                                                     type="submit"
-                                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 font-medium shadow-sm shadow-blue-600/20"
                                                 >
                                                     <Send className="w-4 h-4 mr-2" />
                                                     Envoyer
@@ -586,18 +581,18 @@ const Forum = () => {
                         </div>
                     ) : (
                         <div className="space-y-6">
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
                                 <div className="p-6">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center">
-                                        <Plus className="w-5 h-5 mr-2 text-indigo-600" />
+                                    <h2 className="text-xl font-bold text-slate-900 mb-4 flex items-center">
+                                        <Plus className="w-5 h-5 mr-2 text-blue-600" />
                                         Nouvelle discussion
                                     </h2>
                                     {!isAuthenticated ? (
-                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                                            <p className="text-blue-800 mb-2">Connectez-vous pour créer une nouvelle discussion</p>
-                                            <a 
-                                                href="/connexion" 
-                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
+                                            <p className="text-blue-800 mb-3 text-sm">Connectez-vous pour créer une nouvelle discussion</p>
+                                            <a
+                                                href="/connexion"
+                                                className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm shadow-blue-600/20"
                                             >
                                                 <UserCircle2 className="w-4 h-4 mr-2" />
                                                 Se connecter
@@ -606,23 +601,23 @@ const Forum = () => {
                                     ) : (
                                         <form onSubmit={handleSubmitSujet} className="space-y-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Titre</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Titre</label>
                                                 <input
                                                     type="text"
                                                     value={nouveauTitre}
                                                     onChange={(e) => setNouveauTitre(e.target.value)}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     placeholder="Titre de votre discussion"
                                                     required
                                                 />
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Contenu</label>
+                                                <label className="block text-sm font-medium text-slate-700 mb-1">Contenu</label>
                                                 <textarea
                                                     rows="4"
                                                     value={nouveauContenu}
                                                     onChange={(e) => setNouveauContenu(e.target.value)}
-                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                    className="w-full px-4 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     placeholder="Détaillez votre discussion ici..."
                                                     required
                                                 />
@@ -631,15 +626,15 @@ const Forum = () => {
                                                 <label className="inline-flex items-center">
                                                     <input
                                                         type="checkbox"
-                                                        className="h-4 w-4 text-indigo-600 rounded border-gray-300 focus:ring-indigo-500"
+                                                        className="h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
                                                         checked={isSujetAnonyme}
                                                         onChange={(e) => setIsSujetAnonyme(e.target.checked)}
                                                     />
-                                                    <span className="ml-2 text-sm text-gray-600">Publier anonymement</span>
+                                                    <span className="ml-2 text-sm text-slate-600">Publier anonymement</span>
                                                 </label>
                                                 <button
                                                     type="submit"
-                                                    className="inline-flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                                                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 font-medium shadow-sm shadow-blue-600/20"
                                                 >
                                                     <Send className="w-4 h-4 mr-2" />
                                                     Publier
@@ -651,70 +646,68 @@ const Forum = () => {
                             </div>
 
                             <div className="space-y-4">
-                                <h2 className="text-2xl font-bold text-gray-900 flex items-center">
-                                    <MessageSquare className="w-6 h-6 mr-2 text-indigo-600" />
+                                <h2 className="text-2xl font-bold text-slate-900 flex items-center">
+                                    <MessageSquare className="w-6 h-6 mr-2 text-blue-600" />
                                     Discussions récentes
                                 </h2>
 
                                 {loading ? (
                                     <div className="text-center py-12">
-                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mx-auto"></div>
-                                        <p className="mt-4 text-gray-500">Chargement des discussions...</p>
+                                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto"></div>
+                                        <p className="mt-4 text-slate-500">Chargement des discussions...</p>
                                     </div>
                                 ) : sujets.length === 0 ? (
-                                    <div className="bg-white rounded-lg border border-gray-200 p-8 text-center">
-                                        <MessageSquare className="w-10 h-10 mx-auto text-gray-400" />
-                                        <h3 className="mt-4 text-lg font-medium text-gray-900">Aucune discussion</h3>
-                                        <p className="mt-2 text-gray-500">Soyez le premier à lancer une discussion !</p>
+                                    <div className="bg-white rounded-xl border border-slate-100 p-8 text-center">
+                                        <MessageSquare className="w-10 h-10 mx-auto text-slate-400" />
+                                        <h3 className="mt-4 text-lg font-medium text-slate-900">Aucune discussion</h3>
+                                        <p className="mt-2 text-slate-500">Soyez le premier à lancer une discussion !</p>
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
                                         {sujets.map(sujet => (
-                                            <div 
-                                                key={sujet.id} 
-                                                className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow cursor-pointer"
+                                            <div
+                                                key={sujet.id}
+                                                className="bg-white rounded-xl shadow-sm border border-slate-100 hover:shadow-lg hover:border-blue-100 transition-all cursor-pointer"
                                                 onClick={() => setSelectedTopic(sujet)}
                                             >
                                                 <div className="p-6">
                                                     <div className="flex items-start space-x-4">
-                                                        <div className="flex-shrink-0">
-                                                            <div className="h-10 w-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-bold">
-                                                                {getAuthorInitial(sujet.auteur, sujet.anonyme)}
-                                                            </div>
+                                                        <div className="shrink-0 h-11 w-11 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold shadow-sm">
+                                                            {getAuthorInitial(sujet.auteur, sujet.anonyme)}
                                                         </div>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-center text-sm space-x-2">
-                                                                <span className="font-medium text-gray-900">
+                                                                <span className="font-medium text-slate-900">
                                                                     {getAuthorDisplayName(sujet.auteur, sujet.anonyme)}
                                                                 </span>
-                                                                <span className="text-gray-500 flex items-center">
+                                                                <span className="text-slate-500 flex items-center">
                                                                     <Clock className="w-3 h-3 mr-1" />
                                                                     {formatRelativeTime(sujet.dateCreation)}
                                                                 </span>
                                                             </div>
-                                                            <h3 className="mt-1 text-lg font-semibold text-gray-900">
+                                                            <h3 className="mt-1 text-lg font-semibold text-slate-900">
                                                                 {sujet.titre}
                                                             </h3>
-                                                            <p className="mt-2 text-gray-600 line-clamp-2">
+                                                            <p className="mt-2 text-slate-600 line-clamp-2 leading-relaxed">
                                                                 {sujet.contenu}
                                                             </p>
                                                         </div>
                                                     </div>
 
-                                                    <div className="mt-4 pt-4 border-t border-gray-100 flex justify-between items-center">
-                                                        <div className="flex items-center text-sm text-indigo-600">
-                                                            <MessageSquare className="w-4 h-4 mr-1" />
+                                                    <div className="mt-4 pt-4 border-t border-slate-100 flex justify-between items-center">
+                                                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-600 text-xs font-semibold px-3 py-1 rounded-full">
+                                                            <MessageSquare className="w-3.5 h-3.5" />
                                                             {sujet.reponsesCount} réponse{sujet.reponsesCount !== 1 ? 's' : ''}
-                                                        </div>
+                                                        </span>
 
-                                                        {(sujet.auteur && (isAuthor(sujet.auteur.email) || isAdmin())) && (
+                                                        {sujet.auteur && (isAuthor(sujet.auteur.email) || isAdmin()) && (
                                                             <div className="flex space-x-4">
                                                                 <button
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         handleEditSujetClick(sujet);
                                                                     }}
-                                                                    className="text-indigo-600 hover:text-indigo-800 flex items-center text-sm"
+                                                                    className="text-blue-600 hover:text-blue-700 flex items-center text-sm font-medium"
                                                                 >
                                                                     <Edit className="w-4 h-4 mr-1" />
                                                                     Modifier
@@ -724,7 +717,7 @@ const Forum = () => {
                                                                         e.stopPropagation();
                                                                         handleDeleteSujet(sujet.id);
                                                                     }}
-                                                                    className="text-red-600 hover:text-red-800 flex items-center text-sm"
+                                                                    className="text-red-600 hover:text-red-700 flex items-center text-sm font-medium"
                                                                 >
                                                                     <Trash2 className="w-4 h-4 mr-1" />
                                                                     Supprimer

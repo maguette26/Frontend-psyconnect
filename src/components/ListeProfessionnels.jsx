@@ -10,6 +10,7 @@ import {
   User,
   ArrowRightCircle,
   ArrowLeftCircle,
+  Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
@@ -21,6 +22,12 @@ import DisponibilitesModal from './utilisateur/DisponibilitesModal';
 import ModalPortal from './ModalPortal';
 
 const DUREE_CONSULTATION_MINUTES = 45;
+
+const getInitiales = (prenom, nom) => {
+  const p = prenom?.charAt(0)?.toUpperCase() || '';
+  const n = nom?.charAt(0)?.toUpperCase() || '';
+  return `${p}${n}` || '?';
+};
 
 const ListeProfessionnels = () => {
   const [step, setStep] = useState(1);
@@ -76,14 +83,12 @@ const ListeProfessionnels = () => {
       const maintenant = new Date();
 
       const disponibilitesFiltreesEtTriees = res.data
-        // Supprimer les dispos dont la fin est déjà passée
         .filter(dispo => {
           const [hEnd, mEnd] = dispo.heureFin.split(':').map(Number);
           const finDispo = new Date(dispo.date);
           finDispo.setHours(hEnd, mEnd, 0, 0);
           return finDispo > maintenant;
         })
-        // Trier du plus proche au plus lointain
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
       setDisponibilites(disponibilitesFiltreesEtTriees);
@@ -158,11 +163,11 @@ const ListeProfessionnels = () => {
   };
 
   const iconSpecialite = (specialite) => {
-    if (!specialite) return <UserCheck className="w-7 h-7 text-indigo-500" />;
+    if (!specialite) return <UserCheck className="w-6 h-6 text-blue-600" />;
     const s = specialite.toLowerCase();
-    if (s.includes('psychiatre')) return <Stethoscope className="w-7 h-7 text-indigo-500" />;
-    if (s.includes('psychologue')) return <User className="w-7 h-7 text-indigo-500" />;
-    return <UserCheck className="w-7 h-7 text-indigo-500" />;
+    if (s.includes('psychiatre')) return <Stethoscope className="w-6 h-6 text-blue-600" />;
+    if (s.includes('psychologue')) return <User className="w-6 h-6 text-blue-600" />;
+    return <UserCheck className="w-6 h-6 text-blue-600" />;
   };
 
   return (
@@ -185,55 +190,66 @@ const ListeProfessionnels = () => {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="relative w-full min-h-[38vh] text-center px-8 py-6 bg-gradient-to-tr from-indigo-50 via-indigo-100 to-white overflow-hidden flex flex-col justify-center"
+              className="relative w-full min-h-[42vh] text-center px-8 py-10 bg-gradient-to-br from-blue-50 via-blue-50/60 to-white overflow-hidden flex flex-col justify-center rounded-3xl mt-6"
             >
               <div
                 aria-hidden="true"
-                className="absolute -top-28 -left-28 w-80 h-80 bg-indigo-300 rounded-full opacity-25 filter blur-3xl animate-blob"
+                className="absolute -top-28 -left-28 w-80 h-80 bg-blue-200 rounded-full opacity-30 filter blur-3xl"
               />
               <div
                 aria-hidden="true"
-                className="absolute -bottom-32 -right-24 w-96 h-96 bg-indigo-400 rounded-full opacity-20 filter blur-3xl animate-blob animation-delay-4000"
+                className="absolute -bottom-32 -right-24 w-96 h-96 bg-blue-300 rounded-full opacity-20 filter blur-3xl"
               />
 
-              <h1 className="relative text-3xl font-extrabold text-indigo-900 mb-3 leading-snug tracking-tight drop-shadow-md">
-                Bienvenue sur <span className="text-indigo-600">PsyConnect</span>
+              <span className="relative inline-flex items-center gap-2 bg-white text-blue-600 text-xs font-semibold px-3 py-1.5 rounded-full mb-4 mx-auto shadow-sm">
+                <Sparkles className="w-3.5 h-3.5" />
+                Nos professionnels
+              </span>
+
+              <h1 className="relative text-3xl font-extrabold text-slate-900 mb-3 leading-snug tracking-tight">
+                Bienvenue sur <span className="text-blue-600">PsyConnect</span>
               </h1>
-              <h2 className="relative text-base italic text-indigo-700 mb-6 max-w-xl mx-auto drop-shadow-sm">
+              <h2 className="relative text-base text-slate-600 mb-8 max-w-xl mx-auto">
                 Votre passerelle vers des professionnels de santé mentale qualifiés et à l'écoute.
               </h2>
 
-              <div className="max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 text-left mb-6">
-                <div className="flex items-start gap-4">
-                  <HeartPulse className="w-8 h-8 text-indigo-500 mt-1" />
+              <div className="relative max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 text-left mb-6">
+                <div className="flex items-start gap-4 bg-white/70 backdrop-blur-sm rounded-2xl p-5">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-100 shrink-0">
+                    <HeartPulse className="w-6 h-6 text-blue-600" />
+                  </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-indigo-700 mb-1">Psychologues</h3>
-                    <p className="text-gray-700 text-sm leading-relaxed max-w-sm">
-                      Professionnels formés à l'écoute et à l'accompagnement par la parole, ils vous aident à surmonter vos difficultés à travers des thérapies adaptées, sans prescription médicale.
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">Psychologues</h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Professionnels formés à l'écoute et à l'accompagnement par la parole, ils vous aident à surmonter vos difficultés à travers des thérapies adaptées.
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4">
-                  <Stethoscope className="w-8 h-8 text-indigo-500 mt-1" />
+                <div className="flex items-start gap-4 bg-white/70 backdrop-blur-sm rounded-2xl p-5">
+                  <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-100 shrink-0">
+                    <Stethoscope className="w-6 h-6 text-blue-600" />
+                  </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-indigo-700 mb-1">Psychiatres</h3>
-                    <p className="text-gray-700 text-sm leading-relaxed max-w-sm">
-                      Médecins spécialisés en santé mentale, capables de poser un diagnostic médical, prescrire des traitements et assurer un suivi global pour votre bien-être.
+                    <h3 className="text-lg font-bold text-slate-800 mb-1">Psychiatres</h3>
+                    <p className="text-slate-600 text-sm leading-relaxed">
+                      Médecins spécialisés en santé mentale, capables de poser un diagnostic médical, prescrire des traitements et assurer un suivi global.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="flex justify-center">
-                <button
+              <div className="relative flex justify-center">
+                <motion.button
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
                   onClick={() => setStep(2)}
-                  className="mt-6 relative inline-flex items-center justify-center gap-3 bg-gradient-to-r from-purple-500 via-indigo-600 to-indigo-700 text-white font-semibold rounded-full px-10 py-3 shadow-md hover:shadow-indigo-700 transition-all duration-300 active:scale-95"
+                  className="inline-flex items-center justify-center gap-3 bg-blue-600 text-white font-semibold rounded-xl px-8 py-3.5 shadow-lg shadow-blue-600/25 hover:bg-blue-700 transition-all"
                   aria-label="Découvrir nos professionnels"
                 >
                   Découvrir nos professionnels
                   <ArrowRightCircle className="w-5 h-5" />
-                </button>
+                </motion.button>
               </div>
             </motion.section>
           )}
@@ -245,20 +261,23 @@ const ListeProfessionnels = () => {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="px-4"
+              className="px-2 py-8"
             >
-              <div className="flex flex-col md:flex-row items-center md:items-start justify-between mb-8 gap-6">
-                <h2 className="text-4xl font-extrabold text-indigo-800">
-                  Nos professionnels certifiés
-                </h2>
+              <div className="flex flex-col md:flex-row items-center md:items-start justify-between mb-10 gap-6">
+                <div>
+                  <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-1">
+                    Nos professionnels certifiés
+                  </h2>
+                  <p className="text-slate-500 text-sm">Des experts qualifiés pour vous accompagner</p>
+                </div>
 
                 <div className="flex flex-wrap gap-4 items-center">
-                  <div className="flex items-center gap-3 bg-indigo-50 rounded-md px-4 py-2 border border-indigo-200 shadow-sm">
-                    <Filter className="text-indigo-600 w-6 h-6" />
+                  <div className="flex items-center gap-2.5 bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-sm">
+                    <Filter className="text-blue-600 w-5 h-5" />
                     <select
                       value={selectedSpecialite}
                       onChange={(e) => setSelectedSpecialite(e.target.value)}
-                      className="appearance-none bg-transparent border-none focus:ring-0 text-indigo-700 font-semibold cursor-pointer"
+                      className="appearance-none bg-transparent border-none focus:ring-0 text-slate-700 font-medium text-sm cursor-pointer"
                       aria-label="Filtrer par spécialité"
                     >
                       <option value="all">Toutes les spécialités</option>
@@ -272,36 +291,48 @@ const ListeProfessionnels = () => {
 
               {error && <p className="text-red-600 text-center mb-4">{error}</p>}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
                 {professionnelsFiltres.length === 0 ? (
-                  <p className="col-span-full text-center text-gray-600 italic">
+                  <p className="col-span-full text-center text-slate-500 italic py-8">
                     Aucun professionnel ne correspond à cette spécialité.
                   </p>
                 ) : (
                   professionnelsFiltres.map((pro) => (
-                    <div
+                    <motion.div
                       key={pro.id}
-                      className="bg-white border border-gray-200 rounded-xl shadow-md hover:shadow-xl transition p-6 flex flex-col justify-between"
+                      whileHover={{ y: -4 }}
+                      className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-xl transition-shadow p-6 flex flex-col"
                     >
-                      <div>
-                        <div className="flex items-center gap-3 mb-3">
-                          {iconSpecialite(pro.specialite)}
-                          <h3 className="text-xl font-semibold text-gray-900 select-text">
-                            Docteur {pro.prenom} {pro.nom}
-                          </h3>
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className="shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                          {getInitiales(pro.prenom, pro.nom)}
                         </div>
-                        <p className="text-gray-700 text-sm mb-6 font-medium tracking-wide">
-                          Spécialité : <span className="font-semibold text-indigo-700">{pro.specialite}</span>
-                        </p>
+                        <div>
+                          <h3 className="text-base font-bold text-slate-900 leading-tight">
+                            Dr. {pro.prenom} {pro.nom}
+                          </h3>
+                          <p className="text-sm text-slate-500">{pro.specialite}</p>
+                        </div>
                       </div>
+
+                      <div className="flex items-center gap-2 mb-5">
+                        <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
+                          {iconSpecialite(pro.specialite)}
+                          {pro.specialite}
+                        </span>
+                        <span className="inline-flex items-center bg-slate-50 text-slate-400 text-xs font-medium px-2.5 py-1 rounded-full">
+                          Nouveau professionnel
+                        </span>
+                      </div>
+
                       <button
                         onClick={() => fetchDisponibilites(pro.id)}
-                        className="mt-auto px-5 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center gap-3 font-semibold transition-shadow shadow-md active:scale-95"
+                        className="mt-auto px-5 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2.5 font-semibold transition-colors shadow-sm shadow-blue-600/20 active:scale-95"
                       >
-                        <CalendarDays className="w-5 h-5" />
-                        Voir Disponibilités
+                        <CalendarDays className="w-4.5 h-4.5" />
+                        Voir les disponibilités
                       </button>
-                    </div>
+                    </motion.div>
                   ))
                 )}
               </div>
@@ -309,7 +340,7 @@ const ListeProfessionnels = () => {
               <div className="flex justify-center">
                 <button
                   onClick={() => setStep(1)}
-                  className="mt-8 relative inline-flex items-center justify-center gap-4 bg-indigo-700 hover:bg-indigo-800 text-white font-semibold rounded-full px-12 py-4 shadow-lg hover:shadow-indigo-600 transition-all duration-300 active:scale-95"
+                  className="inline-flex items-center justify-center gap-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl px-8 py-3 transition-all active:scale-95"
                   aria-label="Retour à l'introduction"
                 >
                   <ArrowLeftCircle className="w-5 h-5" />
@@ -340,7 +371,7 @@ const ListeProfessionnels = () => {
             >
               <div
                 onClick={(e) => e.stopPropagation()}
-                className="p-6 bg-white rounded shadow-lg max-w-md w-full max-h-screen overflow-auto"
+                className="p-6 bg-white rounded-2xl shadow-xl max-w-md w-full max-h-screen overflow-auto"
               >
                 <PaymentForm
                   reservationId={reservationIdPourPaiement}

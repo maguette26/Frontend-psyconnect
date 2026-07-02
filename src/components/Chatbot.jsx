@@ -4,7 +4,7 @@ const PSYBOT_URL = import.meta.env.VITE_PSYBOT_URL;
 
 /* ─────────────────── AVATARS ─────────────────── */
 const BotAvatar = () => (
-  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #a5f3fc 0%, #38bdf8 50%, #6366f1 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(99,102,241,0.25)" }}>
+  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, boxShadow: "0 2px 8px rgba(37,99,235,0.3)" }}>
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <rect x="3" y="11" width="18" height="10" rx="2" />
       <circle cx="12" cy="5" r="2" />
@@ -16,8 +16,8 @@ const BotAvatar = () => (
 );
 
 const UserAvatar = () => (
-  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #e0e7ff, #c7d2fe)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+  <div style={{ width: 34, height: 34, borderRadius: "50%", background: "linear-gradient(135deg, #DBEAFE, #BFDBFE)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563EB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
       <circle cx="12" cy="7" r="4" />
     </svg>
@@ -101,7 +101,7 @@ const Message = ({ msg, onDelete, onEdit }) => {
         {!isUser && <div style={{ marginBottom: editing ? 54 : 30 }}><BotAvatar /></div>}
         <div style={{ display: "flex", flexDirection: "column", alignItems: isUser ? "flex-end" : "flex-start" }}>
           {editing ? (
-            <div style={{ background: "#fff", border: "2px solid #6366f1", borderRadius: 14, padding: 12, minWidth: 240 }}>
+            <div style={{ background: "#fff", border: "2px solid #2563EB", borderRadius: 14, padding: 12, minWidth: 240 }}>
               <textarea ref={editRef} value={editText}
                 onChange={e => { setEditText(e.target.value); e.target.style.height = "auto"; e.target.style.height = e.target.scrollHeight + "px"; }}
                 onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); } if (e.key === "Escape") setEditing(false); }}
@@ -271,7 +271,7 @@ export default function Chatbot() {
       <div style={{ borderBottom: "1px solid #f1f5f9", padding: "14px 24px", background: "#fff" }}>
         <div style={{ maxWidth: 740, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
           <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #a5f3fc, #38bdf8, #6366f1)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(99,102,241,0.3)" }}>
+            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(37,99,235,0.35)" }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" />
                 <circle cx="8.5" cy="15.5" r="1.5" fill="white" stroke="none" /><circle cx="15.5" cy="15.5" r="1.5" fill="white" stroke="none" />
@@ -296,7 +296,7 @@ export default function Chatbot() {
             {suggestions.map((s, i) => (
               <button key={i} onClick={() => sendMessage(s)}
                 style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 22, padding: "8px 16px", fontSize: 13, color: "#475569", cursor: "pointer", transition: "all 0.18s", fontFamily: "inherit" }}
-                onMouseEnter={e => { e.currentTarget.style.background = "#eef2ff"; e.currentTarget.style.borderColor = "#c7d2fe"; e.currentTarget.style.color = "#4f46e5"; }}
+                onMouseEnter={e => { e.currentTarget.style.background = "#EFF6FF"; e.currentTarget.style.borderColor = "#BFDBFE"; e.currentTarget.style.color = "#2563EB"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; }}>
                 {s}
               </button>
@@ -321,11 +321,10 @@ export default function Chatbot() {
         <div ref={bottomRef} />
       </div>
 
-      {/* ── INPUT ZONE (unique, propre) ── */}
+      {/* ── INPUT ZONE ── */}
       <div style={{ borderTop: "1px solid #f1f5f9", padding: "10px 16px 18px", background: "#fff" }}>
         <div style={{ maxWidth: 740, margin: "0 auto" }}>
 
-          {/* Bandeau enregistrement */}
           {isRecording && (
             <div style={{ display: "flex", alignItems: "center", gap: 10, background: "#fff1f2", border: "1px solid #fecaca", borderRadius: 12, padding: "7px 14px", marginBottom: 8, animation: "psySlideIn 0.2s ease" }}>
               <div style={{ display: "flex", gap: 3, alignItems: "center", height: 20 }}>
@@ -342,9 +341,8 @@ export default function Chatbot() {
             </div>
           )}
 
-          {/* Barre de saisie */}
           <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: "8px 10px", transition: "border-color 0.2s, box-shadow 0.2s" }}
-            onFocusCapture={e => { e.currentTarget.style.borderColor = "#a5b4fc"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(165,180,252,0.15)"; }}
+            onFocusCapture={e => { e.currentTarget.style.borderColor = "#93C5FD"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
             onBlurCapture={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}>
 
             <textarea
@@ -359,7 +357,6 @@ export default function Chatbot() {
 
             <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
 
-              {/* BOUTON MICROPHONE */}
               {micSupported && (
                 <button
                   className={`mic-btn${isRecording ? " active" : ""}`}
@@ -380,7 +377,6 @@ export default function Chatbot() {
                 </button>
               )}
 
-              {/* BOUTON ENVOYER */}
               <button
                 className="send-btn"
                 onClick={() => sendMessage()}
@@ -389,12 +385,12 @@ export default function Chatbot() {
                 style={{
                   width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
                   border: "none",
-                  background: input.trim() ? "linear-gradient(135deg, #6366f1, #4f46e5)" : "#e2e8f0",
+                  background: input.trim() ? "linear-gradient(135deg, #3b82f6, #2563EB)" : "#e2e8f0",
                   color: input.trim() ? "#fff" : "#94a3b8",
                   cursor: input.trim() ? "pointer" : "not-allowed",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "all 0.2s",
-                  boxShadow: input.trim() ? "0 2px 10px rgba(99,102,241,0.4)" : "none",
+                  boxShadow: input.trim() ? "0 2px 10px rgba(37,99,235,0.4)" : "none",
                 }}>
                 <IconSend />
               </button>
