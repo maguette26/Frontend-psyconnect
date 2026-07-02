@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Mic, Square, Send } from "lucide-react";
 
 const PSYBOT_URL = import.meta.env.VITE_PSYBOT_URL;
 
@@ -31,29 +32,6 @@ const TypingDots = () => (
       <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: "#94a3b8", animation: `psyDot 1.3s ease-in-out ${i * 0.22}s infinite` }} />
     ))}
   </div>
-);
-
-/* ─────────────────── ICONS ─────────────────── */
-const IconMic = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="2" width="6" height="12" rx="3" />
-    <path d="M5 10a7 7 0 0 0 14 0" />
-    <line x1="12" y1="19" x2="12" y2="22" />
-    <line x1="8" y1="22" x2="16" y2="22" />
-  </svg>
-);
-
-const IconStop = () => (
-  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <rect x="4" y="4" width="16" height="16" rx="2" />
-  </svg>
-);
-
-const IconSend = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="22" y1="2" x2="11" y2="13" />
-    <polygon points="22 2 15 22 11 13 2 9 22 2" />
-  </svg>
 );
 
 /* ─────────────────── ACTION BUTTON ─────────────────── */
@@ -373,7 +351,7 @@ export default function Chatbot() {
                     animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
                     boxShadow: isRecording ? "0 2px 10px rgba(239,68,68,0.4)" : "none",
                   }}>
-                  {isRecording ? <IconStop /> : <IconMic />}
+                  {isRecording ? <Square size={15} fill="currentColor" /> : <Mic size={17} strokeWidth={2.2} />}
                 </button>
               )}
 
@@ -392,7 +370,7 @@ export default function Chatbot() {
                   transition: "all 0.2s",
                   boxShadow: input.trim() ? "0 2px 10px rgba(37,99,235,0.4)" : "none",
                 }}>
-                <IconSend />
+                <Send size={16} strokeWidth={2.2} />
               </button>
 
             </div>

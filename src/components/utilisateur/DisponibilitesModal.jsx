@@ -39,7 +39,7 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
     return (
       <ModalPortal>
         <div className="fixed inset-0 flex justify-center items-center bg-white bg-opacity-90 z-50">
-          <div className="animate-pulse p-8 rounded-lg shadow-lg bg-gray-100 text-gray-400 text-lg font-semibold">
+          <div className="animate-pulse p-8 rounded-2xl shadow-lg bg-slate-50 text-slate-400 text-lg font-semibold">
             Chargement des disponibilités...
           </div>
         </div>
@@ -55,7 +55,7 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          className="fixed inset-0 flex justify-center items-center z-50 bg-white/70 backdrop-blur-sm"
+          className="fixed inset-0 flex justify-center items-center z-50 bg-slate-900/40 backdrop-blur-sm"
           onClick={onClose}
         >
           <motion.div
@@ -64,31 +64,28 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
             transition={{ duration: 0.25 }}
-            className="relative bg-white rounded-xl shadow-lg max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6"
+            className="relative bg-white rounded-3xl shadow-2xl max-w-3xl w-full max-h-[85vh] overflow-y-auto p-6 sm:p-8"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={onClose}
-              className="absolute top-5 right-5 p-1 rounded hover:bg-indigo-100 transition"
+              className="absolute top-5 right-5 p-1.5 rounded-lg hover:bg-blue-50 transition text-blue-600"
               aria-label="Fermer"
-              style={{ color: '#4F46E5' }}
             >
-              <X size={28} />
+              <X size={24} />
             </button>
 
-            <div className="flex items-center gap-3 mb-8 justify-center text-indigo-700 bg-white/70 backdrop-blur-sm rounded-md py-2 px-6 mx-auto max-w-max shadow-sm">
-              
-              <Stethoscope size={34} />
-              <h2 className="text-3xl font-semibold text-gray-900 whitespace-nowrap">
-                Créneaux du Dr  {pro?.nom || ''}
+            <div className="flex items-center gap-3 mb-8 justify-center text-blue-700 bg-blue-50 rounded-2xl py-3 px-6 mx-auto max-w-max">
+              <Stethoscope size={30} />
+              <h2 className="text-2xl sm:text-3xl font-bold text-slate-900 whitespace-nowrap">
+                Créneaux du Dr {pro?.nom || ''}
               </h2>
             </div>
 
             {disponibilites.length === 0 ? (
-              <p className="text-center text-gray-500 text-lg">Aucune disponibilité trouvée.</p>
+              <p className="text-center text-slate-500 text-lg py-6">Aucune disponibilité trouvée.</p>
             ) : (
               disponibilites.map((dispo, idx) => {
-                console.log('dispo.reservations:', JSON.stringify(dispo.reservations));
                 const sousCreneaux = genererSousCreneaux(dispo);
                 const reservationsActives = dispo.reservations || [];
 
@@ -101,28 +98,28 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
                 });
 
                 return (
-                  <section key={`${dispo.date}-${idx}`} className="mb-10">
-                    <div className="flex justify-between items-center mb-4 px-3">
-                      <div className="flex items-center gap-2 text-indigo-700 font-semibold text-lg capitalize">
-                        <CalendarCheck size={22} />
+                  <section key={`${dispo.date}-${idx}`} className="mb-8">
+                    <div className="flex justify-between items-center mb-4 px-1">
+                      <div className="flex items-center gap-2 text-blue-700 font-semibold text-base sm:text-lg capitalize">
+                        <CalendarCheck size={20} />
                         <span>{dateLocale}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-gray-600 font-medium">
-                        <Clock size={18} />
+                      <div className="flex items-center gap-1 text-slate-500 font-medium text-sm">
+                        <Clock size={16} />
                         <span>
                           {formatHeureAvecH(dispo.heureDebut)} - {formatHeureAvecH(dispo.heureFin)}
                         </span>
                       </div>
                     </div>
 
-                    <div className="flex space-x-3 overflow-x-auto px-3 pb-2">
+                    <div className="flex flex-wrap gap-3 px-1 pb-2">
                       {sousCreneaux.map((heure, i) => {
-                        const resvAPayer = reservationsActives.find((resv) => {
-  console.log('compare:', resv.heureConsultation, '===', heure, resv.statut, resv.statutValidation);
-  return resv.statut === 'EN_ATTENTE_PAIEMENT' &&
-         resv.statutValidation === 'VALIDE' &&
-         resv.heureConsultation === heure;
-});
+                        const resvAPayer = reservationsActives.find(
+                          (resv) =>
+                            resv.statut === 'EN_ATTENTE_PAIEMENT' &&
+                            resv.statutValidation === 'VALIDE' &&
+                            resv.heureConsultation === heure
+                        );
                         const estReserve = reservationsActives.some(
                           (resv) =>
                             (resv.statut === 'PAYEE' || resv.statut === 'EN_ATTENTE') &&
@@ -134,10 +131,10 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
                             <button
                               key={`payer-${resvAPayer.id}`}
                               onClick={() => onPayer(resvAPayer.id)}
-                              className="flex flex-col items-center justify-center gap-1 min-w-[90px] rounded-lg bg-yellow-400 hover:bg-yellow-500 text-white font-semibold py-3 px-4 shadow-md transition"
+                              className="flex flex-col items-center justify-center gap-1 min-w-[90px] rounded-xl bg-amber-400 hover:bg-amber-500 text-white font-semibold py-3 px-4 shadow-sm transition active:scale-95"
                               title="Réservation en attente de paiement"
                             >
-                              <CreditCard size={20} />
+                              <CreditCard size={18} />
                               <span className="text-sm">{formatHeureAvecH(heure)}</span>
                             </button>
                           );
@@ -146,10 +143,10 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
                             <button
                               key={`reserve-${dispo.id}-${heure}-${i}`}
                               disabled
-                              className="flex flex-col items-center justify-center gap-1 min-w-[90px] rounded-lg bg-gray-300 text-gray-500 cursor-not-allowed py-3 px-4 select-none shadow-inner"
+                              className="flex flex-col items-center justify-center gap-1 min-w-[90px] rounded-xl bg-slate-100 text-slate-400 cursor-not-allowed py-3 px-4 select-none"
                               title="Créneau déjà réservé"
                             >
-                              <Lock size={20} />
+                              <Lock size={18} />
                               <span className="text-sm">{formatHeureAvecH(heure)}</span>
                             </button>
                           );
@@ -158,10 +155,10 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
                             <button
                               key={`libre-${dispo.id}-${heure}-${i}`}
                               onClick={() => onReserver(dispo, heure)}
-                              className="flex flex-col items-center justify-center gap-1 min-w-[90px] rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 shadow-md transition"
+                              className="flex flex-col items-center justify-center gap-1 min-w-[90px] rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 shadow-sm shadow-blue-600/20 transition active:scale-95"
                               title="Réserver ce créneau"
                             >
-                              <CheckCircle size={20} />
+                              <CheckCircle size={18} />
                               <span className="text-sm">{formatHeureAvecH(heure)}</span>
                             </button>
                           );

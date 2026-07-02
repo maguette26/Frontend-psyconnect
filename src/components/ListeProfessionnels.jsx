@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import api from '../services/api';
 import { toast, ToastContainer } from 'react-toastify';
 import {
@@ -11,6 +11,10 @@ import {
   ArrowRightCircle,
   ArrowLeftCircle,
   Sparkles,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  ArrowUpDown,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import 'react-toastify/dist/ReactToastify.css';
@@ -22,6 +26,7 @@ import DisponibilitesModal from './utilisateur/DisponibilitesModal';
 import ModalPortal from './ModalPortal';
 
 const DUREE_CONSULTATION_MINUTES = 45;
+const ITEMS_PER_PAGE = 6;
 
 const getInitiales = (prenom, nom) => {
   const p = prenom?.charAt(0)?.toUpperCase() || '';
@@ -40,6 +45,11 @@ const ListeProfessionnels = () => {
 
   const [specialites, setSpecialites] = useState([]);
   const [selectedSpecialite, setSelectedSpecialite] = useState('all');
+
+  // --- Nouveaux states UI (recherche / tri / pagination) ---
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('nom'); // 'nom' | 'specialite'
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     const link = document.createElement('link');
@@ -69,6 +79,11 @@ const ListeProfessionnels = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [step]);
+
+  // Réinitialise la page courante quand un filtre change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSpecialite, searchTerm, sortBy]);
 
   const fetchDisponibilites = async (proId) => {
     try {
@@ -152,9 +167,38 @@ const ListeProfessionnels = () => {
     }
   };
 
+  // Filtre par spécialité (logique existante, inchangée)
   const professionnelsFiltres = selectedSpecialite === 'all'
     ? professionnels
     : professionnels.filter(pro => pro.specialite === selectedSpecialite);
+
+  // Recherche + tri (ajout UI) appliqués sur le résultat filtré ci-dessus
+  const professionnelsAffiches = useMemo(() => {
+    let liste = professionnelsFiltres;
+
+    if (searchTerm.trim() !== '') {
+      const q = searchTerm.trim().toLowerCase();
+      liste = liste.filter((pro) =>
+        `${pro.prenom || ''} ${pro.nom || ''}`.toLowerCase().includes(q) ||
+        (pro.specialite || '').toLowerCase().includes(q)
+      );
+    }
+
+    liste = [...liste].sort((a, b) => {
+      if (sortBy === 'specialite') {
+        return (a.specialite || '').localeCompare(b.specialite || '');
+      }
+      return (a.nom || '').localeCompare(b.nom || '');
+    });
+
+    return liste;
+  }, [professionnelsFiltres, searchTerm, sortBy]);
+
+  const totalPages = Math.max(1, Math.ceil(professionnelsAffiches.length / ITEMS_PER_PAGE));
+  const professionnelsPage = professionnelsAffiches.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   const containerVariants = {
     initial: { opacity: 0, y: 30 },
@@ -190,7 +234,7 @@ const ListeProfessionnels = () => {
               initial="initial"
               animate="animate"
               exit="exit"
-              className="relative w-full min-h-[42vh] text-center px-8 py-10 bg-gradient-to-br from-blue-50 via-blue-50/60 to-white overflow-hidden flex flex-col justify-center rounded-3xl mt-6"
+              className="relative w-full min-h-[42vh] text-center px-8 py-10 bg-gradient-to-br from-blue-50 via-blue-50/60 to-white overflow-hidden flex flex-col justify-center rounded-3xl mt-6 shadow-sm"
             >
               <div
                 aria-hidden="true"
@@ -214,7 +258,7 @@ const ListeProfessionnels = () => {
               </h2>
 
               <div className="relative max-w-3xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-8 text-left mb-6">
-                <div className="flex items-start gap-4 bg-white/70 backdrop-blur-sm rounded-2xl p-5">
+                <div className="flex items-start gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-sm">
                   <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-100 shrink-0">
                     <HeartPulse className="w-6 h-6 text-blue-600" />
                   </div>
@@ -226,7 +270,7 @@ const ListeProfessionnels = () => {
                   </div>
                 </div>
 
-                <div className="flex items-start gap-4 bg-white/70 backdrop-blur-sm rounded-2xl p-5">
+                <div className="flex items-start gap-4 bg-white/80 backdrop-blur-sm rounded-2xl p-5 shadow-sm">
                   <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-blue-100 shrink-0">
                     <Stethoscope className="w-6 h-6 text-blue-600" />
                   </div>
@@ -263,17 +307,30 @@ const ListeProfessionnels = () => {
               exit="exit"
               className="px-2 py-8"
             >
-              <div className="flex flex-col md:flex-row items-center md:items-start justify-between mb-10 gap-6">
-                <div>
-                  <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-1">
-                    Nos professionnels certifiés
-                  </h2>
-                  <p className="text-slate-500 text-sm">Des experts qualifiés pour vous accompagner</p>
+              <div className="mb-8">
+                <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 mb-1">
+                  Nos professionnels certifiés
+                </h2>
+                <p className="text-slate-500 text-sm">Des experts qualifiés pour vous accompagner</p>
+              </div>
+
+              {/* Toolbar : recherche + filtre spécialité + tri */}
+              <div className="flex flex-col lg:flex-row gap-3 lg:items-center lg:justify-between bg-white border border-slate-100 rounded-2xl shadow-sm p-4 mb-8">
+                <div className="flex items-center gap-2.5 bg-slate-50 rounded-xl px-4 py-2.5 border border-slate-200 flex-1 max-w-md">
+                  <Search className="text-slate-400 w-4.5 h-4.5 shrink-0" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Rechercher un nom ou une spécialité..."
+                    className="bg-transparent border-none focus:ring-0 text-sm text-slate-700 placeholder:text-slate-400 w-full outline-none"
+                    aria-label="Rechercher un professionnel"
+                  />
                 </div>
 
-                <div className="flex flex-wrap gap-4 items-center">
+                <div className="flex flex-wrap gap-3">
                   <div className="flex items-center gap-2.5 bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-sm">
-                    <Filter className="text-blue-600 w-5 h-5" />
+                    <Filter className="text-blue-600 w-4.5 h-4.5" />
                     <select
                       value={selectedSpecialite}
                       onChange={(e) => setSelectedSpecialite(e.target.value)}
@@ -286,22 +343,35 @@ const ListeProfessionnels = () => {
                       ))}
                     </select>
                   </div>
+
+                  <div className="flex items-center gap-2.5 bg-white rounded-xl px-4 py-2.5 border border-slate-200 shadow-sm">
+                    <ArrowUpDown className="text-blue-600 w-4.5 h-4.5" />
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="appearance-none bg-transparent border-none focus:ring-0 text-slate-700 font-medium text-sm cursor-pointer"
+                      aria-label="Trier les professionnels"
+                    >
+                      <option value="nom">Trier par nom</option>
+                      <option value="specialite">Trier par spécialité</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
               {error && <p className="text-red-600 text-center mb-4">{error}</p>}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
-                {professionnelsFiltres.length === 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                {professionnelsAffiches.length === 0 ? (
                   <p className="col-span-full text-center text-slate-500 italic py-8">
-                    Aucun professionnel ne correspond à cette spécialité.
+                    Aucun professionnel ne correspond à votre recherche.
                   </p>
                 ) : (
-                  professionnelsFiltres.map((pro) => (
+                  professionnelsPage.map((pro) => (
                     <motion.div
                       key={pro.id}
-                      whileHover={{ y: -4 }}
-                      className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-xl transition-shadow p-6 flex flex-col"
+                      whileHover={{ y: -6 }}
+                      className="bg-white border border-slate-100 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 p-6 flex flex-col"
                     >
                       <div className="flex items-center gap-4 mb-4">
                         <div className="shrink-0 w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white font-bold text-lg shadow-sm">
@@ -315,7 +385,7 @@ const ListeProfessionnels = () => {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-2 mb-5">
+                      <div className="flex flex-wrap items-center gap-2 mb-5">
                         <span className="inline-flex items-center gap-1.5 bg-blue-50 text-blue-700 text-xs font-medium px-2.5 py-1 rounded-full">
                           {iconSpecialite(pro.specialite)}
                           {pro.specialite}
@@ -336,6 +406,43 @@ const ListeProfessionnels = () => {
                   ))
                 )}
               </div>
+
+              {/* Pagination moderne */}
+              {professionnelsAffiches.length > 0 && totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mb-10">
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    aria-label="Page précédente"
+                  >
+                    <ChevronLeft className="w-4.5 h-4.5" />
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-semibold transition ${
+                        currentPage === pageNum
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-600/30'
+                          : 'text-slate-600 hover:bg-slate-50 border border-slate-200'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="w-9 h-9 flex items-center justify-center rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                    aria-label="Page suivante"
+                  >
+                    <ChevronRight className="w-4.5 h-4.5" />
+                  </button>
+                </div>
+              )}
 
               <div className="flex justify-center">
                 <button
