@@ -21,7 +21,9 @@ const PremiumSuccess = () => {
     }
 
     localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
-    window.dispatchEvent(new Event("roleChange"));
+    localStorage.setItem("role", res.data.role);
+window.dispatchEvent(new Event("roleChange"));
+    
 
     if (isMounted) {
       setTimeout(() => navigate("/ressources", { replace: true }), 300);
