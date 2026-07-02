@@ -86,7 +86,7 @@ const Fonctionnalites = () => {
               key={fct.titre}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.12, duration: 0.6 }}
+              transition={{ delay: index * 0.2, duration: 0.6 }}  
               viewport={{ once: true }}
               whileHover={{ y: -4 }}
               className="bg-white border border-slate-100 p-6 rounded-2xl shadow-sm hover:shadow-xl transition-shadow flex flex-col items-center text-center"
