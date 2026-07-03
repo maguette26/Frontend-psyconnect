@@ -29,7 +29,6 @@ const Header = () => {
   const menuRef = useRef(null);
   const authMenuRef = useRef(null);
   const sidebarRef = useRef(null);
-  console.log('Header mount');
 
   useEffect(() => {
     const update = () => setCurrentRole(normalizeRole(localStorage.getItem('role')));
@@ -41,10 +40,7 @@ const Header = () => {
       window.removeEventListener('storage', update);
     };
   }, []);
-useEffect(() => {
-  console.log("Header mounted");
-  return () => console.log("Header unmounted");
-}, []);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setUserMenuOpen(false);
