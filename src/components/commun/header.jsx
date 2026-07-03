@@ -29,6 +29,7 @@ const Header = () => {
   const menuRef = useRef(null);
   const authMenuRef = useRef(null);
   const sidebarRef = useRef(null);
+  console.log('Header mount');
 
   useEffect(() => {
     const update = () => setCurrentRole(normalizeRole(localStorage.getItem('role')));
