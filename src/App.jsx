@@ -109,7 +109,7 @@ function AppWrapper() {
     <RessourceProvider>
       <GlobalStyles />
       <div style={{ minHeight: "100vh" }}>
-        
+        {afficherHeader && <Header onOpenChat={() => {}} />}
 
         <Routes>
           <Route path="/" element={<Accueil />} />
