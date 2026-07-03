@@ -451,7 +451,7 @@ console.log(api.defaults.baseURL);
           className="relative max-w-3xl w-full mt-14"
         >
           <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
-            Pourquoi nous faire confiance ?
+            Pourquoi faire confiance à Psyconnect ?
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {CONFIANCE.map((label) => (
