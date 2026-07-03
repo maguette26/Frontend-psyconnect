@@ -1,15 +1,39 @@
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { HeartPulse, ShieldCheck, BadgeCheck, Clock, Sparkles } from 'lucide-react';
+import { HeartPulse, ShieldCheck, BadgeCheck, Clock, Sparkles, LayoutDashboard } from 'lucide-react';
 
 const Hero = () => {
   const navigate = useNavigate();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const trustItems = [
     { icon: ShieldCheck, label: 'Données sécurisées' },
     { icon: BadgeCheck, label: 'Professionnels certifiés' },
     { icon: Clock, label: 'Disponible 24h/24' },
   ];
+
+  // Vérifie la présence d'un token dans le localStorage
+  const checkAuth = useCallback(() => {
+    const token = localStorage.getItem('token');
+    setIsAuthenticated(!!token);
+  }, []);
+
+  useEffect(() => {
+    // Vérification initiale
+    checkAuth();
+
+    // Réagit aux changements de connexion/déconnexion sans reload
+    window.addEventListener('user-updated', checkAuth);
+    window.addEventListener('storage', checkAuth);
+    window.addEventListener('roleChange', checkAuth);
+
+    return () => {
+      window.removeEventListener('user-updated', checkAuth);
+      window.removeEventListener('storage', checkAuth);
+      window.removeEventListener('roleChange', checkAuth);
+    };
+  }, [checkAuth]);
 
   return (
     <section className="relative w-full max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-16">
@@ -71,15 +95,27 @@ const Hero = () => {
             transition={{ delay: 0.5, duration: 0.6 }}
             className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-10"
           >
-            <motion.button
-              whileHover={{ scale: 1.03 }}
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/connexion')}
-              className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-7 py-3 rounded-xl font-semibold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition text-sm sm:text-base"
-            >
-              Commencer maintenant
-              <HeartPulse size={18} />
-            </motion.button>
+            {isAuthenticated ? (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/ressources')}
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-7 py-3 rounded-xl font-semibold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition text-sm sm:text-base"
+              >
+                Accéder aux ressources
+                <LayoutDashboard size={18} />
+              </motion.button>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.03 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/connexion')}
+                className="inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-7 py-3 rounded-xl font-semibold shadow-lg shadow-blue-600/20 hover:bg-blue-700 transition text-sm sm:text-base"
+              >
+                Commencer maintenant
+                <HeartPulse size={18} />
+              </motion.button>
+            )}
 
             <motion.button
               whileHover={{ scale: 1.03 }}

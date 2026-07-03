@@ -1,340 +1,528 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import PropTypes from 'prop-types';
-import { loadStripe } from '@stripe/stripe-js';
-import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Loader2, CheckCircle2, AlertCircle, CreditCard, Zap } from 'lucide-react';
-import api from '../../services/api';
+// src/pages/DevenirPremium.jsx
 
-const stripePromise = loadStripe("pk_test_51RXnftAc9vHWOsmYRgXSBdNEne7MxfObedkDBDRtA7l5G2zZM0sfMPfhHmCtWqeNIM81YSEyREpIPVDg76hE201t002UNapsv0");
+import React, { useState } from "react";
+import Layout from "../components/commun/Layout";
+import api from "../services/api";
+import {
+  CreditCard,
+  Crown,
+  Check,
+  Lock,
+  ShieldCheck,
+  Sparkles,
+  ChevronDown,
+  Infinity as InfinityIcon,
+  Headphones,
+  Dumbbell,
+  FileText,
+  Video,
+  CalendarClock,
+  Headset,
+} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
-/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
-const RETRY_DELAYS = [2000, 3000, 5000, 8000, 10000];
+// Contenu purement visuel — aucune donnée métier, aucun appel API.
+const AVANTAGES = [
+  { icon: InfinityIcon, label: "Ressources illimitées" },
+  { icon: Headphones, label: "Podcasts exclusifs" },
+  { icon: Dumbbell, label: "Exercices avancés" },
+  { icon: FileText, label: "Guides PDF" },
+  { icon: Video, label: "Vidéos Premium" },
+  { icon: CalendarClock, label: "Nouveaux contenus chaque mois" },
+  { icon: Headset, label: "Support prioritaire" },
+];
 
-async function wakeUpAndRetry(fn) {
-  for (let i = 0; i <= RETRY_DELAYS.length; i++) {
+const COMPARAISON = [
+  { feature: "Ressources", free: true, premium: true },
+  { feature: "Vidéos Premium", free: false, premium: true },
+  { feature: "Podcasts", free: false, premium: true },
+  { feature: "Guides PDF", free: "Limité", premium: true },
+  { feature: "Support", free: "Standard", premium: "Prioritaire" },
+];
+
+const CONFIANCE = [
+  "Paiement sécurisé",
+  "Annulation à tout moment",
+  "Accès immédiat",
+  "Données protégées",
+];
+
+const FAQ_ITEMS = [
+  {
+    question: "Puis-je annuler ?",
+    answer: "Oui, vous pouvez annuler votre abonnement à tout moment depuis votre espace membre, sans engagement.",
+  },
+  {
+    question: "Quand le Premium est-il activé ?",
+    answer: "Votre accès Premium est activé immédiatement après la confirmation de votre paiement.",
+  },
+  {
+    question: "Le paiement est-il sécurisé ?",
+    answer: "Oui, tous les paiements sont traités par Stripe. Aucune donnée bancaire n'est stockée sur nos serveurs.",
+  },
+  {
+    question: "Puis-je changer de formule ?",
+    answer: "Oui, vous pouvez changer de formule à tout moment depuis votre espace membre.",
+  },
+];
+
+const DevenirPremium = () => {
+
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const [selectedPlan, setSelectedPlan] =
+    useState("monthly");
+
+  // État purement visuel pour l'accordéon FAQ — n'a aucun impact sur la logique métier.
+  const [openFaqIndex, setOpenFaqIndex] = useState(null);
+
+  const plans = {
+    monthly: {
+      label: "Mensuel",
+      price: 3,
+      duration: "mois",
+      description:
+        "Accès flexible, annulez à tout moment."
+    },
+
+    quarterly: {
+      label: "Trimestriel",
+      price: 10,
+      duration: "3 mois",
+      description:
+        "Économisez 15% par rapport au plan mensuel."
+    },
+
+    annually: {
+      label: "Annuel",
+      price: 30,
+      duration: "an",
+      description:
+        "La meilleure offre : économisez 25%."
+    }
+  };
+
+  const currentPlan =
+    plans[selectedPlan];
+
+  const handleStripeCheckout = async () => {
+
     try {
-      return await fn();
-    } catch (err) {
-      const is5xx = [502, 503].includes(err?.response?.status);
-      const isNet = !err?.response;
-      if ((is5xx || isNet) && i < RETRY_DELAYS.length) {
-        try { await api.get('/reservations/ping', { timeout: 3000 }); } catch (_) {}
-        await new Promise(r => setTimeout(r, RETRY_DELAYS[i]));
+
+      setLoading(true);
+      setError(null);
+
+       
+      const response =
+ await api.post("/payments/premium-checkout", {
+  plan: selectedPlan
+});
+
+      if (
+        response.data &&
+        response.data.url
+      ) {
+
+        window.location.href =
+          response.data.url;
+
       } else {
-        throw err;
-      }
-    }
-  }
-}
 
-/* ─── POLLING STATUT ─────────────────────────────────────────────── */
-async function pollReservationStatus(reservationId, targetStatut, timeoutMs = 30000) {
-  const interval = 2000;
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const { data } = await api.get(`/reservations/${reservationId}`);
-      if (data?.statut === targetStatut) return data;
-    } catch (_) {}
-    await new Promise(r => setTimeout(r, interval));
-  }
-  return null;
-}
-
-/* ─── PHASES UI ──────────────────────────────────────────────────── */
-// idle | waking | processing | polling | success | error
-function PhaseIndicator({ phase, errorMsg }) {
-  if (phase === 'idle') return null;
-
-  const configs = {
-    waking:     { icon: <Zap size={15} className="animate-pulse" />,      text: 'Réveil du serveur en cours…',         cls: 'bg-amber-50 border-amber-200 text-amber-700' },
-    processing: { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Paiement en cours de traitement…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-    polling:    { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Synchronisation avec le serveur…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-    success:    { icon: <CheckCircle2 size={15} />,                        text: 'Paiement confirmé avec succès !',     cls: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
-    error:      { icon: <AlertCircle size={15} />,                         text: errorMsg || 'Une erreur est survenue.', cls: 'bg-red-50 border-red-200 text-red-600' },
-  };
-
-  const c = configs[phase];
-  if (!c) return null;
-
-  return (
-    <div className={`flex items-center gap-2.5 rounded-xl px-4 py-3 border text-sm font-medium ${c.cls}`}>
-      {c.icon}
-      <span>{c.text}</span>
-    </div>
-  );
-}
-
-/* ─── BARRE DE PROGRESSION ───────────────────────────────────────── */
-function ProgressBar({ phase }) {
-  const widths = { idle: '0%', waking: '35%', processing: '65%', polling: '85%', success: '100%', error: '100%' };
-  const colors = { success: 'bg-emerald-400', error: 'bg-red-400' };
-  const color  = colors[phase] || 'bg-indigo-500';
-  const width  = widths[phase] || '0%';
-
-  if (phase === 'idle') return null;
-
-  return (
-    <div className="h-1 w-full bg-slate-100 rounded-full overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
-        style={{ width }}
-      />
-    </div>
-  );
-}
-
-/* ─── CHECKOUT FORM (Stripe) ─────────────────────────────────────── */
-const CheckoutForm = ({ clientSecret, reservationId, onPhaseChange, onPaid }) => {
-  const stripe   = useStripe();
-  const elements = useElements();
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!stripe || !elements) return;
-
-    onPhaseChange('processing');
-
-    try {
-      const result = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: elements.getElement(CardElement) },
-      });
-
-      if (result.error) {
-        onPhaseChange('error', result.error.message);
-        return;
+        setError(
+          "URL Stripe introuvable."
+        );
       }
 
-      if (result.paymentIntent?.status === 'succeeded') {
-        onPhaseChange('polling');
+    } catch (error) {
 
-        const updated = await pollReservationStatus(reservationId, 'PAYEE', 30000);
+      console.error(error);
 
-        onPhaseChange('success');
-        // Petit délai pour que l'utilisateur voit le succès avant fermeture
-        setTimeout(() => onPaid?.(), 1500);
-        return;
-      }
+      setError(
+        error?.response?.data?.error ||
+        "Impossible de démarrer le paiement."
+      );
 
-      onPhaseChange('error', 'Paiement non abouti, veuillez réessayer.');
-    } catch (err) {
-      onPhaseChange('error', err.message || 'Erreur inconnue.');
+    } finally {
+
+      setLoading(false);
     }
   };
-
+console.log(api.defaults.baseURL);
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 focus-within:border-indigo-400 focus-within:bg-white transition">
-        <CardElement options={{
-          style: {
-            base: {
-              fontSize: '15px',
-              color: '#1e293b',
-              fontFamily: 'DM Sans, system-ui, sans-serif',
-              '::placeholder': { color: '#94a3b8' },
-            },
-            invalid: { color: '#ef4444' },
-          }
-        }} />
-      </div>
+    <Layout>
 
-      <button
-        type="submit"
-        disabled={!stripe}
-        className="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-semibold text-sm transition flex items-center justify-center gap-2 shadow-sm active:scale-[0.98]"
-      >
-        <CreditCard size={16} />
-        Payer maintenant
-      </button>
-    </form>
-  );
-};
+      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 via-blue-50 to-white flex flex-col items-center justify-center px-4 py-10 sm:py-14">
 
-/* ─── PAYMENT FORM (principal) ───────────────────────────────────── */
-const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
-  const [paymentMethod, setPaymentMethod] = useState('stripe');
-  const [clientSecret, setClientSecret]   = useState(null);
-  const [phase, setPhase]                 = useState('idle'); // idle | waking | processing | polling | success | error
-  const [errorMsg, setErrorMsg]           = useState('');
+        {/* Formes floues discrètes en arrière-plan */}
+        <div className="pointer-events-none absolute -top-24 -left-20 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute top-10 -right-20 w-80 h-80 rounded-full bg-amber-100/50 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 w-64 h-64 rounded-full bg-blue-100/40 blur-3xl" />
 
-  const handlePhaseChange = useCallback((p, msg = '') => {
-    setPhase(p);
-    if (msg) setErrorMsg(msg);
-  }, []);
+        <motion.div
+          initial={{
+            opacity: 0,
+            y: -20
+          }}
+          animate={{
+            opacity: 1,
+            y: 0
+          }}
+          transition={{
+            duration: 0.7
+          }}
+          className="relative mb-6 flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left"
+        >
 
-  const createPayment = useCallback(() =>
-    api.post('/payments/create', {
-      reservationId,
-      paymentMethod,
-      successUrl: window.location.origin + '/payment-success',
-      cancelUrl:  window.location.origin + '/payment-cancel',
-      currency: 'EUR',
-    }, { timeout: 55000 }).then(r => r.data)
-  , [reservationId, paymentMethod]);
+          <span className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-500 shadow-md shadow-amber-200">
+            <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+          </span>
 
-  /* ── Init Stripe avec wake-up ── */
-  useEffect(() => {
-    if (paymentMethod !== 'stripe') return;
-    let cancelled = false;
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-indigo-700">
+            Devenez Membre Premium
+          </h1>
 
-    setClientSecret(null);
-    setErrorMsg('');
+        </motion.div>
 
-    // Délai avant d'afficher "réveil serveur" — si Railway répond vite, on ne le montre pas
-    const wakeTimer = setTimeout(() => {
-      if (!cancelled) setPhase('waking');
-    }, 1200);
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{
+            delay: 0.4,
+            duration: 0.7
+          }}
+          className="relative text-center text-gray-700 max-w-2xl mb-10 text-sm md:text-base"
+        >
+          Débloquez l'accès illimité à
+          toutes nos ressources exclusives :
+          exercices avancés, vidéos guidées,
+          podcasts experts et contenus Premium.
+        </motion.p>
 
-    wakeUpAndRetry(createPayment)
-      .then(data => {
-        if (cancelled) return;
-        clearTimeout(wakeTimer);
-        if (data?.clientSecret) {
-          setClientSecret(data.clientSecret);
-          setPhase('idle');
-        } else {
-          handlePhaseChange('error', "Impossible d'initialiser le paiement.");
-        }
-      })
-      .catch(err => {
-        if (cancelled) return;
-        clearTimeout(wakeTimer);
-        const msg = err?.response?.data?.message || 'Serveur indisponible. Réessayez dans quelques secondes.';
-        handlePhaseChange('error', msg);
-      });
+        <motion.section
+          initial={{
+            scale: 0.95,
+            opacity: 0
+          }}
+          animate={{
+            scale: 1,
+            opacity: 1
+          }}
+          transition={{
+            delay: 0.6,
+            duration: 0.7
+          }}
+          className="relative bg-white/80 backdrop-blur-sm rounded-3xl sm:rounded-[2rem] shadow-2xl shadow-indigo-100 border border-indigo-100 p-5 sm:p-8 md:p-10 max-w-3xl w-full"
+        >
 
-    return () => { cancelled = true; clearTimeout(wakeTimer); };
-  }, [paymentMethod, createPayment, handlePhaseChange]);
+          <h2 className="flex items-center justify-center gap-2 text-xl font-semibold text-indigo-700 mb-8">
 
-  /* ── PayPal avec wake-up ── */
-  const handlePayPalPayment = async () => {
-    setErrorMsg('');
-    const wakeTimer = setTimeout(() => setPhase('waking'), 1200);
+            <CreditCard
+              className="w-6 h-6"
+            />
 
-    try {
-      const data = await wakeUpAndRetry(createPayment);
-      clearTimeout(wakeTimer);
-      if (data?.approvalUrl) {
-        setPhase('processing');
-        window.location.href = data.approvalUrl;
-      } else {
-        handlePhaseChange('error', 'Erreur PayPal, veuillez réessayer.');
-      }
-    } catch {
-      clearTimeout(wakeTimer);
-      handlePhaseChange('error', 'Erreur PayPal, veuillez réessayer.');
-    }
-  };
+            Choisissez votre formule
 
-  const isLocked = ['waking', 'processing', 'polling'].includes(phase);
-  const isDone   = phase === 'success';
+          </h2>
 
-  return (
-    <div className="bg-white rounded-2xl w-full max-w-md relative shadow-2xl overflow-hidden">
+          {/* Cartes de sélection des plans (remplace les boutons pills) */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 sm:mb-10">
 
-      {/* Barre de progression en haut */}
-      <ProgressBar phase={phase} />
+            {Object.keys(plans).map(
+              (planKey) => {
+                const plan = plans[planKey];
+                const isSelected = selectedPlan === planKey;
+                const isRecommended = planKey === "annually";
 
-      <div className="p-6 space-y-5">
+                return (
+                  <motion.button
+                    key={planKey}
+                    type="button"
+                    onClick={() => setSelectedPlan(planKey)}
+                    aria-pressed={isSelected}
+                    aria-label={`Choisir la formule ${plan.label}, ${plan.price} euros par ${plan.duration}`}
+                    whileHover={{ y: -3 }}
+                    whileTap={{ scale: 0.98 }}
+                    transition={{ duration: 0.2, ease: "easeOut" }}
+                    className={`relative text-left rounded-2xl border pt-6 px-5 pb-5 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2
+                      ${
+                        isSelected
+                          ? "border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-100"
+                          : "border-gray-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/40"
+                      }`}
+                  >
+                    {isRecommended && (
+                      <span className="absolute -top-3 left-1/2 -translate-x-1/2 inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-300 to-yellow-500 text-yellow-900 text-[11px] font-semibold px-3 py-1 shadow-sm select-none">
+                        <Sparkles className="w-3 h-3" /> Recommandé
+                      </span>
+                    )}
 
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-slate-800">Paiement sécurisé</h2>
-          <button
-            onClick={onClose}
-            disabled={isLocked}
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition disabled:opacity-30"
-          >
-            ×
-          </button>
-        </div>
+                    <AnimatePresence>
+                      {isSelected && (
+                        <motion.span
+                          initial={{ scale: 0, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          exit={{ scale: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="absolute top-3 right-3 inline-flex items-center justify-center w-5 h-5 rounded-full bg-indigo-600 text-white"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
 
-        {/* Switch méthode — désactivé pendant une action */}
-        <div className="flex gap-2">
-          {['stripe', 'paypal'].map(m => (
-            <button
-              key={m}
-              onClick={() => { if (!isLocked && !isDone) { setPaymentMethod(m); setPhase('idle'); setErrorMsg(''); } }}
-              disabled={isLocked || isDone}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition ${
-                paymentMethod === m
-                  ? 'bg-indigo-600 text-white border-indigo-600'
-                  : 'bg-white text-slate-600 border-slate-200 hover:border-indigo-300'
-              } disabled:opacity-50`}
-            >
-              {m === 'stripe' ? '💳 Carte bancaire' : '🅿️ PayPal'}
-            </button>
-          ))}
-        </div>
-
-        {/* Indicateur de phase */}
-        <PhaseIndicator phase={phase} errorMsg={errorMsg} />
-
-        {/* Stripe */}
-        {paymentMethod === 'stripe' && !isDone && (
-          <>
-            {/* Skeleton pendant init */}
-            {!clientSecret && !['error'].includes(phase) && (
-              <div className="space-y-3 animate-pulse">
-                <div className="h-12 bg-slate-100 rounded-xl" />
-                <div className="h-12 bg-slate-100 rounded-xl" />
-              </div>
+                    <p className="font-semibold text-gray-900 mb-1">{plan.label}</p>
+                    <p className="text-2xl font-extrabold text-gray-900">
+                      {plan.price.toFixed(2)} €
+                      <span className="text-sm font-medium text-gray-500"> /{plan.duration}</span>
+                    </p>
+                    <p className="mt-2 text-xs text-gray-500 leading-relaxed">{plan.description}</p>
+                  </motion.button>
+                );
+              }
             )}
 
-            {clientSecret && (
-              <Elements stripe={stripePromise} options={{ clientSecret }}>
-                <CheckoutForm
-                  clientSecret={clientSecret}
-                  reservationId={reservationId}
-                  onPhaseChange={handlePhaseChange}
-                  onPaid={() => onPaymentSuccess?.()}
-                />
-              </Elements>
-            )}
-          </>
-        )}
-
-        {/* Stripe — succès */}
-        {isDone && (
-          <div className="flex flex-col items-center gap-3 py-4">
-            <div className="w-16 h-16 rounded-2xl bg-emerald-50 flex items-center justify-center">
-              <CheckCircle2 size={32} className="text-emerald-500" />
-            </div>
-            <p className="font-semibold text-slate-800">Réservation confirmée !</p>
-            <p className="text-xs text-slate-400 text-center">Vous recevrez une confirmation par email.</p>
           </div>
-        )}
 
-        {/* PayPal */}
-        {paymentMethod === 'paypal' && !isDone && (
-          <button
-            onClick={handlePayPalPayment}
-            disabled={isLocked}
-            className="w-full py-3.5 bg-yellow-400 hover:bg-yellow-500 disabled:opacity-50 text-yellow-900 font-bold rounded-xl transition flex items-center justify-center gap-2 active:scale-[0.98]"
-          >
-            {isLocked ? (
-              <><Loader2 size={16} className="animate-spin" /> Un instant…</>
-            ) : (
-              '🅿️ Payer avec PayPal'
-            )}
-          </button>
-        )}
+          <div className="text-center mb-8">
 
-        {/* Mention sécurité */}
-        {!isDone && (
-          <p className="text-[11px] text-slate-400 text-center">
-            🔒 Paiement sécurisé — vos données ne transitent pas par nos serveurs
-          </p>
-        )}
-      </div>
-    </div>
+            <p className="text-4xl sm:text-5xl font-extrabold text-gray-900">
+
+              {currentPlan.price.toFixed(2)} €
+
+            </p>
+
+            <p className="text-lg text-gray-500 mt-2">
+
+              / {currentPlan.duration}
+
+            </p>
+
+            <p className="mt-4 text-gray-600">
+
+              {currentPlan.description}
+
+            </p>
+
+          </div>
+
+          {error && (
+
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-6 text-center">
+
+              {error}
+
+            </div>
+
+          )}
+
+          <div className="flex justify-center px-0 sm:px-0">
+
+            <motion.button
+              onClick={handleStripeCheckout}
+              disabled={loading}
+              whileHover={!loading ? { y: -2 } : {}}
+              whileTap={!loading ? { scale: 0.97 } : {}}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              aria-label={loading ? "Redirection vers Stripe en cours" : `Payer ${currentPlan.price} euros`}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-8 py-3.5 sm:py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2"
+            >
+
+              {loading ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                  Redirection vers Stripe...
+                </>
+              ) : (
+                <>
+                  <Lock className="w-4 h-4" />
+                  Payer {currentPlan.price} €
+                </>
+              )}
+
+            </motion.button>
+
+          </div>
+
+          <div className="mt-8 flex items-center justify-center gap-1.5 text-sm text-gray-500">
+            <Lock className="w-3.5 h-3.5" /> Paiement sécurisé via Stripe
+          </div>
+
+        </motion.section>
+
+        {/* Avantages Premium */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative max-w-3xl w-full mt-10 sm:mt-14"
+        >
+          <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
+            Pourquoi devenir Premium ?
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {AVANTAGES.map(({ icon: Icon, label }) => (
+              <div
+                key={label}
+                className="flex items-center gap-3 bg-white/80 backdrop-blur-sm border border-gray-100 rounded-xl px-4 py-3 shadow-sm"
+              >
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-indigo-50 text-indigo-600 flex-shrink-0">
+                  <Icon className="w-4 h-4" />
+                </span>
+                <span className="text-sm font-medium text-gray-700">{label}</span>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* Comparaison Gratuit / Premium */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative max-w-3xl w-full mt-10 sm:mt-14"
+        >
+          <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
+            Gratuit vs Premium
+          </h2>
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm">
+            <table className="w-full min-w-[420px] text-xs sm:text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-gray-500">
+                  <th className="text-left font-semibold px-3 sm:px-4 py-2.5 sm:py-3">Fonctionnalité</th>
+                  <th className="font-semibold px-3 sm:px-4 py-2.5 sm:py-3">Gratuit</th>
+                  <th className="font-semibold px-3 sm:px-4 py-2.5 sm:py-3 text-indigo-700">Premium</th>
+                </tr>
+              </thead>
+              <tbody>
+                {COMPARAISON.map((row, i) => (
+                  <tr key={row.feature} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/60"}>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 font-medium">{row.feature}</td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-center text-gray-500">
+                      {row.free === true ? (
+                        <Check className="w-4 h-4 text-emerald-500 inline" aria-label="Inclus" />
+                      ) : row.free === false ? (
+                        <span aria-label="Non inclus" className="text-gray-300">✗</span>
+                      ) : (
+                        row.free
+                      )}
+                    </td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-center font-semibold text-indigo-700">
+                      {row.premium === true ? (
+                        <Check className="w-4 h-4 text-indigo-600 inline" aria-label="Inclus" />
+                      ) : (
+                        row.premium
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </motion.section>
+
+        {/* Sécurité */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative max-w-3xl w-full mt-10 sm:mt-14 text-center"
+        >
+          <div className="inline-flex items-center gap-2 mb-4">
+            <ShieldCheck className="w-5 h-5 text-indigo-600" />
+            <h2 className="text-xl font-semibold text-gray-900">Paiement 100 % sécurisé</h2>
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500">
+            <span className="inline-flex items-center gap-1.5"><Lock className="w-4 h-4" /> Stripe</span>
+            <span className="inline-flex items-center gap-1.5"><ShieldCheck className="w-4 h-4" /> SSL</span>
+            <span className="inline-flex items-center gap-1.5"><Lock className="w-4 h-4" /> Aucune donnée bancaire stockée</span>
+          </div>
+        </motion.section>
+
+        {/* Confiance */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative max-w-3xl w-full mt-10 sm:mt-14"
+        >
+          <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
+            Pourquoi nous faire confiance ?
+          </h2>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {CONFIANCE.map((label) => (
+              <div
+                key={label}
+                className="flex flex-col items-center gap-2 text-center bg-white/80 backdrop-blur-sm border border-gray-100 rounded-xl px-3 py-4 shadow-sm"
+              >
+                <Check className="w-4 h-4 text-emerald-500" />
+                <span className="text-xs font-medium text-gray-600">{label}</span>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+
+        {/* FAQ */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-80px" }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative max-w-3xl w-full mt-10 sm:mt-14 mb-6"
+        >
+          <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
+            Questions fréquentes
+          </h2>
+          <div className="space-y-2">
+            {FAQ_ITEMS.map((item, index) => {
+              const isOpen = openFaqIndex === index;
+              return (
+                <div
+                  key={item.question}
+                  className="bg-white/80 backdrop-blur-sm border border-gray-100 rounded-xl overflow-hidden shadow-sm"
+                >
+                  <button
+                    type="button"
+                    onClick={() => setOpenFaqIndex(isOpen ? null : index)}
+                    aria-expanded={isOpen}
+                    className="w-full flex items-center justify-between gap-3 px-4 py-3 text-left font-medium text-gray-800 transition-colors duration-200 hover:bg-indigo-50/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-inset"
+                  >
+                    <span className="text-sm">{item.question}</span>
+                    <motion.span
+                      animate={{ rotate: isOpen ? 180 : 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="flex-shrink-0 text-gray-400"
+                    >
+                      <ChevronDown className="w-4 h-4" />
+                    </motion.span>
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {isOpen && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: "easeOut" }}
+                        className="overflow-hidden"
+                      >
+                        <p className="px-4 pb-4 text-sm text-gray-500 leading-relaxed">{item.answer}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              );
+            })}
+          </div>
+        </motion.section>
+
+      </main>
+
+    </Layout>
   );
 };
 
-PaymentForm.propTypes = {
-  reservationId:    PropTypes.number.isRequired,
-  onClose:          PropTypes.func.isRequired,
-  onPaymentSuccess: PropTypes.func,
-};
-
-export default PaymentForm;
+export default DevenirPremium;
