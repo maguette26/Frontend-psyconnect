@@ -1,11 +1,11 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Lock, Play, Download, ExternalLink, Headphones, FileText,
   Quote, BookOpen, Video, Sparkles, Library, Clock, ArrowRight,
   Heart, Share2, Copy, X, Eye, Star, Check, Search, Crown,
-  MessageCircle, ArrowUpDown, Leaf
+  MessageCircle, ArrowUpDown, Leaf, TrendingUp, Bookmark
 } from 'lucide-react';
 import api from '../services/api';
 import Layout from '../components/commun/Layout';
@@ -38,6 +38,8 @@ const Ressources = () => {
   const [freeFilter, setFreeFilter] = useState('all'); // 'all' | 'free' | 'premium'
   const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'oldest'
   const [searchFocused, setSearchFocused] = useState(false);
+  const [showFavorisOnly, setShowFavorisOnly] = useState(false);
+  const modalCloseBtnRef = useRef(null);
 
   // ============================================================
   // LOGIQUE MÉTIER INCHANGÉE À PARTIR D'ICI
@@ -200,15 +202,15 @@ const Ressources = () => {
   // Palette de badges par type, dans les tons PsyConnect (bleu
   // principal conservé) + accents doux pour différencier les types.
   const typeConfig = {
-    citation: { label: 'Citation', badge: 'bg-violet-50 text-violet-600 ring-1 ring-violet-100', dot: 'bg-violet-500', icon: Quote },
-    article: { label: 'Article', badge: 'bg-blue-50 text-blue-600 ring-1 ring-blue-100', dot: 'bg-blue-500', icon: FileText },
-    video: { label: 'Vidéo', badge: 'bg-rose-50 text-rose-600 ring-1 ring-rose-100', dot: 'bg-rose-500', icon: Video },
-    podcast: { label: 'Podcast', badge: 'bg-orange-50 text-orange-600 ring-1 ring-orange-100', dot: 'bg-orange-500', icon: Headphones },
-    guide: { label: 'Guide', badge: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100', dot: 'bg-emerald-500', icon: BookOpen },
+    citation: { label: 'Citation', badge: 'bg-violet-50 text-violet-600 ring-1 ring-violet-100', dot: 'from-violet-400 to-violet-600', icon: Quote },
+    article: { label: 'Article', badge: 'bg-blue-50 text-blue-600 ring-1 ring-blue-100', dot: 'from-blue-400 to-blue-600', icon: FileText },
+    video: { label: 'Vidéo', badge: 'bg-rose-50 text-rose-600 ring-1 ring-rose-100', dot: 'from-rose-400 to-rose-600', icon: Video },
+    podcast: { label: 'Podcast', badge: 'bg-orange-50 text-orange-600 ring-1 ring-orange-100', dot: 'from-orange-400 to-orange-600', icon: Headphones },
+    guide: { label: 'Guide', badge: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100', dot: 'from-emerald-400 to-emerald-600', icon: BookOpen },
   };
 
   const getTypeConfig = (type) =>
-    typeConfig[type?.toLowerCase()] || { label: type || 'Ressource', badge: 'bg-slate-50 text-slate-600 ring-1 ring-slate-100', dot: 'bg-slate-400', icon: FileText };
+    typeConfig[type?.toLowerCase()] || { label: type || 'Ressource', badge: 'bg-slate-50 text-slate-600 ring-1 ring-slate-100', dot: 'from-slate-300 to-slate-400', icon: FileText };
 
   const isYoutube = (lienFichier) =>
     !!lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'));
@@ -255,6 +257,9 @@ const Ressources = () => {
 
   // Détermine ce qui se passe au clic principal sur une carte,
   // sans jamais modifier la logique d'accès premium existante.
+  // ⚠️ Comportement ARTICLE restauré à l'identique de la version d'origine :
+  // ouverture directe via getRessourceUrl() (navigate ou window.open),
+  // plus aucune modale pour les articles.
   const handleCardOpen = (f) => {
     if (f.premium && !isUserPremium) {
       handlePremiumClick();
@@ -263,10 +268,6 @@ const Ressources = () => {
     const type = f.type?.toLowerCase();
     if (type === 'video' && isYoutube(f.lienFichier)) {
       setActiveModal({ type: 'video', resource: f });
-      return;
-    }
-    if (type === 'article') {
-      setActiveModal({ type: 'article', resource: f });
       return;
     }
     if (type === 'guide') {
@@ -281,7 +282,7 @@ const Ressources = () => {
       setActiveModal({ type: 'podcast', resource: f });
       return;
     }
-    // autres cas : comportement d'ouverture externe conservé
+    // article + tous les autres cas : ouverture directe conservée (comportement d'origine)
     const url = getRessourceUrl(f);
     if (url) {
       url.startsWith('/') ? navigate(url) : window.open(url, '_blank', 'noopener noreferrer');
@@ -289,13 +290,14 @@ const Ressources = () => {
   };
 
   // Couche d'affichage supplémentaire (recherche + filtre gratuit/premium
-  // + tri) appliquée PAR-DESSUS le filtrage métier existant
+  // + tri + favoris) appliquée PAR-DESSUS le filtrage métier existant
   // (filteredFonctionnalites, catégories). Ne modifie rien en amont.
   const displayResources = useMemo(() => {
     let list = [...filteredFonctionnalites];
 
     if (freeFilter === 'free') list = list.filter(f => !f.premium);
     if (freeFilter === 'premium') list = list.filter(f => f.premium);
+    if (showFavorisOnly) list = list.filter(f => favoris.has(f.id));
 
     const term = searchTerm.trim().toLowerCase();
     if (term) {
@@ -312,7 +314,7 @@ const Ressources = () => {
     });
 
     return list;
-  }, [filteredFonctionnalites, freeFilter, searchTerm, sortBy]);
+  }, [filteredFonctionnalites, freeFilter, searchTerm, sortBy, showFavorisOnly, favoris]);
 
   const displayGratuits = displayResources.filter(f => !f.premium);
   const displayPremiums = displayResources.filter(f => f.premium);
@@ -329,7 +331,7 @@ const Ressources = () => {
     const gratuitesCount = fonctionnalites.filter(f => !f.premium).length;
     const premiumsCount = fonctionnalites.filter(f => f.premium).length;
     return [
-      { icon: Library, label: 'Ressources totales', value: total, color: 'text-slate-600' },
+      { icon: Library, label: 'Ressources totales', value: total, color: 'text-slate-500' },
       { icon: Video, label: 'Vidéos', value: videos, color: 'text-rose-500' },
       { icon: Headphones, label: 'Podcasts', value: podcasts, color: 'text-orange-500' },
       { icon: FileText, label: 'Articles', value: articles, color: 'text-blue-500' },
@@ -339,18 +341,65 @@ const Ressources = () => {
     ];
   }, [fonctionnalites]);
 
+  // Ressources "populaires" — dérivées des vraies données (vues/note si présentes,
+  // sinon les plus récentes), purement pour l'affichage sidebar. N'affecte rien d'autre.
+  const popularResources = useMemo(() => {
+    const withScore = fonctionnalites.map(f => ({
+      f,
+      score: (f.vues ?? 0) * 1 + (f.note ?? 0) * 20,
+    }));
+    const hasSignal = withScore.some(x => x.score > 0);
+    const sorted = hasSignal
+      ? withScore.sort((a, b) => b.score - a.score)
+      : [...fonctionnalites].sort((a, b) => {
+          const da = a.dateCreation ? new Date(a.dateCreation).getTime() : 0;
+          const db = b.dateCreation ? new Date(b.dateCreation).getTime() : 0;
+          return db - da;
+        }).map(f => ({ f, score: 0 }));
+    return sorted.slice(0, 4).map(x => x.f);
+  }, [fonctionnalites]);
+
+  const favorisResources = useMemo(
+    () => fonctionnalites.filter(f => favoris.has(f.id)).slice(0, 4),
+    [fonctionnalites, favoris]
+  );
+
+  // Recommandation simple : une ressource premium mise en avant si l'utilisateur
+  // n'est pas premium, sinon une ressource gratuite récente. Purement cosmétique,
+  // ne déclenche aucun appel réseau supplémentaire.
+  const recommendedResource = useMemo(() => {
+    const pool = isUserPremium ? fonctionnalites : fonctionnalites.filter(f => f.premium);
+    return (pool.length ? pool : fonctionnalites)[0] || null;
+  }, [fonctionnalites, isUserPremium]);
+
+  // ---------- Accessibilité : fermeture des modales à la touche ESC ----------
+  useEffect(() => {
+    if (!activeModal) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setActiveModal(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    // focus automatique sur le bouton de fermeture à l'ouverture
+    const t = setTimeout(() => modalCloseBtnRef.current?.focus(), 50);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      clearTimeout(t);
+    };
+  }, [activeModal]);
+
   // Boutons d'action spécifiques au type de ressource (fond de carte),
   // remplace les deux boutons redondants "Voir" / "Ouvrir" d'origine.
   const CardActionButton = ({ onClick, icon: Icon, label, primary, done }) => (
     <button
       onClick={onClick}
-      className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95
+      aria-label={label}
+      className={`inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1
         ${primary
-          ? 'flex-1 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
+          ? 'flex-1 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-200'
           : 'w-9 h-9 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
       title={label}
     >
-      <Icon size={14} className={done ? 'text-emerald-500' : ''} />
+      <Icon size={14} className={done ? 'text-emerald-300' : ''} />
       {primary && <span>{done ? 'Copié' : label}</span>}
     </button>
   );
@@ -364,7 +413,7 @@ const Ressources = () => {
       return (
         <button
           onClick={(e) => { e.stopPropagation(); handlePremiumClick(); }}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 shadow-sm"
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
         >
           <Lock size={13} />
           {isAuthenticated ? 'Débloquer en Premium' : 'Se connecter'}
@@ -375,7 +424,9 @@ const Ressources = () => {
     const FavIcon = () => (
       <button
         onClick={(e) => toggleFavori(f.id, e)}
-        className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 hover:bg-rose-50 transition-all duration-200 active:scale-95"
+        aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+        aria-pressed={isFav}
+        className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 hover:bg-rose-50 transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1"
         title="Favori"
       >
         <Heart size={14} className={isFav ? 'fill-rose-500 text-rose-500' : 'text-slate-400'} />
@@ -400,8 +451,9 @@ const Ressources = () => {
             <a
               href={f.lienFichier}
               download
+              aria-label="Télécharger"
               onClick={(e) => e.stopPropagation()}
-              className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 active:scale-95"
+              className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
               title="Télécharger"
             >
               <Download size={14} />
@@ -413,9 +465,10 @@ const Ressources = () => {
     }
 
     if (type === 'article') {
+      // Comportement restauré : clic = ouverture directe (handleCardOpen gère navigate/window.open).
       return (
         <div className="flex items-center gap-2">
-          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={FileText} label="Lire l'article" primary />
+          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={ExternalLink} label="Lire l'article" primary />
           <FavIcon />
           <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
         </div>
@@ -456,7 +509,7 @@ const Ressources = () => {
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 16, scale: 0.98 },
+    hidden: { opacity: 0, y: 18, scale: 0.97 },
     visible: { opacity: 1, y: 0, scale: 1 },
   };
 
@@ -466,26 +519,28 @@ const Ressources = () => {
     const TypeIcon = cfg.icon;
     const isLocked = f.premium && !isUserPremium;
     const type = f.type?.toLowerCase();
+    // ⚠️ Titre réel de la ressource — jamais remplacé par le nom du type.
+    const displayTitle = f.nom || cfg.label;
 
     return (
       <motion.div
         key={f.id}
         variants={cardVariants}
-        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4), ease: 'easeOut' }}
-        whileHover={{ y: -6, scale: 1.02 }}
-        className="group relative bg-white/80 backdrop-blur-sm rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 transition-shadow duration-300 flex flex-col cursor-pointer overflow-hidden"
+        transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.22, 1, 0.36, 1] }}
+        whileHover={{ y: -7, scale: 1.015 }}
+        className="group relative bg-white/90 backdrop-blur-md rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.06)] hover:shadow-[0_20px_40px_-12px_rgba(37,99,235,0.18)] hover:border-blue-200 transition-[box-shadow,border-color,transform] duration-300 flex flex-col cursor-pointer overflow-hidden"
         onClick={() => handleCardOpen(f)}
       >
-        <span className={`absolute top-0 left-0 right-0 h-1 ${cfg.dot}`} />
+        <span className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${cfg.dot}`} />
 
         <div className="p-5 flex flex-col flex-1">
           {/* En-tête : icône + statut */}
-          <div className="flex items-center justify-between mb-3">
-            <span className={`inline-flex items-center justify-center w-10 h-10 rounded-xl ${cfg.badge}`}>
+          <div className="flex items-center justify-between mb-3.5">
+            <span className={`inline-flex items-center justify-center w-10 h-10 rounded-2xl ${cfg.badge} shadow-sm`}>
               <TypeIcon size={17} />
             </span>
             <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full inline-flex items-center gap-1 ${
+              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
                 f.premium ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
               }`}>
                 {f.premium && <Crown size={10} />}
@@ -493,32 +548,38 @@ const Ressources = () => {
               </span>
               <button
                 onClick={(e) => toggleFavori(f.id, e)}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors"
+                aria-label={favoris.has(f.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                className="w-7 h-7 inline-flex items-center justify-center rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
               >
                 <Heart size={13} className={favoris.has(f.id) ? 'fill-rose-500 text-rose-500' : ''} />
               </button>
             </div>
           </div>
 
-          <span className={`self-start text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full mb-2 ${cfg.badge}`}>
+          {/* Badge de catégorie (type) — toujours distinct du titre réel */}
+          <span className={`self-start text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full mb-2.5 ${cfg.badge}`}>
             {cfg.label}
           </span>
 
           {type !== 'citation' ? (
-            <h3 className="font-semibold text-slate-800 leading-snug mb-1.5 line-clamp-2">
-              {f.nom}
+            <h3 className="font-bold text-slate-800 leading-snug mb-1.5 line-clamp-2 tracking-tight">
+              {displayTitle}
             </h3>
           ) : (
             <div className="flex-1 flex flex-col justify-center py-1 mb-2">
-              <Quote className="text-violet-200 mb-1" size={22} strokeWidth={1.5} />
-              <blockquote className="text-slate-700 font-medium italic leading-relaxed line-clamp-4">
-                {f.description}
+              <Quote className="text-violet-200 mb-1.5" size={24} strokeWidth={1.5} />
+              {/* Titre réel de la citation (champ "nom") — jamais remplacé */}
+              <h3 className="font-bold text-slate-800 leading-snug mb-1.5 tracking-tight">
+                {displayTitle}
+              </h3>
+              <blockquote className="text-slate-600 font-medium italic leading-relaxed line-clamp-3">
+                "{f.description}"
               </blockquote>
             </div>
           )}
 
           {type !== 'citation' && f.description && (
-            <p className="text-sm text-slate-500 line-clamp-2 mb-3">{f.description}</p>
+            <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 mb-3">{f.description}</p>
           )}
 
           {/* Métadonnées optionnelles — n'affiche que ce qui existe réellement */}
@@ -548,7 +609,13 @@ const Ressources = () => {
           )}
 
           {shareFeedbackId === f.id && (
-            <p className="text-[11px] text-emerald-600 mb-2">Lien copié ✓</p>
+            <motion.p
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-[11px] text-emerald-600 mb-2 font-medium"
+            >
+              Lien copié ✓
+            </motion.p>
           )}
 
           <div className="mt-auto pt-1">
@@ -560,11 +627,14 @@ const Ressources = () => {
   };
 
   // ---- Modal générique ----
+  // Fermeture ESC gérée globalement (useEffect ci-dessus).
   const ModalShell = ({ children, wide }) => (
     <AnimatePresence>
       {activeModal && (
         <motion.div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -572,11 +642,11 @@ const Ressources = () => {
           onClick={() => setActiveModal(null)}
         >
           <motion.div
-            className={`bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[88vh] overflow-y-auto`}
-            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            className={`relative bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[88vh] overflow-y-auto`}
+            initial={{ opacity: 0, y: 24, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 10, scale: 0.97 }}
-            transition={{ duration: 0.22, ease: 'easeOut' }}
+            exit={{ opacity: 0, y: 12, scale: 0.97 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
             onClick={(e) => e.stopPropagation()}
           >
             {children}
@@ -586,22 +656,36 @@ const Ressources = () => {
     </AnimatePresence>
   );
 
+  // Bouton de fermeture très visible — grande croix contrastée, coin haut-droit,
+  // effet hover marqué, focus clavier visible. Utilisé partout sauf citation
+  // (qui a sa propre variante sur fond dégradé, même principe de visibilité).
+  const ModalCloseButton = ({ inverted, className = '' }) => (
+    <button
+      ref={modalCloseBtnRef}
+      onClick={() => setActiveModal(null)}
+      aria-label="Fermer la fenêtre"
+      className={`group/close absolute top-4 right-4 z-10 w-10 h-10 inline-flex items-center justify-center rounded-full transition-all duration-200 active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+        ${inverted
+          ? 'bg-white/20 text-white hover:bg-white hover:text-slate-800 focus-visible:ring-white'
+          : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 focus-visible:ring-red-300'}
+        ${className}`}
+    >
+      <X size={20} strokeWidth={2.5} className="transition-transform duration-200 group-hover/close:rotate-90" />
+    </button>
+  );
+
   const ModalHeader = ({ f }) => {
     const cfg = getTypeConfig(f.type);
     return (
-      <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
-        <div>
-          <span className={`inline-flex text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${cfg.badge} mb-2`}>
+      <div className="relative flex items-start justify-between p-6 pb-4 border-b border-slate-100">
+        <div className="pr-12">
+          <span className={`inline-flex text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${cfg.badge} mb-2.5`}>
             {cfg.label}
           </span>
-          <h2 className="text-xl font-bold text-slate-800 leading-snug">{f.nom}</h2>
+          {/* Titre réel de la ressource (champ "nom"), jamais remplacé par le type */}
+          <h2 className="text-xl font-bold text-slate-800 leading-snug tracking-tight">{f.nom}</h2>
         </div>
-        <button
-          onClick={() => setActiveModal(null)}
-          className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
-        >
-          <X size={16} />
-        </button>
+        <ModalCloseButton />
       </div>
     );
   };
@@ -613,14 +697,16 @@ const Ressources = () => {
         {extra}
         <button
           onClick={(e) => toggleFavori(f.id, e)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-rose-50 transition-colors"
+          aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+          aria-pressed={isFav}
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
         >
           <Heart size={14} className={isFav ? 'fill-rose-500 text-rose-500' : ''} />
           Favori
         </button>
         <button
           onClick={(e) => handleShare(f, e)}
-          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
         >
           <Share2 size={14} />
           Partager
@@ -629,6 +715,8 @@ const Ressources = () => {
     );
   };
 
+  // Note : plus de cas 'article' ici — les articles s'ouvrent désormais
+  // directement (handleCardOpen), comportement d'origine restauré.
   const renderModalContent = () => {
     if (!activeModal) return null;
     const { type, resource: f } = activeModal;
@@ -638,8 +726,8 @@ const Ressources = () => {
       return (
         <ModalShell wide>
           <ModalHeader f={f} />
-          <div className="px-6">
-            <div className="relative w-full rounded-2xl overflow-hidden bg-black" style={{ paddingTop: '56.25%' }}>
+          <div className="px-6 pt-5">
+            <div className="relative w-full rounded-2xl overflow-hidden bg-black shadow-lg" style={{ paddingTop: '56.25%' }}>
               {youtubeId && (
                 <iframe
                   className="absolute inset-0 w-full h-full"
@@ -664,40 +752,13 @@ const Ressources = () => {
       );
     }
 
-    if (type === 'article') {
-      return (
-        <ModalShell wide>
-          <ModalHeader f={f} />
-          <div className="px-6">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mb-4">
-              {f.auteur && <span>Par {f.auteur}</span>}
-              {f.dateCreation && <span>{new Date(f.dateCreation).toLocaleDateString('fr-FR')}</span>}
-              {f.categorie && <span>{f.categorie}</span>}
-              {f.duree && <span className="inline-flex items-center gap-1"><Clock size={12} />{f.duree}</span>}
-            </div>
-            {f.contenu && /<[a-z][\s\S]*>/i.test(f.contenu) ? (
-              <div
-                className="prose prose-sm max-w-none text-slate-600 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: f.contenu }}
-              />
-            ) : (
-              <div className="prose prose-sm max-w-none text-slate-600 leading-relaxed whitespace-pre-line">
-                {f.contenu || f.description}
-              </div>
-            )}
-          </div>
-          <ModalFooterActions f={f} />
-        </ModalShell>
-      );
-    }
-
     if (type === 'pdf') {
       return (
         <ModalShell wide>
           <ModalHeader f={f} />
-          <div className="px-6">
+          <div className="px-6 pt-5">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mb-4">
-              <span className="inline-flex items-center gap-1"><FileText size={12} />PDF</span>
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full font-semibold"><FileText size={12} />PDF</span>
               {f.pages != null ? (
                 <span>{f.pages} pages</span>
               ) : (
@@ -711,7 +772,7 @@ const Ressources = () => {
               <iframe
                 src={f.lienFichier}
                 title={f.nom}
-                className="w-full h-[60vh] rounded-2xl border border-slate-100"
+                className="w-full h-[60vh] rounded-2xl border border-slate-100 shadow-sm"
               />
             ) : (
               <p className="text-sm text-slate-500">Aucun document disponible.</p>
@@ -723,7 +784,7 @@ const Ressources = () => {
               <a
                 href={f.lienFichier}
                 download
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all active:scale-95 shadow-sm hover:shadow-md"
               >
                 <Download size={14} />
                 Télécharger
@@ -738,12 +799,12 @@ const Ressources = () => {
       return (
         <ModalShell>
           <ModalHeader f={f} />
-          <div className="px-6">
+          <div className="px-6 pt-5">
             {f.description && (
               <p className="text-sm text-slate-600 leading-relaxed mb-4">{f.description}</p>
             )}
-            <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-2xl p-5 mb-2">
-              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4">
+            <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-2xl p-5 mb-2 shadow-sm">
+              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4 shadow-sm">
                 <Headphones className="text-orange-600" size={22} />
               </div>
               {f.lienFichier ? (
@@ -768,24 +829,47 @@ const Ressources = () => {
     if (type === 'citation') {
       return (
         <ModalShell>
-          <div className="relative rounded-t-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 px-8 py-12 text-center overflow-hidden">
-            <Quote className="absolute -top-4 -left-2 text-white/10" size={110} strokeWidth={1} />
-            <button
-              onClick={() => setActiveModal(null)}
-              className="absolute top-4 right-4 w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.4, delay: 0.05 }}
+            className="relative rounded-t-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 px-8 py-14 text-center overflow-hidden"
+          >
+            <Quote className="absolute -top-6 -left-4 text-white/10" size={130} strokeWidth={1} />
+            <Quote className="absolute -bottom-8 -right-4 text-white/10 rotate-180" size={110} strokeWidth={1} />
+            <ModalCloseButton inverted />
+            {/* Titre réel de la citation (champ "nom") — jamais remplacé par "Citation" */}
+            <motion.span
+              initial={{ opacity: 0, y: -6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.1 }}
+              className="relative inline-block text-[11px] font-bold uppercase tracking-wider bg-white/15 text-white px-3 py-1 rounded-full mb-4"
             >
-              <X size={16} />
-            </button>
-            <p className="relative text-white text-2xl font-serif italic leading-relaxed">
+              Citation
+            </motion.span>
+            <motion.h2
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.35, delay: 0.15 }}
+              className="relative text-white/90 text-lg font-bold mb-3 tracking-tight"
+            >
+              {f.nom}
+            </motion.h2>
+            <motion.p
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.4, delay: 0.2 }}
+              className="relative text-white text-2xl font-serif italic leading-relaxed"
+            >
               "{f.description}"
-            </p>
-          </div>
+            </motion.p>
+          </motion.div>
           <ModalFooterActions
             f={f}
             extra={
               <button
                 onClick={(e) => handleCopyCitation(f, e)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all active:scale-95 shadow-sm hover:shadow-md"
               >
                 {copiedId === f.id ? <Check size={14} /> : <Copy size={14} />}
                 {copiedId === f.id ? 'Copié' : 'Copier'}
@@ -806,20 +890,26 @@ const Ressources = () => {
   return (
     <Layout>
       {/* ---------- HERO ---------- */}
-      <div className="relative overflow-hidden bg-gradient-to-b from-blue-50/80 via-indigo-50/40 to-transparent">
+      <div className="relative overflow-hidden bg-gradient-to-b from-blue-50/90 via-indigo-50/50 to-transparent">
         {/* illustration vectorielle discrète */}
-        <div className="pointer-events-none absolute -top-10 right-[-40px] w-72 h-72 rounded-full bg-gradient-to-br from-blue-200/30 to-violet-200/30 blur-2xl hidden md:block" />
-        <div className="pointer-events-none absolute top-10 right-10 hidden lg:flex items-end gap-3 opacity-70">
+        <div className="pointer-events-none absolute -top-16 right-[-60px] w-96 h-96 rounded-full bg-gradient-to-br from-blue-200/30 to-violet-200/30 blur-3xl hidden md:block" />
+        <div className="pointer-events-none absolute -bottom-10 -left-10 w-64 h-64 rounded-full bg-gradient-to-tr from-emerald-100/40 to-blue-100/30 blur-3xl hidden md:block" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 0.7, y: 0 }}
+          transition={{ duration: 0.8, ease: 'easeOut' }}
+          className="pointer-events-none absolute top-10 right-10 hidden lg:flex items-end gap-3"
+        >
           <Leaf className="text-emerald-300" size={64} strokeWidth={1.2} />
           <BookOpen className="text-blue-300 -mb-2" size={80} strokeWidth={1.2} />
-        </div>
+        </motion.div>
 
-        <div className="relative max-w-7xl mx-auto px-4 pt-14 pb-10 text-center">
+        <div className="relative max-w-7xl mx-auto px-4 pt-16 pb-10 text-center">
           <motion.div
-            initial={{ opacity: 0, y: -12 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0, y: -12, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-md shadow-blue-100 border border-blue-100 mb-5"
+            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-blue-100 border border-blue-100 mb-5"
           >
             <Library className="text-blue-600" size={30} strokeWidth={1.6} />
           </motion.div>
@@ -842,27 +932,46 @@ const Ressources = () => {
             Découvrez des ressources sélectionnées par des professionnels pour améliorer votre bien-être mental.
           </motion.p>
 
+          {/* Mini-statistiques du hero */}
+          {isAuthenticated && !loading && fonctionnalites.length > 0 && (
+            <motion.div
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500"
+            >
+              {stats.map((s, i) => (
+                <span key={s.label} className="inline-flex items-center gap-1.5">
+                  <s.icon size={13} className="text-blue-400" />
+                  <span className="font-bold text-slate-700">{s.value}</span> {s.label}
+                  {i < stats.length - 1 && <span className="ml-6 w-1 h-1 rounded-full bg-slate-300 hidden sm:inline-block" />}
+                </span>
+              ))}
+            </motion.div>
+          )}
+
           {/* ---------- BARRE DE RECHERCHE ---------- */}
           {isAuthenticated && (
             <motion.div
               className="mt-7 max-w-xl mx-auto"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.15, ease: 'easeOut' }}
+              transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
             >
               <div
-                className={`relative flex items-center bg-white rounded-2xl shadow-sm transition-shadow duration-200 ${
-                  searchFocused ? 'shadow-lg shadow-blue-100 ring-2 ring-blue-200' : 'ring-1 ring-slate-100'
+                className={`relative flex items-center bg-white rounded-2xl transition-all duration-250 ${
+                  searchFocused ? 'shadow-xl shadow-blue-100 ring-2 ring-blue-300 scale-[1.01]' : 'shadow-sm ring-1 ring-slate-100'
                 }`}
               >
-                <Search size={18} className="absolute left-4 text-slate-400" />
+                <Search size={18} className={`absolute left-4 transition-colors duration-200 ${searchFocused ? 'text-blue-500' : 'text-slate-400'}`} />
                 <input
                   type="text"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   onFocus={() => setSearchFocused(true)}
                   onBlur={() => setSearchFocused(false)}
-                  placeholder="Rechercher une ressource, un sujet…"
+                  aria-label="Rechercher une ressource"
+                  placeholder="Rechercher un article, une citation, un guide…"
                   className="w-full bg-transparent pl-11 pr-4 py-3.5 rounded-2xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
                 />
               </div>
@@ -914,9 +1023,9 @@ const Ressources = () => {
                         ${active
                           ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
                           : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700'}`}
-                      whileHover={{ scale: 1.04 }}
+                      whileHover={{ scale: 1.04, y: -1 }}
                       whileTap={{ scale: 0.94 }}
-                      transition={{ duration: 0.15 }}
+                      transition={{ duration: 0.18, ease: 'easeOut' }}
                       aria-pressed={active}
                     >
                       <CatIcon size={14} />
@@ -926,30 +1035,43 @@ const Ressources = () => {
                 })}
               </div>
 
-              {/* ---------- 2e NIVEAU : Gratuit / Premium + Tri ---------- */}
+              {/* ---------- 2e NIVEAU : Gratuit / Premium / Favoris + Tri ---------- */}
               <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
-                <div className="inline-flex items-center gap-1 bg-slate-100/70 p-1 rounded-full">
-                  {[
-                    { key: 'all', label: 'Tous' },
-                    { key: 'free', label: 'Gratuit', icon: Check },
-                    { key: 'premium', label: 'Premium', icon: Crown },
-                  ].map((opt) => {
-                    const active = freeFilter === opt.key;
-                    const OptIcon = opt.icon;
-                    return (
-                      <button
-                        key={opt.key}
-                        onClick={() => setFreeFilter(opt.key)}
-                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200
-                          ${active ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                      >
-                        {OptIcon && (
-                          <OptIcon size={12} className={active && opt.key === 'premium' ? 'text-amber-500' : active && opt.key === 'free' ? 'text-emerald-500' : ''} />
-                        )}
-                        {opt.label}
-                      </button>
-                    );
-                  })}
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="inline-flex items-center gap-1 bg-slate-100/70 p-1 rounded-full">
+                    {[
+                      { key: 'all', label: 'Tous' },
+                      { key: 'free', label: 'Gratuit', icon: Check },
+                      { key: 'premium', label: 'Premium', icon: Crown },
+                    ].map((opt) => {
+                      const active = freeFilter === opt.key;
+                      const OptIcon = opt.icon;
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => setFreeFilter(opt.key)}
+                          aria-pressed={active}
+                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200
+                            ${active ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+                        >
+                          {OptIcon && (
+                            <OptIcon size={12} className={active && opt.key === 'premium' ? 'text-amber-500' : active && opt.key === 'free' ? 'text-emerald-500' : ''} />
+                          )}
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <button
+                    onClick={() => setShowFavorisOnly(v => !v)}
+                    aria-pressed={showFavorisOnly}
+                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200
+                      ${showFavorisOnly ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-white text-slate-500 border-slate-200 hover:text-rose-500 hover:border-rose-200'}`}
+                  >
+                    <Heart size={12} className={showFavorisOnly ? 'fill-rose-500' : ''} />
+                    Favoris
+                  </button>
                 </div>
 
                 <div className="inline-flex items-center gap-2 text-xs text-slate-500">
@@ -958,7 +1080,8 @@ const Ressources = () => {
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value)}
-                    className="bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    aria-label="Trier les ressources"
+                    className="bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-shadow"
                   >
                     <option value="recent">Plus récentes</option>
                     <option value="oldest">Plus anciennes</option>
@@ -975,23 +1098,29 @@ const Ressources = () => {
               {loading && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
                   {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-56 rounded-2xl bg-slate-100 animate-pulse" />
+                    <div key={i} className="h-56 rounded-3xl bg-slate-100 animate-pulse" />
                   ))}
                 </div>
               )}
 
               {!loading && displayResources.length === 0 && (
-                <div className="text-center py-16 bg-white border border-slate-100 rounded-2xl">
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center py-16 bg-white border border-slate-100 rounded-3xl"
+                >
                   <Search className="mx-auto text-slate-300 mb-3" size={32} />
-                  <p className="text-sm text-slate-500">Aucune ressource ne correspond à votre recherche.</p>
-                </div>
+                  <p className="text-sm text-slate-500">
+                    {showFavorisOnly ? "Vous n'avez pas encore de favoris." : "Aucune ressource ne correspond à votre recherche."}
+                  </p>
+                </motion.div>
               )}
 
               {!loading && displayResources.length > 0 && (
                 <>
                   {displayGratuits.length > 0 && (
                     <section className="mb-14">
-                      <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 tracking-tight">
                         <Sparkles size={18} className="text-blue-500" />
                         Ressources Gratuites
                       </h2>
@@ -1010,7 +1139,7 @@ const Ressources = () => {
 
                   {displayPremiums.length > 0 && (
                     <section>
-                      <h2 className="text-xl font-bold text-amber-700 mb-6 flex items-center gap-2">
+                      <h2 className="text-xl font-bold text-amber-700 mb-6 flex items-center gap-2 tracking-tight">
                         <Crown size={17} />
                         Ressources Premium
                       </h2>
@@ -1032,13 +1161,14 @@ const Ressources = () => {
 
             {/* ---------- SIDEBAR ---------- */}
             <aside className="space-y-5 lg:sticky lg:top-6">
+              {/* Aperçu rapide */}
               <motion.div
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ duration: 0.4, delay: 0.1 }}
                 className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
               >
-                <h3 className="text-sm font-bold text-slate-800 mb-4">Aperçu rapide</h3>
+                <h3 className="text-sm font-bold text-slate-800 mb-4 tracking-tight">Aperçu rapide</h3>
                 <ul className="space-y-3">
                   {sidebarStats.map((s) => (
                     <li key={s.label} className="flex items-center justify-between text-sm">
@@ -1052,11 +1182,109 @@ const Ressources = () => {
                 </ul>
               </motion.div>
 
+              {/* Ressources populaires */}
+              {popularResources.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.13 }}
+                  className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
+                >
+                  <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
+                    <TrendingUp size={15} className="text-blue-500" />
+                    Populaires
+                  </h3>
+                  <ul className="space-y-2.5">
+                    {popularResources.map((f) => {
+                      const cfg = getTypeConfig(f.type);
+                      const TIcon = cfg.icon;
+                      return (
+                        <li key={f.id}>
+                          <button
+                            onClick={() => handleCardOpen(f)}
+                            className="w-full flex items-center gap-2.5 text-left group/pop"
+                          >
+                            <span className={`shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-lg ${cfg.badge}`}>
+                              <TIcon size={13} />
+                            </span>
+                            <span className="text-xs font-medium text-slate-600 line-clamp-1 group-hover/pop:text-blue-600 transition-colors">
+                              {f.nom}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </motion.div>
+              )}
+
+              {/* Favoris */}
+              {favorisResources.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.16 }}
+                  className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
+                >
+                  <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
+                    <Bookmark size={15} className="text-rose-500" />
+                    Vos favoris
+                  </h3>
+                  <ul className="space-y-2.5">
+                    {favorisResources.map((f) => {
+                      const cfg = getTypeConfig(f.type);
+                      const TIcon = cfg.icon;
+                      return (
+                        <li key={f.id}>
+                          <button
+                            onClick={() => handleCardOpen(f)}
+                            className="w-full flex items-center gap-2.5 text-left group/fav"
+                          >
+                            <span className={`shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-lg ${cfg.badge}`}>
+                              <TIcon size={13} />
+                            </span>
+                            <span className="text-xs font-medium text-slate-600 line-clamp-1 group-hover/fav:text-blue-600 transition-colors">
+                              {f.nom}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </motion.div>
+              )}
+
+              {/* Recommandation */}
+              {recommendedResource && (
+                <motion.div
+                  initial={{ opacity: 0, x: 12 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ duration: 0.4, delay: 0.19 }}
+                  className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
+                >
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2 tracking-tight">
+                    <Sparkles size={15} className="text-violet-500" />
+                    Pour vous
+                  </h3>
+                  <button
+                    onClick={() => handleCardOpen(recommendedResource)}
+                    className="w-full text-left group/reco"
+                  >
+                    <p className="text-xs font-semibold text-slate-700 line-clamp-2 group-hover/reco:text-blue-600 transition-colors mb-1">
+                      {recommendedResource.nom}
+                    </p>
+                    {recommendedResource.description && (
+                      <p className="text-[11px] text-slate-400 line-clamp-2">{recommendedResource.description}</p>
+                    )}
+                  </button>
+                </motion.div>
+              )}
+
               {!isUserPremium && (
                 <motion.div
                   initial={{ opacity: 0, x: 12 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.15 }}
+                  transition={{ duration: 0.4, delay: 0.22 }}
                   className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg shadow-blue-200/50"
                 >
                   <Crown className="absolute -bottom-3 -right-3 text-white/10" size={90} strokeWidth={1} />
@@ -1068,7 +1296,7 @@ const Ressources = () => {
                   </p>
                   <button
                     onClick={handlePremiumClick}
-                    className="relative inline-flex items-center gap-1.5 bg-white text-blue-700 text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-blue-50 transition-colors active:scale-95"
+                    className="relative inline-flex items-center gap-1.5 bg-white text-blue-700 text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-blue-50 transition-all active:scale-95 shadow-sm hover:shadow-md"
                   >
                     <Crown size={13} />
                     Devenir Premium
@@ -1079,7 +1307,7 @@ const Ressources = () => {
               <motion.div
                 initial={{ opacity: 0, x: 12 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.2 }}
+                transition={{ duration: 0.4, delay: 0.25 }}
                 className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
               >
                 <div className="flex items-center gap-3">
@@ -1093,7 +1321,7 @@ const Ressources = () => {
                 </div>
                 <Link
                   to="/contact"
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:gap-2 transition-all"
                 >
                   Nous contacter
                   <ArrowRight size={12} />
