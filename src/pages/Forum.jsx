@@ -143,21 +143,22 @@ const Forum = () => {
     }, []);
 
     useEffect(() => {
-        const fetchAuthStatus = async () => {
-            try {
-                const profilData = getCurrentUserInfo();
-                if (profilData && profilData.token) {
-                    setIsAuthenticated(true);
-                    setCurrentUserEmail(profilData.email);
-                    setCurrentUserRole(profilData.role);
-                    setCurrentUserId(profilData.id);
-                } else {
-                    setIsAuthenticated(false);
-                }
-            } catch (err) {
-                setIsAuthenticated(false);
-            }
-        };
+       const fetchAuthStatus = async () => {
+    try {
+        const profilData = getCurrentUserInfo();
+        const token = localStorage.getItem('token');
+        if (profilData && token) {
+            setIsAuthenticated(true);
+            setCurrentUserEmail(profilData.email);
+            setCurrentUserRole(profilData.role);
+            setCurrentUserId(profilData.id);
+        } else {
+            setIsAuthenticated(false);
+        }
+    } catch (err) {
+        setIsAuthenticated(false);
+    }
+};
         fetchAuthStatus();
         fetchSujets();
     }, [fetchSujets]);
