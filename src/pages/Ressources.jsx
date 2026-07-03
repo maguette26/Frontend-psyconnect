@@ -1,103 +1,178 @@
-import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Link, useNavigate } from 'react-router-dom';
 import {
-  Lock, Play, Download, ExternalLink, Headphones, FileText,
-  Quote, BookOpen, Video, Sparkles, Library, Clock, ArrowRight,
-  Heart, Share2, Copy, X, Eye, Star, Check, Search, Crown,
-  MessageCircle, ArrowUpDown, Leaf, TrendingUp, Bookmark
+  AlertTriangle,
+  Library,
+  Search,
+  Heart,
+  Share2,
+  X,
+  Crown,
+  PlayCircle,
+  Headphones,
+  Quote,
+  BookOpen,
+  FileText,
+  Clock,
+  Lock,
+  Sparkles,
+  ChevronDown,
 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Layout from '../components/commun/Layout';
-import AuthRequiredModal from '../components/commun/AuthRequiredModal';
 import { useRessource } from './RessourceContext.jsx';
+
+/* ============================================================
+   Static config — purely visual, no business logic
+   ============================================================ */
+
+const TYPE_CONFIG = {
+  video: { label: 'Vidéo', icon: PlayCircle, badge: 'bg-rose-100 text-rose-700', dot: 'bg-rose-400' },
+  podcast: { label: 'Podcast', icon: Headphones, badge: 'bg-orange-100 text-orange-700', dot: 'bg-orange-400' },
+  citation: { label: 'Citation', icon: Quote, badge: 'bg-violet-100 text-violet-700', dot: 'bg-violet-400' },
+  guide: { label: 'Guide', icon: BookOpen, badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-400' },
+  article: { label: 'Article', icon: FileText, badge: 'bg-blue-100 text-blue-700', dot: 'bg-blue-400' },
+};
+
+const getTypeConfig = (type) =>
+  TYPE_CONFIG[(type || '').toLowerCase()] || {
+    label: type || 'Ressource',
+    icon: FileText,
+    badge: 'bg-gray-100 text-gray-700',
+    dot: 'bg-gray-400',
+  };
+
+const emojiByCategory = {
+  all: '📚',
+  citation: '💬',
+  video: '🎥',
+  podcast: '🎧',
+  article: '📝',
+  livre: '📖',
+  autres: '🔖',
+};
+
+/* ============================================================
+   Small presentational helpers
+   ============================================================ */
+
+const AccessBadge = ({ premium }) =>
+  premium ? (
+    <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-amber-300 to-yellow-400 px-2.5 py-1 text-[11px] font-semibold text-yellow-900 shadow-sm">
+      <Crown className="h-3 w-3" /> Premium
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+      Gratuit
+    </span>
+  );
+
+const TypeBadge = ({ type }) => {
+  const cfg = getTypeConfig(type);
+  const Icon = cfg.icon;
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${cfg.badge}`}>
+      <Icon className="h-3 w-3" /> {cfg.label}
+    </span>
+  );
+};
+
+/* ============================================================
+   Main component
+   ============================================================ */
 
 const Ressources = () => {
   const navigate = useNavigate();
   const { selectedCategory, setSelectedCategory, categoriesOrder } = useRessource();
+  const [userReady, setUserReady] = useState(false);
   const [fonctionnalites, setFonctionnalites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isUserPremium, setIsUserPremium] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [notConnectedMessage, setNotConnectedMessage] = useState('');
 
-  // ============================================================
-  // ÉTAT UI UNIQUEMENT (aucun impact sur la logique métier) :
-  // gère l'ouverture des modals de lecture, les favoris locaux,
-  // la recherche, le filtre gratuit/premium et le tri d'affichage.
-  // Les favoris ne sont pas persistés côté API (aucun endpoint
-  // n'existe pour ça dans le code fourni) — à brancher plus tard
-  // si besoin d'une vraie persistance.
-  // ============================================================
-  const [activeModal, setActiveModal] = useState(null); // { type, resource } | null
-  const [favoris, setFavoris] = useState(() => new Set());
-  const [copiedId, setCopiedId] = useState(null);
-  const [shareFeedbackId, setShareFeedbackId] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [freeFilter, setFreeFilter] = useState('all'); // 'all' | 'free' | 'premium'
-  const [sortBy, setSortBy] = useState('recent'); // 'recent' | 'oldest'
-  const [searchFocused, setSearchFocused] = useState(false);
-  const [showFavorisOnly, setShowFavorisOnly] = useState(false);
-  const modalCloseBtnRef = useRef(null);
-
-  // ============================================================
-  // LOGIQUE MÉTIER INCHANGÉE À PARTIR D'ICI
-  // ============================================================
+  // --- visual-only state (does not touch business logic) ---
+  const [searchQuery, setSearchQuery] = useState('');
+  const [accessFilter, setAccessFilter] = useState('all'); // all | free | premium
+  const [sortOrder, setSortOrder] = useState('recent'); // recent | ancien
+  const [favorites, setFavorites] = useState(() => new Set());
+  const [modalResource, setModalResource] = useState(null);
+  const [toast, setToast] = useState('');
 
   const fetchFonctionnalites = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const res = await api.get('/fonctionnalites');
+      console.log('RAW DATA:', res.data);
+      console.log(
+        'Types statut:',
+        res.data?.map((f) => ({
+          nom: f.nom,
+          statut: f.statut,
+          typeStatut: typeof f.statut,
+        }))
+      );
+
       if (Array.isArray(res.data)) {
         const ressourcesFiltrees = res.data
-          .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)
-          .map(f => ({
+          .filter((f) => f.statut === true || f.statut === 'true' || f.statut === 1) // ← fix
+          .map((f) => ({
             ...f,
-            premium: f.type === 'podcast' ? true : f.premium
+            premium: f.type === 'podcast' ? true : f.premium,
           }));
+        console.log('Après filtre:', ressourcesFiltrees.length, 'ressources');
         setFonctionnalites(ressourcesFiltrees);
       } else {
-        throw new Error("Format de données invalide.");
+        throw new Error('Format de données invalide.');
       }
     } catch (err) {
       console.error('Erreur fetch:', err);
-      setError("Erreur de chargement des fonctionnalités.");
+      setError('Erreur de chargement des fonctionnalités.');
     } finally {
       setLoading(false);
     }
   }, []);
 
+  // 1. Sync role depuis localStorage (refresh instant UI)
   useEffect(() => {
     const syncUser = () => {
-      const role = localStorage.getItem("role");
-      setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+      const role = localStorage.getItem('role');
+
+      setIsUserPremium(role === 'PREMIUM' || role === 'ADMIN');
+      setUserReady(true);
     };
+
     syncUser();
-    window.addEventListener("roleChange", syncUser);
-    return () => window.removeEventListener("roleChange", syncUser);
+
+    window.addEventListener('roleChange', syncUser);
+
+    return () => window.removeEventListener('roleChange', syncUser);
   }, []);
 
+  // 2. Load user + data
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    setIsAuthenticated(!!token);
+    const token = localStorage.getItem('token');
 
     if (!token) {
-      setIsUserPremium(false);
-      setFonctionnalites([]);
-      setError(null);
-      setLoading(false);
+      setNotConnectedMessage('⚠️ Vous devez être connecté');
+      navigate('/connexion');
       return;
     }
 
     const fetchUserInfo = async () => {
       try {
-        const res = await api.get("/auth/me");
+        const res = await api.get('/auth/me');
+
         const role = res.data.role;
-        setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
-        localStorage.setItem("role", role);
-        window.dispatchEvent(new Event("user-updated"));
+
+        setIsUserPremium(role === 'PREMIUM' || role === 'ADMIN');
+
+        localStorage.setItem('role', role);
+
+        // 🔥 IMPORTANT: notify UI partout
+        window.dispatchEvent(new Event('user-updated'));
       } catch {
         setIsUserPremium(false);
       } finally {
@@ -106,1240 +181,592 @@ const Ressources = () => {
     };
 
     fetchUserInfo();
-  }, [fetchFonctionnalites]);
+  }, [navigate, fetchFonctionnalites]);
 
   const filteredFonctionnalites = useMemo(() => {
-    return fonctionnalites.filter(f =>
-      selectedCategory === 'all' ||
-      (selectedCategory === 'Autres' && !categoriesOrder.some(cat => cat.key === f.type)) ||
-      f.type === selectedCategory
+    return fonctionnalites.filter(
+      (f) =>
+        selectedCategory === 'all' ||
+        (selectedCategory === 'Autres' && !categoriesOrder.some((cat) => cat.key === f.type)) ||
+        f.type === selectedCategory
     );
   }, [fonctionnalites, selectedCategory, categoriesOrder]);
 
-  const gratuits = filteredFonctionnalites.filter(f => !f.premium);
-  const premiums = filteredFonctionnalites.filter(f => f.premium);
+  // --- visual-only derived data: search + access filter + sort ---
+  const searchedAndSorted = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    let list = filteredFonctionnalites.filter((f) => {
+      if (!q) return true;
+      const nom = (f.nom || '').toLowerCase();
+      const desc = (f.description || '').toLowerCase();
+      return nom.includes(q) || desc.includes(q);
+    });
+
+    if (accessFilter === 'free') list = list.filter((f) => !f.premium);
+    if (accessFilter === 'premium') list = list.filter((f) => f.premium);
+
+    const sortKey = (f) => {
+      const raw = f.createdAt || f.dateCreation || f.date || f.id || 0;
+      const t = new Date(raw).getTime();
+      return Number.isNaN(t) ? Number(f.id) || 0 : t;
+    };
+
+    list = [...list].sort((a, b) => (sortOrder === 'recent' ? sortKey(b) - sortKey(a) : sortKey(a) - sortKey(b)));
+
+    return list;
+  }, [filteredFonctionnalites, searchQuery, accessFilter, sortOrder]);
+
+  if (notConnectedMessage) {
+    return (
+      <Layout>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="max-w-md mx-auto mt-20 p-8 bg-red-50 border border-red-300 rounded-2xl shadow-lg flex flex-col items-center gap-4 select-none"
+        >
+          <AlertTriangle className="w-12 h-12 text-red-500" />
+          <h2 className="text-xl font-semibold text-red-700 text-center">
+            ⚠️ Vous devez être connecté pour accéder aux ressources.
+          </h2>
+          <p className="text-red-600 text-center">Vous allez être redirigé vers la page de connexion...</p>
+        </motion.div>
+      </Layout>
+    );
+  }
+
+  const gratuits = searchedAndSorted.filter((f) => !f.premium);
+  const premiums = searchedAndSorted.filter((f) => f.premium);
 
   const resourceLinks = {
-    "mini defi gratuite": "/mini-defi-gratuite",
-    "liste de controle bien etre": "/liste-controle-bien-etre",
-    "mini challenge decouverte": "/mini-defi-decouverte",
-    "guide fixer des limites saines": "/guide-fixateur-limites",
-    "auto evaluation basique": "/auto-evaluation-basique",
+    'mini defi gratuite': '/mini-defi-gratuite',
+    'liste de controle bien etre': '/liste-controle-bien-etre',
+    'mini challenge decouverte': '/mini-defi-decouverte',
+    'guide fixer des limites saines': '/guide-fixateur-limites',
+    'auto evaluation basique': '/auto-evaluation-basique',
   };
 
-  const handlePremiumClick = () => {
-    if (!isAuthenticated) {
-      setAuthModalOpen(true);
-    } else {
-      navigate('/devenir-premium');
-    }
-  };
-
-  const stats = useMemo(() => {
-    const total = fonctionnalites.length;
-    const videos = fonctionnalites.filter(f => f.type?.toLowerCase() === 'video').length;
-    const podcasts = fonctionnalites.filter(f => f.type?.toLowerCase() === 'podcast').length;
-    const guides = fonctionnalites.filter(f => f.type?.toLowerCase() === 'guide').length;
-    return [
-      { icon: Library, label: 'Ressources', value: total },
-      { icon: Video, label: 'Vidéos', value: videos },
-      { icon: Headphones, label: 'Podcasts', value: podcasts },
-      { icon: BookOpen, label: 'Guides', value: guides },
-    ];
-  }, [fonctionnalites]);
-
-  const iconByCategory = {
-    all: Sparkles,
-    citation: Quote,
-    video: Video,
-    podcast: Headphones,
-    article: FileText,
-    livre: BookOpen,
-    guide: BookOpen,
-    autres: Library,
-  };
-
-  const typeIcon = (type) => {
-    const map = {
-      citation: Quote,
-      video: Video,
-      podcast: Headphones,
-      article: FileText,
-      livre: BookOpen,
-      guide: BookOpen,
-    };
-    return map[type?.toLowerCase()] || FileText;
-  };
-
-  const getRessourceUrl = (f) => {
-    const normalizedNom = f.nom
+  const normalizeNom = (nom) =>
+    (nom || '')
       .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]/g, " ")
-      .replace(/\s+/g, " ")
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]/g, ' ')
+      .replace(/\s+/g, ' ')
       .trim();
 
+  // Helper to get the link (route or file) for a resource (if free) — unchanged logic
+  const getRessourceUrl = (f) => {
+    const normalizedNom = normalizeNom(f.nom);
     if (resourceLinks[normalizedNom]) {
       return resourceLinks[normalizedNom];
     }
     return f.lienFichier || null;
   };
 
-  const getYoutubeId = (lienFichier) =>
-    lienFichier?.includes('v=')
-      ? lienFichier.split('v=')[1]?.split('&')[0]
-      : lienFichier?.split('/').pop();
-
-  // ============================================================
-  // FIN DE LA LOGIQUE MÉTIER INCHANGÉE
-  // ============================================================
-
-  // ============================================================
-  // NOUVEAU — UI / PRÉSENTATION UNIQUEMENT
-  // ============================================================
-
-  // Palette de badges par type, dans les tons PsyConnect (bleu
-  // principal conservé) + accents doux pour différencier les types.
-  const typeConfig = {
-    citation: { label: 'Citation', badge: 'bg-violet-50 text-violet-600 ring-1 ring-violet-100', dot: 'from-violet-400 to-violet-600', icon: Quote },
-    article: { label: 'Article', badge: 'bg-blue-50 text-blue-600 ring-1 ring-blue-100', dot: 'from-blue-400 to-blue-600', icon: FileText },
-    video: { label: 'Vidéo', badge: 'bg-rose-50 text-rose-600 ring-1 ring-rose-100', dot: 'from-rose-400 to-rose-600', icon: Video },
-    podcast: { label: 'Podcast', badge: 'bg-orange-50 text-orange-600 ring-1 ring-orange-100', dot: 'from-orange-400 to-orange-600', icon: Headphones },
-    guide: { label: 'Guide', badge: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100', dot: 'from-emerald-400 to-emerald-600', icon: BookOpen },
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2200);
   };
 
-  const getTypeConfig = (type) =>
-    typeConfig[type?.toLowerCase()] || { label: type || 'Ressource', badge: 'bg-slate-50 text-slate-600 ring-1 ring-slate-100', dot: 'from-slate-300 to-slate-400', icon: FileText };
-
-  const isYoutube = (lienFichier) =>
-    !!lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'));
-
-  const toggleFavori = (id, e) => {
-    e?.stopPropagation();
-    setFavoris(prev => {
+  const toggleFavorite = (e, id) => {
+    e.stopPropagation();
+    setFavorites((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
 
-  const handleShare = async (f, e) => {
-    e?.stopPropagation();
-    const shareData = {
-      title: f.nom,
-      text: f.description || f.nom,
-      url: window.location.href,
-    };
+  const handleShare = async (e, f) => {
+    e.stopPropagation();
+    const url = getRessourceUrl(f);
+    const shareUrl = url && !url.startsWith('/') ? url : window.location.href;
     try {
       if (navigator.share) {
-        await navigator.share(shareData);
+        await navigator.share({ title: f.nom, text: f.description, url: shareUrl });
       } else {
-        await navigator.clipboard.writeText(shareData.url);
-        setShareFeedbackId(f.id);
-        setTimeout(() => setShareFeedbackId(null), 1800);
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('Lien copié.');
       }
     } catch {
-      // partage annulé par l'utilisateur : rien à faire
+      // silently ignore cancelled share dialogs
     }
   };
 
-  const handleCopyCitation = async (f, e) => {
-    e?.stopPropagation();
-    try {
-      await navigator.clipboard.writeText(f.description || '');
-      setCopiedId(f.id);
-      setTimeout(() => setCopiedId(null), 1800);
-    } catch {
-      // clipboard indisponible : on ignore silencieusement
-    }
-  };
-
-  // Détermine ce qui se passe au clic principal sur une carte,
-  // sans jamais modifier la logique d'accès premium existante.
-  // ⚠️ Comportement ARTICLE restauré à l'identique de la version d'origine :
-  // ouverture directe via getRessourceUrl() (navigate ou window.open),
-  // plus aucune modale pour les articles.
-  const handleCardOpen = (f) => {
+  // Determines what happens when a card is clicked.
+  // Business rule preserved: premium + not premium user -> upsell.
+  // Articles keep opening their real link directly (never a blank modal).
+  // Internal mapped resources keep navigating to their existing route.
+  // Everything else opens in the new preview modal.
+  const handleCardClick = (f) => {
     if (f.premium && !isUserPremium) {
-      handlePremiumClick();
+      navigate('/devenir-premium');
       return;
     }
-    const type = f.type?.toLowerCase();
-    if (type === 'video' && isYoutube(f.lienFichier)) {
-      setActiveModal({ type: 'video', resource: f });
+
+    const normalizedNom = normalizeNom(f.nom);
+    if (resourceLinks[normalizedNom]) {
+      navigate(resourceLinks[normalizedNom]);
       return;
     }
-    if (type === 'guide') {
-      setActiveModal({ type: 'pdf', resource: f });
+
+    if ((f.type || '').toLowerCase() === 'article') {
+      const url = f.lienFichier;
+      if (url) window.open(url, '_blank', 'noopener noreferrer');
       return;
     }
-    if (type === 'citation') {
-      setActiveModal({ type: 'citation', resource: f });
-      return;
-    }
-    if (type === 'podcast') {
-      setActiveModal({ type: 'podcast', resource: f });
-      return;
-    }
-    // article + tous les autres cas : ouverture directe conservée (comportement d'origine)
-    const url = getRessourceUrl(f);
-    if (url) {
-      url.startsWith('/') ? navigate(url) : window.open(url, '_blank', 'noopener noreferrer');
-    }
+
+    setModalResource(f);
   };
 
-  // Couche d'affichage supplémentaire (recherche + filtre gratuit/premium
-  // + tri + favoris) appliquée PAR-DESSUS le filtrage métier existant
-  // (filteredFonctionnalites, catégories). Ne modifie rien en amont.
-  const displayResources = useMemo(() => {
-    let list = [...filteredFonctionnalites];
+  // Renders the actual body of a resource (video embed, podcast player, citation, article...).
+  // Logic identical to the original renderResourceContent, restyled.
+  const renderResourceContent = (f, { inModal = false } = {}) => {
+    const { type, description, lienFichier, premium, nom } = f;
 
-    if (freeFilter === 'free') list = list.filter(f => !f.premium);
-    if (freeFilter === 'premium') list = list.filter(f => f.premium);
-    if (showFavorisOnly) list = list.filter(f => favoris.has(f.id));
-
-    const term = searchTerm.trim().toLowerCase();
-    if (term) {
-      list = list.filter(f =>
-        f.nom?.toLowerCase().includes(term) ||
-        f.description?.toLowerCase().includes(term)
-      );
-    }
-
-    list.sort((a, b) => {
-      const da = a.dateCreation ? new Date(a.dateCreation).getTime() : 0;
-      const db = b.dateCreation ? new Date(b.dateCreation).getTime() : 0;
-      return sortBy === 'recent' ? db - da : da - db;
-    });
-
-    return list;
-  }, [filteredFonctionnalites, freeFilter, searchTerm, sortBy, showFavorisOnly, favoris]);
-
-  const displayGratuits = displayResources.filter(f => !f.premium);
-  const displayPremiums = displayResources.filter(f => f.premium);
-
-  // Stats réelles pour la sidebar "Aperçu rapide" — calculées à partir
-  // de toutes les ressources reçues (fonctionnalites), pas seulement
-  // celles affichées après filtrage, pour rester représentatives.
-  const sidebarStats = useMemo(() => {
-    const total = fonctionnalites.length;
-    const videos = fonctionnalites.filter(f => f.type?.toLowerCase() === 'video').length;
-    const podcasts = fonctionnalites.filter(f => f.type?.toLowerCase() === 'podcast').length;
-    const articles = fonctionnalites.filter(f => f.type?.toLowerCase() === 'article').length;
-    const guides = fonctionnalites.filter(f => f.type?.toLowerCase() === 'guide').length;
-    const gratuitesCount = fonctionnalites.filter(f => !f.premium).length;
-    const premiumsCount = fonctionnalites.filter(f => f.premium).length;
-    return [
-      { icon: Library, label: 'Ressources totales', value: total, color: 'text-slate-500' },
-      { icon: Video, label: 'Vidéos', value: videos, color: 'text-rose-500' },
-      { icon: Headphones, label: 'Podcasts', value: podcasts, color: 'text-orange-500' },
-      { icon: FileText, label: 'Articles', value: articles, color: 'text-blue-500' },
-      { icon: BookOpen, label: 'Guides', value: guides, color: 'text-emerald-500' },
-      { icon: Check, label: 'Gratuites', value: gratuitesCount, color: 'text-emerald-600' },
-      { icon: Crown, label: 'Premium', value: premiumsCount, color: 'text-amber-500' },
-    ];
-  }, [fonctionnalites]);
-
-  // Ressources "populaires" — dérivées des vraies données (vues/note si présentes,
-  // sinon les plus récentes), purement pour l'affichage sidebar. N'affecte rien d'autre.
-  const popularResources = useMemo(() => {
-    const withScore = fonctionnalites.map(f => ({
-      f,
-      score: (f.vues ?? 0) * 1 + (f.note ?? 0) * 20,
-    }));
-    const hasSignal = withScore.some(x => x.score > 0);
-    const sorted = hasSignal
-      ? withScore.sort((a, b) => b.score - a.score)
-      : [...fonctionnalites].sort((a, b) => {
-          const da = a.dateCreation ? new Date(a.dateCreation).getTime() : 0;
-          const db = b.dateCreation ? new Date(b.dateCreation).getTime() : 0;
-          return db - da;
-        }).map(f => ({ f, score: 0 }));
-    return sorted.slice(0, 4).map(x => x.f);
-  }, [fonctionnalites]);
-
-  const favorisResources = useMemo(
-    () => fonctionnalites.filter(f => favoris.has(f.id)).slice(0, 4),
-    [fonctionnalites, favoris]
-  );
-
-  // Recommandation simple : une ressource premium mise en avant si l'utilisateur
-  // n'est pas premium, sinon une ressource gratuite récente. Purement cosmétique,
-  // ne déclenche aucun appel réseau supplémentaire.
-  const recommendedResource = useMemo(() => {
-    const pool = isUserPremium ? fonctionnalites : fonctionnalites.filter(f => f.premium);
-    return (pool.length ? pool : fonctionnalites)[0] || null;
-  }, [fonctionnalites, isUserPremium]);
-
-  // ---------- Accessibilité : fermeture des modales à la touche ESC ----------
-  useEffect(() => {
-    if (!activeModal) return;
-    const onKeyDown = (e) => {
-      if (e.key === 'Escape') setActiveModal(null);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    // focus automatique sur le bouton de fermeture à l'ouverture
-    const t = setTimeout(() => modalCloseBtnRef.current?.focus(), 50);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      clearTimeout(t);
-    };
-  }, [activeModal]);
-
-  // Boutons d'action spécifiques au type de ressource (fond de carte),
-  // remplace les deux boutons redondants "Voir" / "Ouvrir" d'origine.
-  const CardActionButton = ({ onClick, icon: Icon, label, primary, done }) => (
-    <button
-      onClick={onClick}
-      aria-label={label}
-      className={`inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1
-        ${primary
-          ? 'flex-1 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md hover:shadow-blue-200'
-          : 'w-9 h-9 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
-      title={label}
-    >
-      <Icon size={14} className={done ? 'text-emerald-300' : ''} />
-      {primary && <span>{done ? 'Copié' : label}</span>}
-    </button>
-  );
-
-  const renderCardActions = (f) => {
-    const isLocked = f.premium && !isUserPremium;
-    const type = f.type?.toLowerCase();
-    const isFav = favoris.has(f.id);
-
-    if (isLocked) {
+    if (premium && !isUserPremium) {
       return (
-        <button
-          onClick={(e) => { e.stopPropagation(); handlePremiumClick(); }}
-          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 shadow-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
-        >
-          <Lock size={13} />
-          {isAuthenticated ? 'Débloquer en Premium' : 'Se connecter'}
-        </button>
-      );
-    }
-
-    const FavIcon = () => (
-      <button
-        onClick={(e) => toggleFavori(f.id, e)}
-        aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-        aria-pressed={isFav}
-        className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 hover:bg-rose-50 transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-1"
-        title="Favori"
-      >
-        <Heart size={14} className={isFav ? 'fill-rose-500 text-rose-500' : 'text-slate-400'} />
-      </button>
-    );
-
-    if (type === 'video') {
-      return (
-        <div className="flex items-center gap-2">
-          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={Play} label="Regarder" primary />
-          <FavIcon />
-          <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-sm text-gray-600">
+          <Lock className="h-4 w-4 text-gray-400" />
+          Cette ressource est réservée aux membres Premium.
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('/devenir-premium');
+            }}
+            className="ml-1 rounded-full bg-indigo-600 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700"
+          >
+            Devenir Premium
+          </button>
         </div>
       );
     }
 
-    if (type === 'guide') {
-      return (
-        <div className="flex items-center gap-2">
-          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={Eye} label="Prévisualiser" primary />
-          {f.lienFichier && (
+    switch ((type || '').toLowerCase()) {
+      case 'citation':
+        return (
+          <blockquote className={`mt-3 flex gap-2 text-gray-700 ${inModal ? 'text-lg leading-relaxed' : 'text-sm'} italic border-l-2 border-violet-300 pl-3`}>
+            <Quote className="h-4 w-4 flex-shrink-0 text-violet-400" />
+            <span>"{description}"</span>
+          </blockquote>
+        );
+
+      case 'video':
+        if (lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'))) {
+          const youtubeId = lienFichier.split('v=')[1]?.split('&')[0] || lienFichier.split('/').pop();
+          return (
+            <div className={`mt-3 overflow-hidden rounded-xl shadow-sm ${inModal ? 'aspect-video' : 'aspect-video'}`}>
+              <iframe
+                className="h-full w-full"
+                src={`https://www.youtube.com/embed/${youtubeId}`}
+                allowFullScreen
+                title={nom}
+              />
+            </div>
+          );
+        }
+        return lienFichier ? (
+          <a
+            href={lienFichier}
+            className="mt-3 inline-flex items-center gap-1 font-semibold text-indigo-600 no-underline hover:text-indigo-800"
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <PlayCircle className="h-4 w-4" /> Voir la vidéo
+          </a>
+        ) : (
+          <p className="mt-3 text-gray-800">{description}</p>
+        );
+
+      case 'podcast':
+        return (
+          <div className="mt-3 flex flex-col gap-2" onClick={(e) => e.stopPropagation()}>
+            <audio controls className="w-full rounded-md shadow-sm">
+              <source src={lienFichier} type="audio/mpeg" />
+            </audio>
             <a
-              href={f.lienFichier}
-              download
-              aria-label="Télécharger"
-              onClick={(e) => e.stopPropagation()}
-              className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:ring-offset-1"
-              title="Télécharger"
+              href={lienFichier}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 font-semibold text-indigo-600 no-underline hover:text-indigo-800"
             >
-              <Download size={14} />
+              <Headphones className="h-4 w-4" /> Écouter le podcast
             </a>
-          )}
-          <FavIcon />
-        </div>
-      );
-    }
+          </div>
+        );
 
-    if (type === 'article') {
-      // Comportement restauré : clic = ouverture directe (handleCardOpen gère navigate/window.open).
-      return (
-        <div className="flex items-center gap-2">
-          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={ExternalLink} label="Lire l'article" primary />
-          <FavIcon />
-          <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
-        </div>
-      );
+      default:
+        return (
+          <div className="mt-3 text-gray-800">
+            {!inModal && <p className="line-clamp-3 text-sm text-gray-600">{description}</p>}
+            {inModal && <p className="leading-relaxed text-gray-700">{description}</p>}
+            {lienFichier && (
+              <a
+                href={lienFichier}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-2 inline-flex items-center gap-1 font-semibold text-indigo-600 no-underline hover:text-indigo-800"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <FileText className="h-4 w-4" /> Consulter
+              </a>
+            )}
+          </div>
+        );
     }
-
-    if (type === 'citation') {
-      return (
-        <div className="flex items-center gap-2">
-          <FavIcon />
-          <CardActionButton
-            onClick={(e) => handleCopyCitation(f, e)}
-            icon={copiedId === f.id ? Check : Copy}
-            label="Copier"
-            primary
-            done={copiedId === f.id}
-          />
-        </div>
-      );
-    }
-
-    if (type === 'podcast') {
-      return (
-        <div className="flex items-center gap-2">
-          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={Play} label="Écouter" primary />
-          <FavIcon />
-        </div>
-      );
-    }
-
-    // autres types : favori + partage
-    return (
-      <div className="flex items-center gap-2">
-        <FavIcon />
-        <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
-      </div>
-    );
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 18, scale: 0.97 },
-    visible: { opacity: 1, y: 0, scale: 1 },
+    hidden: { opacity: 0, y: 16 },
+    visible: { opacity: 1, y: 0 },
   };
 
-  // Carte élégante : icône + badges colorés par type, glassmorphism subtil.
-  const ResourceCard = ({ f, index }) => {
-    const cfg = getTypeConfig(f.type);
-    const TypeIcon = cfg.icon;
-    const isLocked = f.premium && !isUserPremium;
-    const type = f.type?.toLowerCase();
-    // ⚠️ Titre réel de la ressource — jamais remplacé par le nom du type.
-    const displayTitle = f.nom || cfg.label;
+  // --- stats for the sidebar (computed from the full, unfiltered dataset) ---
+  const stats = useMemo(() => {
+    const total = fonctionnalites.length;
+    const byType = (t) => fonctionnalites.filter((f) => (f.type || '').toLowerCase() === t).length;
+    const premiumCount = fonctionnalites.filter((f) => f.premium).length;
+    return {
+      total,
+      video: byType('video'),
+      podcast: byType('podcast'),
+      guide: byType('guide'),
+      premium: premiumCount,
+      free: total - premiumCount,
+    };
+  }, [fonctionnalites]);
+
+  const ResourceCard = ({ f, variant }) => {
+    const isFav = favorites.has(f.id);
 
     return (
       <motion.div
         key={f.id}
+        layout
         variants={cardVariants}
-        transition={{ duration: 0.35, delay: Math.min(index * 0.04, 0.4), ease: [0.22, 1, 0.36, 1] }}
-        whileHover={{ y: -7, scale: 1.015 }}
-        className="group relative bg-white/90 backdrop-blur-md rounded-3xl border border-slate-100 shadow-[0_2px_10px_-4px_rgba(15,23,42,0.06)] hover:shadow-[0_20px_40px_-12px_rgba(37,99,235,0.18)] hover:border-blue-200 transition-[box-shadow,border-color,transform] duration-300 flex flex-col cursor-pointer overflow-hidden"
-        onClick={() => handleCardOpen(f)}
+        initial="hidden"
+        animate="visible"
+        whileHover={{ y: -4, scale: 1.015 }}
+        transition={{ duration: 0.25, ease: 'easeOut' }}
+        role="button"
+        tabIndex={0}
+        aria-label={`Ouvrir la ressource ${f.nom}`}
+        onKeyDown={(e) => (e.key === 'Enter' ? handleCardClick(f) : null)}
+        onClick={() => handleCardClick(f)}
+        className={`group relative flex cursor-pointer flex-col justify-between rounded-2xl border p-6 backdrop-blur-sm transition-shadow duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400
+          ${
+            variant === 'premium'
+              ? 'border-amber-200/70 bg-gradient-to-br from-amber-50/90 to-white/80 hover:shadow-[0_10px_30px_-8px_rgba(217,119,6,0.25)]'
+              : 'border-gray-100 bg-white/80 hover:shadow-[0_10px_30px_-8px_rgba(79,70,229,0.18)]'
+          }`}
       >
-        <span className={`absolute top-0 left-0 right-0 h-[3px] bg-gradient-to-r ${cfg.dot}`} />
-
-        <div className="p-5 flex flex-col flex-1">
-          {/* En-tête : icône + statut */}
-          <div className="flex items-center justify-between mb-3.5">
-            <span className={`inline-flex items-center justify-center w-10 h-10 rounded-2xl ${cfg.badge} shadow-sm`}>
-              <TypeIcon size={17} />
-            </span>
-            <div className="flex items-center gap-1.5">
-              <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full inline-flex items-center gap-1 ${
-                f.premium ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
-              }`}>
-                {f.premium && <Crown size={10} />}
-                {f.premium ? 'Premium' : 'Gratuit'}
-              </span>
+        <div>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <AccessBadge premium={!!f.premium} />
+              <TypeBadge type={f.type} />
+            </div>
+            <div className="flex items-center gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
               <button
-                onClick={(e) => toggleFavori(f.id, e)}
-                aria-label={favoris.has(f.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                className="w-7 h-7 inline-flex items-center justify-center rounded-full text-slate-300 hover:text-rose-500 hover:bg-rose-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                onClick={(e) => toggleFavorite(e, f.id)}
+                className="rounded-full p-1.5 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
               >
-                <Heart size={13} className={favoris.has(f.id) ? 'fill-rose-500 text-rose-500' : ''} />
+                <motion.span whileTap={{ scale: 1.3 }} className="block">
+                  <Heart className={`h-4 w-4 transition-colors ${isFav ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                </motion.span>
+              </button>
+              <button
+                aria-label="Partager cette ressource"
+                onClick={(e) => handleShare(e, f)}
+                className="rounded-full p-1.5 transition hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                <Share2 className="h-4 w-4 text-gray-400" />
               </button>
             </div>
           </div>
 
-          {/* Badge de catégorie (type) — toujours distinct du titre réel */}
-          <span className={`self-start text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full mb-2.5 ${cfg.badge}`}>
-            {cfg.label}
-          </span>
-
-          {type !== 'citation' ? (
-            <h3 className="font-bold text-slate-800 leading-snug mb-1.5 line-clamp-2 tracking-tight">
-              {displayTitle}
-            </h3>
-          ) : (
-            <div className="flex-1 flex flex-col justify-center py-1 mb-2">
-              <Quote className="text-violet-200 mb-1.5" size={24} strokeWidth={1.5} />
-              {/* Titre réel de la citation (champ "nom") — jamais remplacé */}
-              <h3 className="font-bold text-slate-800 leading-snug mb-1.5 tracking-tight">
-                {displayTitle}
-              </h3>
-              <blockquote className="text-slate-600 font-medium italic leading-relaxed line-clamp-3">
-                "{f.description}"
-              </blockquote>
-            </div>
-          )}
-
-          {type !== 'citation' && f.description && (
-            <p className="text-sm text-slate-500 leading-relaxed line-clamp-2 mb-3">{f.description}</p>
-          )}
-
-          {/* Métadonnées optionnelles — n'affiche que ce qui existe réellement */}
-          {(f.duree || f.categorie || f.vues != null || f.note != null || f.dateCreation ||
-            (type === 'guide' && (f.telechargements != null || f.pages != null))) && (
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 mb-3">
-              {f.duree && (
-                <span className="inline-flex items-center gap-1"><Clock size={11} />{f.duree}</span>
-              )}
-              {f.categorie && <span>{f.categorie}</span>}
-              {f.vues != null && (
-                <span className="inline-flex items-center gap-1"><Eye size={11} />{f.vues} vues</span>
-              )}
-              {f.note != null && (
-                <span className="inline-flex items-center gap-1"><Star size={11} className="text-amber-400 fill-amber-400" />{f.note}</span>
-              )}
-              {type === 'guide' && f.telechargements != null && (
-                <span className="inline-flex items-center gap-1"><Download size={11} />{f.telechargements} téléchargements</span>
-              )}
-              {type === 'guide' && f.pages != null && (
-                <span>PDF · {f.pages} pages</span>
-              )}
-              {f.dateCreation && (
-                <span>{new Date(f.dateCreation).toLocaleDateString('fr-FR')}</span>
-              )}
-            </div>
-          )}
-
-          {shareFeedbackId === f.id && (
-            <motion.p
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="text-[11px] text-emerald-600 mb-2 font-medium"
-            >
-              Lien copié ✓
-            </motion.p>
-          )}
-
-          <div className="mt-auto pt-1">
-            {renderCardActions(f)}
-          </div>
+          <h3 className="text-lg font-semibold text-gray-900">{f.nom}</h3>
+          {renderResourceContent(f)}
         </div>
+
       </motion.div>
     );
   };
 
-  // ---- Modal générique ----
-  // Fermeture ESC gérée globalement (useEffect ci-dessus).
-  const ModalShell = ({ children, wide }) => (
-    <AnimatePresence>
-      {activeModal && (
-        <motion.div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 0.2 }}
-          onClick={() => setActiveModal(null)}
-        >
-          <motion.div
-            className={`relative bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[88vh] overflow-y-auto`}
-            initial={{ opacity: 0, y: 24, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 12, scale: 0.97 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {children}
-          </motion.div>
-        </motion.div>
-      )}
-    </AnimatePresence>
-  );
-
-  // Bouton de fermeture très visible — grande croix contrastée, coin haut-droit,
-  // effet hover marqué, focus clavier visible. Utilisé partout sauf citation
-  // (qui a sa propre variante sur fond dégradé, même principe de visibilité).
-  const ModalCloseButton = ({ inverted, className = '' }) => (
-    <button
-      ref={modalCloseBtnRef}
-      onClick={() => setActiveModal(null)}
-      aria-label="Fermer la fenêtre"
-      className={`group/close absolute top-4 right-4 z-10 w-10 h-10 inline-flex items-center justify-center rounded-full transition-all duration-200 active:scale-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
-        ${inverted
-          ? 'bg-white/20 text-white hover:bg-white hover:text-slate-800 focus-visible:ring-white'
-          : 'bg-slate-100 text-slate-600 hover:bg-red-50 hover:text-red-600 focus-visible:ring-red-300'}
-        ${className}`}
-    >
-      <X size={20} strokeWidth={2.5} className="transition-transform duration-200 group-hover/close:rotate-90" />
-    </button>
-  );
-
-  const ModalHeader = ({ f }) => {
-    const cfg = getTypeConfig(f.type);
-    return (
-      <div className="relative flex items-start justify-between p-6 pb-4 border-b border-slate-100">
-        <div className="pr-12">
-          <span className={`inline-flex text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full ${cfg.badge} mb-2.5`}>
-            {cfg.label}
-          </span>
-          {/* Titre réel de la ressource (champ "nom"), jamais remplacé par le type */}
-          <h2 className="text-xl font-bold text-slate-800 leading-snug tracking-tight">{f.nom}</h2>
-        </div>
-        <ModalCloseButton />
-      </div>
-    );
-  };
-
-  const ModalFooterActions = ({ f, extra }) => {
-    const isFav = favoris.has(f.id);
-    return (
-      <div className="flex items-center gap-2 px-6 pb-6 pt-4">
-        {extra}
-        <button
-          onClick={(e) => toggleFavori(f.id, e)}
-          aria-label={isFav ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-          aria-pressed={isFav}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-rose-50 hover:text-rose-600 transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-        >
-          <Heart size={14} className={isFav ? 'fill-rose-500 text-rose-500' : ''} />
-          Favori
-        </button>
-        <button
-          onClick={(e) => handleShare(f, e)}
-          className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-300"
-        >
-          <Share2 size={14} />
-          Partager
-        </button>
-      </div>
-    );
-  };
-
-  // Note : plus de cas 'article' ici — les articles s'ouvrent désormais
-  // directement (handleCardOpen), comportement d'origine restauré.
-  const renderModalContent = () => {
-    if (!activeModal) return null;
-    const { type, resource: f } = activeModal;
-
-    if (type === 'video') {
-      const youtubeId = getYoutubeId(f.lienFichier);
-      return (
-        <ModalShell wide>
-          <ModalHeader f={f} />
-          <div className="px-6 pt-5">
-            <div className="relative w-full rounded-2xl overflow-hidden bg-black shadow-lg" style={{ paddingTop: '56.25%' }}>
-              {youtubeId && (
-                <iframe
-                  className="absolute inset-0 w-full h-full"
-                  src={`https://www.youtube.com/embed/${youtubeId}`}
-                  title={f.nom}
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              )}
-            </div>
-            {f.description && (
-              <p className="text-sm text-slate-600 mt-4 leading-relaxed">{f.description}</p>
-            )}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mt-3">
-              {f.duree && <span className="inline-flex items-center gap-1"><Clock size={12} />{f.duree}</span>}
-              {f.categorie && <span>{f.categorie}</span>}
-            </div>
-          </div>
-          <ModalFooterActions f={f} />
-        </ModalShell>
-      );
-    }
-
-    if (type === 'pdf') {
-      return (
-        <ModalShell wide>
-          <ModalHeader f={f} />
-          <div className="px-6 pt-5">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mb-4">
-              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 px-2 py-1 rounded-full font-semibold"><FileText size={12} />PDF</span>
-              {f.pages != null ? (
-                <span>{f.pages} pages</span>
-              ) : (
-                <span className="text-slate-300">Pages non disponible</span>
-              )}
-              {f.telechargements != null && (
-                <span className="inline-flex items-center gap-1"><Download size={12} />{f.telechargements} téléchargements</span>
-              )}
-            </div>
-            {f.lienFichier ? (
-              <iframe
-                src={f.lienFichier}
-                title={f.nom}
-                className="w-full h-[60vh] rounded-2xl border border-slate-100 shadow-sm"
-              />
-            ) : (
-              <p className="text-sm text-slate-500">Aucun document disponible.</p>
-            )}
-          </div>
-          <ModalFooterActions
-            f={f}
-            extra={f.lienFichier && (
-              <a
-                href={f.lienFichier}
-                download
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all active:scale-95 shadow-sm hover:shadow-md"
-              >
-                <Download size={14} />
-                Télécharger
-              </a>
-            )}
-          />
-        </ModalShell>
-      );
-    }
-
-    if (type === 'podcast') {
-      return (
-        <ModalShell>
-          <ModalHeader f={f} />
-          <div className="px-6 pt-5">
-            {f.description && (
-              <p className="text-sm text-slate-600 leading-relaxed mb-4">{f.description}</p>
-            )}
-            <div className="bg-gradient-to-br from-orange-50 via-amber-50 to-orange-50 rounded-2xl p-5 mb-2 shadow-sm">
-              <div className="w-12 h-12 rounded-xl bg-orange-100 flex items-center justify-center mb-4 shadow-sm">
-                <Headphones className="text-orange-600" size={22} />
-              </div>
-              {f.lienFichier ? (
-                <audio controls autoPlay className="w-full h-10 rounded-lg">
-                  <source src={f.lienFichier} type="audio/mpeg" />
-                </audio>
-              ) : (
-                <p className="text-sm text-slate-500">Aucun fichier audio disponible.</p>
-              )}
-            </div>
-            {f.duree && (
-              <span className="inline-flex items-center gap-1 text-xs text-slate-400">
-                <Clock size={12} />{f.duree}
-              </span>
-            )}
-          </div>
-          <ModalFooterActions f={f} />
-        </ModalShell>
-      );
-    }
-
-    if (type === 'citation') {
-      return (
-        <ModalShell>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.4, delay: 0.05 }}
-            className="relative rounded-t-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 px-8 py-14 text-center overflow-hidden"
-          >
-            <Quote className="absolute -top-6 -left-4 text-white/10" size={130} strokeWidth={1} />
-            <Quote className="absolute -bottom-8 -right-4 text-white/10 rotate-180" size={110} strokeWidth={1} />
-            <ModalCloseButton inverted />
-            {/* Titre réel de la citation (champ "nom") — jamais remplacé par "Citation" */}
-            <motion.span
-              initial={{ opacity: 0, y: -6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.1 }}
-              className="relative inline-block text-[11px] font-bold uppercase tracking-wider bg-white/15 text-white px-3 py-1 rounded-full mb-4"
-            >
-              Citation
-            </motion.span>
-            <motion.h2
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.15 }}
-              className="relative text-white/90 text-lg font-bold mb-3 tracking-tight"
-            >
-              {f.nom}
-            </motion.h2>
-            <motion.p
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2 }}
-              className="relative text-white text-2xl font-serif italic leading-relaxed"
-            >
-              "{f.description}"
-            </motion.p>
-          </motion.div>
-          <ModalFooterActions
-            f={f}
-            extra={
-              <button
-                onClick={(e) => handleCopyCitation(f, e)}
-                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-all active:scale-95 shadow-sm hover:shadow-md"
-              >
-                {copiedId === f.id ? <Check size={14} /> : <Copy size={14} />}
-                {copiedId === f.id ? 'Copié' : 'Copier'}
-              </button>
-            }
-          />
-        </ModalShell>
-      );
-    }
-
-    return null;
-  };
-
-  // ============================================================
-  // FIN DU CODE UI NOUVEAU
-  // ============================================================
-
   return (
     <Layout>
-      {/* ---------- HERO ---------- */}
-      <div className="relative overflow-hidden bg-gradient-to-b from-blue-50/90 via-indigo-50/50 to-transparent">
-        {/* illustration vectorielle discrète */}
-        <div className="pointer-events-none absolute -top-16 right-[-60px] w-96 h-96 rounded-full bg-gradient-to-br from-blue-200/30 to-violet-200/30 blur-3xl hidden md:block" />
-        <div className="pointer-events-none absolute -bottom-10 -left-10 w-64 h-64 rounded-full bg-gradient-to-tr from-emerald-100/40 to-blue-100/30 blur-3xl hidden md:block" />
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 0.7, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="pointer-events-none absolute top-10 right-10 hidden lg:flex items-end gap-3"
-        >
-          <Leaf className="text-emerald-300" size={64} strokeWidth={1.2} />
-          <BookOpen className="text-blue-300 -mb-2" size={80} strokeWidth={1.2} />
-        </motion.div>
+      {/* ============= HERO ============= */}
+      <div className="relative overflow-hidden bg-gradient-to-b from-indigo-50 via-blue-50 to-white">
+        <div className="pointer-events-none absolute -top-24 -left-24 h-72 w-72 rounded-full bg-indigo-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute -top-10 right-0 h-80 w-80 rounded-full bg-violet-200/40 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-emerald-100/40 blur-3xl" />
 
-        <div className="relative max-w-7xl mx-auto px-4 pt-16 pb-10 text-center">
+        <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-14 sm:pb-14 sm:pt-20">
           <motion.div
-            initial={{ opacity: 0, y: -12, scale: 0.9 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            transition={{ duration: 0.5, ease: 'easeOut' }}
-            className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-lg shadow-blue-100 border border-blue-100 mb-5"
+            initial={{ opacity: 0, y: -14 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: 'easeOut' }}
+            className="mx-auto flex max-w-2xl flex-col items-center text-center"
           >
-            <Library className="text-blue-600" size={30} strokeWidth={1.6} />
+            <span className="mb-4 inline-flex items-center justify-center rounded-2xl bg-white/80 p-3 shadow-sm ring-1 ring-indigo-100">
+              <Library className="h-7 w-7 text-indigo-600" />
+            </span>
+            <h1 className="select-none text-3xl font-bold text-gray-900 sm:text-4xl">Bibliothèque de Ressources</h1>
+            <p className="mt-3 max-w-lg text-sm text-gray-500 sm:text-base">
+              Guides, vidéos, podcasts et citations pour prendre soin de votre bien-être, à votre rythme.
+            </p>
           </motion.div>
 
-          <motion.h1
-            className="text-3xl md:text-4xl font-bold text-slate-900 tracking-tight"
-            initial={{ opacity: 0, y: -8 }}
+          {/* Search */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.05, ease: 'easeOut' }}
+            transition={{ duration: 0.6, delay: 0.15, ease: 'easeOut' }}
+            className="mx-auto mt-8 max-w-xl"
           >
-            Bibliothèque de Ressources
-          </motion.h1>
+            <div className="group relative">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 transition-colors group-focus-within:text-indigo-500" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Rechercher une ressource…"
+                aria-label="Rechercher une ressource"
+                className="w-full rounded-2xl border border-gray-200 bg-white/90 py-3.5 pl-12 pr-4 text-sm text-gray-800 shadow-sm outline-none transition-all duration-300 placeholder:text-gray-400 focus:border-indigo-300 focus:shadow-md focus:ring-4 focus:ring-indigo-100"
+              />
+            </div>
+          </motion.div>
 
-          <motion.p
-            className="mt-3 text-slate-500 text-base max-w-xl mx-auto leading-relaxed"
-            initial={{ opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1, ease: 'easeOut' }}
-          >
-            Découvrez des ressources sélectionnées par des professionnels pour améliorer votre bien-être mental.
-          </motion.p>
-
-          {/* Mini-statistiques du hero */}
-          {isAuthenticated && !loading && fonctionnalites.length > 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.15 }}
-              className="mt-6 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-500"
-            >
-              {stats.map((s, i) => (
-                <span key={s.label} className="inline-flex items-center gap-1.5">
-                  <s.icon size={13} className="text-blue-400" />
-                  <span className="font-bold text-slate-700">{s.value}</span> {s.label}
-                  {i < stats.length - 1 && <span className="ml-6 w-1 h-1 rounded-full bg-slate-300 hidden sm:inline-block" />}
-                </span>
-              ))}
-            </motion.div>
-          )}
-
-          {/* ---------- BARRE DE RECHERCHE ---------- */}
-          {isAuthenticated && (
-            <motion.div
-              className="mt-7 max-w-xl mx-auto"
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.2, ease: 'easeOut' }}
-            >
-              <div
-                className={`relative flex items-center bg-white rounded-2xl transition-all duration-250 ${
-                  searchFocused ? 'shadow-xl shadow-blue-100 ring-2 ring-blue-300 scale-[1.01]' : 'shadow-sm ring-1 ring-slate-100'
-                }`}
+          {/* Category tabs (business logic unchanged) */}
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            {categoriesOrder.map(({ key, title }) => (
+              <motion.button
+                key={key}
+                onClick={() => setSelectedCategory(key)}
+                whileHover={{ scale: 1.06 }}
+                whileTap={{ scale: 0.96 }}
+                aria-pressed={selectedCategory === key}
+                className={`rounded-full px-4 py-2 text-sm font-medium transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400
+                  ${
+                    selectedCategory === key
+                      ? 'bg-indigo-600 text-white shadow-md shadow-indigo-200'
+                      : 'bg-white/80 text-gray-600 hover:bg-indigo-50 hover:text-indigo-700'
+                  }`}
               >
-                <Search size={18} className={`absolute left-4 transition-colors duration-200 ${searchFocused ? 'text-blue-500' : 'text-slate-400'}`} />
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  aria-label="Rechercher une ressource"
-                  placeholder="Rechercher un article, une citation, un guide…"
-                  className="w-full bg-transparent pl-11 pr-4 py-3.5 rounded-2xl text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none"
-                />
-              </div>
-            </motion.div>
-          )}
+                {emojiByCategory[key.toLowerCase()] || '📁'} {title}
+              </motion.button>
+            ))}
+          </div>
+
+          {/* Access filter pills + sort */}
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-3">
+            <div className="flex gap-1.5 rounded-full bg-white/80 p-1 shadow-sm ring-1 ring-gray-100">
+              {[
+                { key: 'all', label: 'Tous' },
+                { key: 'free', label: 'Gratuit' },
+                { key: 'premium', label: 'Premium' },
+              ].map((opt) => (
+                <button
+                  key={opt.key}
+                  onClick={() => setAccessFilter(opt.key)}
+                  className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+                    accessFilter === opt.key ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-indigo-600'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="relative">
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                aria-label="Trier les ressources"
+                className="appearance-none rounded-full bg-white/80 py-2 pl-4 pr-9 text-xs font-semibold text-gray-600 shadow-sm ring-1 ring-gray-100 outline-none transition focus:ring-2 focus:ring-indigo-300"
+              >
+                <option value="recent">Plus récent</option>
+                <option value="ancien">Plus ancien</option>
+              </select>
+              <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-gray-400" />
+            </div>
+          </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 pb-16 -mt-2">
+      {/* ============= CONTENT ============= */}
+      <div className="mx-auto max-w-7xl px-4 py-10">
+        {error && (
+          <div className="mb-6 flex items-center gap-2 rounded-xl border border-red-300 bg-red-50 p-4 text-red-700">
+            <AlertTriangle className="h-4 w-4" /> {error}
+          </div>
+        )}
 
-        {!isAuthenticated ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="max-w-xl mx-auto text-center bg-white border border-slate-100 rounded-3xl shadow-lg shadow-blue-100/50 px-8 py-12"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-blue-50 flex items-center justify-center mx-auto mb-5">
-              <Lock className="text-blue-500" size={26} />
-            </div>
-            <h2 className="text-xl font-bold text-slate-800 mb-2">
-              Connexion requise
-            </h2>
-            <p className="text-sm text-slate-500 mb-7 leading-relaxed">
-              La bibliothèque de ressources est réservée aux membres connectés.
-              Connectez-vous ou créez un compte gratuitement pour y accéder.
-            </p>
-            <button
-              onClick={() => navigate('/connexion')}
-              className="px-7 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-200 transition-all active:scale-95"
-            >
-              Se connecter
-            </button>
-          </motion.div>
+        {loading ? (
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="h-40 animate-pulse rounded-2xl bg-gray-100" />
+            ))}
+          </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-8 items-start">
-            {/* ---------- COLONNE PRINCIPALE ---------- */}
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1fr_280px]">
+            {/* Main column */}
             <div>
-              {/* ---------- CATEGORIES (1er niveau, pills) ---------- */}
-              <div className="flex flex-wrap gap-2.5 mb-4">
-                {categoriesOrder.map(({ key, title }) => {
-                  const CatIcon = iconByCategory[key.toLowerCase()] || Library;
-                  const active = selectedCategory === key;
-                  return (
-                    <motion.button
-                      key={key}
-                      onClick={() => setSelectedCategory(key)}
-                      className={`inline-flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium border transition-all duration-200
-                        ${active
-                          ? 'bg-blue-600 text-white border-blue-600 shadow-md shadow-blue-200'
-                          : 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700'}`}
-                      whileHover={{ scale: 1.04, y: -1 }}
-                      whileTap={{ scale: 0.94 }}
-                      transition={{ duration: 0.18, ease: 'easeOut' }}
-                      aria-pressed={active}
-                    >
-                      <CatIcon size={14} />
-                      {title}
-                    </motion.button>
-                  );
-                })}
-              </div>
+              {gratuits.length === 0 && premiums.length === 0 && (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-white/60 p-10 text-center text-gray-500">
+                  Aucune ressource ne correspond à votre recherche.
+                </div>
+              )}
 
-              {/* ---------- 2e NIVEAU : Gratuit / Premium / Favoris + Tri ---------- */}
-              <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
-                <div className="flex flex-wrap items-center gap-2">
-                  <div className="inline-flex items-center gap-1 bg-slate-100/70 p-1 rounded-full">
-                    {[
-                      { key: 'all', label: 'Tous' },
-                      { key: 'free', label: 'Gratuit', icon: Check },
-                      { key: 'premium', label: 'Premium', icon: Crown },
-                    ].map((opt) => {
-                      const active = freeFilter === opt.key;
-                      const OptIcon = opt.icon;
-                      return (
-                        <button
-                          key={opt.key}
-                          onClick={() => setFreeFilter(opt.key)}
-                          aria-pressed={active}
-                          className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200
-                            ${active ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
-                        >
-                          {OptIcon && (
-                            <OptIcon size={12} className={active && opt.key === 'premium' ? 'text-amber-500' : active && opt.key === 'free' ? 'text-emerald-500' : ''} />
-                          )}
-                          {opt.label}
-                        </button>
-                      );
-                    })}
+              {gratuits.length > 0 && (
+                <section className="mb-12">
+                  <h2 className="mb-6 flex select-none items-center gap-2 border-b border-gray-200 pb-2 text-2xl font-semibold text-gray-900">
+                    <Sparkles className="h-5 w-5 text-indigo-500" /> Ressources Gratuites
+                  </h2>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <AnimatePresence>
+                      {gratuits.map((f) => (
+                        <ResourceCard key={f.id} f={f} variant="free" />
+                      ))}
+                    </AnimatePresence>
                   </div>
-
-                  <button
-                    onClick={() => setShowFavorisOnly(v => !v)}
-                    aria-pressed={showFavorisOnly}
-                    className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold border transition-all duration-200
-                      ${showFavorisOnly ? 'bg-rose-50 text-rose-600 border-rose-200' : 'bg-white text-slate-500 border-slate-200 hover:text-rose-500 hover:border-rose-200'}`}
-                  >
-                    <Heart size={12} className={showFavorisOnly ? 'fill-rose-500' : ''} />
-                    Favoris
-                  </button>
-                </div>
-
-                <div className="inline-flex items-center gap-2 text-xs text-slate-500">
-                  <ArrowUpDown size={13} />
-                  <span className="hidden sm:inline">Trier par :</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    aria-label="Trier les ressources"
-                    className="bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-600 px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-200 transition-shadow"
-                  >
-                    <option value="recent">Plus récentes</option>
-                    <option value="oldest">Plus anciennes</option>
-                  </select>
-                </div>
-              </div>
-
-              {error && (
-                <div className="bg-red-50 border border-red-100 text-red-700 text-sm p-4 rounded-2xl mb-6">
-                  {error}
-                </div>
+                </section>
               )}
 
-              {loading && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {[...Array(6)].map((_, i) => (
-                    <div key={i} className="h-56 rounded-3xl bg-slate-100 animate-pulse" />
-                  ))}
-                </div>
-              )}
-
-              {!loading && displayResources.length === 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center py-16 bg-white border border-slate-100 rounded-3xl"
-                >
-                  <Search className="mx-auto text-slate-300 mb-3" size={32} />
-                  <p className="text-sm text-slate-500">
-                    {showFavorisOnly ? "Vous n'avez pas encore de favoris." : "Aucune ressource ne correspond à votre recherche."}
-                  </p>
-                </motion.div>
-              )}
-
-              {!loading && displayResources.length > 0 && (
-                <>
-                  {displayGratuits.length > 0 && (
-                    <section className="mb-14">
-                      <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center gap-2 tracking-tight">
-                        <Sparkles size={18} className="text-blue-500" />
-                        Ressources Gratuites
-                      </h2>
-                      <motion.div
-                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
-                        initial="hidden"
-                        animate="visible"
-                        variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                      >
-                        {displayGratuits.map((f, index) => (
-                          <ResourceCard key={f.id} f={f} index={index} />
-                        ))}
-                      </motion.div>
-                    </section>
-                  )}
-
-                  {displayPremiums.length > 0 && (
-                    <section>
-                      <h2 className="text-xl font-bold text-amber-700 mb-6 flex items-center gap-2 tracking-tight">
-                        <Crown size={17} />
-                        Ressources Premium
-                      </h2>
-                      <motion.div
-                        className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6"
-                        initial="hidden"
-                        animate="visible"
-                        variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
-                      >
-                        {displayPremiums.map((f, index) => (
-                          <ResourceCard key={f.id} f={f} index={index} />
-                        ))}
-                      </motion.div>
-                    </section>
-                  )}
-                </>
+              {premiums.length > 0 && (
+                <section>
+                  <h2 className="mb-6 flex select-none items-center gap-2 border-b border-amber-300 pb-2 text-2xl font-semibold text-amber-700">
+                    <Crown className="h-5 w-5" /> Ressources Premium
+                  </h2>
+                  <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    <AnimatePresence>
+                      {premiums.map((f) => (
+                        <ResourceCard key={f.id} f={f} variant="premium" />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </section>
               )}
             </div>
 
-            {/* ---------- SIDEBAR ---------- */}
-            <aside className="space-y-5 lg:sticky lg:top-6">
-              {/* Aperçu rapide */}
-              <motion.div
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.1 }}
-                className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
-              >
-                <h3 className="text-sm font-bold text-slate-800 mb-4 tracking-tight">Aperçu rapide</h3>
-                <ul className="space-y-3">
-                  {sidebarStats.map((s) => (
-                    <li key={s.label} className="flex items-center justify-between text-sm">
-                      <span className="inline-flex items-center gap-2 text-slate-500">
-                        <s.icon size={14} className={s.color} />
-                        {s.label}
-                      </span>
-                      <span className="font-bold text-slate-800">{s.value}</span>
-                    </li>
-                  ))}
+            {/* Sidebar */}
+            <aside className="space-y-6 lg:sticky lg:top-6 lg:self-start">
+              <div className="rounded-2xl border border-gray-100 bg-white/90 p-5 shadow-sm">
+                <h3 className="mb-4 text-sm font-semibold text-gray-900">Statistiques</h3>
+                <ul className="space-y-2.5 text-sm text-gray-600">
+                  <li className="flex items-center justify-between">
+                    <span>Ressources</span>
+                    <span className="font-semibold text-gray-900">{stats.total}</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <PlayCircle className="h-3.5 w-3.5 text-rose-400" /> Vidéos
+                    </span>
+                    <span className="font-semibold text-gray-900">{stats.video}</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <Headphones className="h-3.5 w-3.5 text-orange-400" /> Podcasts
+                    </span>
+                    <span className="font-semibold text-gray-900">{stats.podcast}</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <BookOpen className="h-3.5 w-3.5 text-emerald-400" /> Guides
+                    </span>
+                    <span className="font-semibold text-gray-900">{stats.guide}</span>
+                  </li>
+                  <li className="flex items-center justify-between border-t border-gray-100 pt-2.5">
+                    <span>Gratuites</span>
+                    <span className="font-semibold text-emerald-600">{stats.free}</span>
+                  </li>
+                  <li className="flex items-center justify-between">
+                    <span>Premium</span>
+                    <span className="font-semibold text-amber-600">{stats.premium}</span>
+                  </li>
                 </ul>
-              </motion.div>
-
-              {/* Ressources populaires */}
-              {popularResources.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.13 }}
-                  className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
-                >
-                  <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
-                    <TrendingUp size={15} className="text-blue-500" />
-                    Populaires
-                  </h3>
-                  <ul className="space-y-2.5">
-                    {popularResources.map((f) => {
-                      const cfg = getTypeConfig(f.type);
-                      const TIcon = cfg.icon;
-                      return (
-                        <li key={f.id}>
-                          <button
-                            onClick={() => handleCardOpen(f)}
-                            className="w-full flex items-center gap-2.5 text-left group/pop"
-                          >
-                            <span className={`shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-lg ${cfg.badge}`}>
-                              <TIcon size={13} />
-                            </span>
-                            <span className="text-xs font-medium text-slate-600 line-clamp-1 group-hover/pop:text-blue-600 transition-colors">
-                              {f.nom}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </motion.div>
-              )}
-
-              {/* Favoris */}
-              {favorisResources.length > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.16 }}
-                  className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
-                >
-                  <h3 className="text-sm font-bold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
-                    <Bookmark size={15} className="text-rose-500" />
-                    Vos favoris
-                  </h3>
-                  <ul className="space-y-2.5">
-                    {favorisResources.map((f) => {
-                      const cfg = getTypeConfig(f.type);
-                      const TIcon = cfg.icon;
-                      return (
-                        <li key={f.id}>
-                          <button
-                            onClick={() => handleCardOpen(f)}
-                            className="w-full flex items-center gap-2.5 text-left group/fav"
-                          >
-                            <span className={`shrink-0 w-8 h-8 inline-flex items-center justify-center rounded-lg ${cfg.badge}`}>
-                              <TIcon size={13} />
-                            </span>
-                            <span className="text-xs font-medium text-slate-600 line-clamp-1 group-hover/fav:text-blue-600 transition-colors">
-                              {f.nom}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </motion.div>
-              )}
-
-              {/* Recommandation */}
-              {recommendedResource && (
-                <motion.div
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.19 }}
-                  className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
-                >
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2 tracking-tight">
-                    <Sparkles size={15} className="text-violet-500" />
-                    Pour vous
-                  </h3>
-                  <button
-                    onClick={() => handleCardOpen(recommendedResource)}
-                    className="w-full text-left group/reco"
-                  >
-                    <p className="text-xs font-semibold text-slate-700 line-clamp-2 group-hover/reco:text-blue-600 transition-colors mb-1">
-                      {recommendedResource.nom}
-                    </p>
-                    {recommendedResource.description && (
-                      <p className="text-[11px] text-slate-400 line-clamp-2">{recommendedResource.description}</p>
-                    )}
-                  </button>
-                </motion.div>
-              )}
+              </div>
 
               {!isUserPremium && (
                 <motion.div
-                  initial={{ opacity: 0, x: 12 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.4, delay: 0.22 }}
-                  className="relative overflow-hidden bg-gradient-to-br from-blue-600 to-indigo-700 rounded-2xl p-5 text-white shadow-lg shadow-blue-200/50"
+                  whileHover={{ scale: 1.02 }}
+                  className="overflow-hidden rounded-2xl bg-gradient-to-br from-indigo-600 to-blue-500 p-5 text-white shadow-lg shadow-indigo-200"
                 >
-                  <Crown className="absolute -bottom-3 -right-3 text-white/10" size={90} strokeWidth={1} />
-                  <p className="relative font-bold leading-snug mb-1.5">
-                    Accédez à toutes les ressources Premium
-                  </p>
-                  <p className="relative text-xs text-blue-100 mb-4 leading-relaxed">
-                    Débloquez du contenu exclusif créé par nos professionnels.
+                  <Crown className="h-6 w-6 text-amber-300" />
+                  <h3 className="mt-3 text-base font-semibold">Passez Premium</h3>
+                  <p className="mt-1 text-xs text-indigo-100">
+                    Débloquez tous les podcasts, guides avancés et contenus exclusifs.
                   </p>
                   <button
-                    onClick={handlePremiumClick}
-                    className="relative inline-flex items-center gap-1.5 bg-white text-blue-700 text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-blue-50 transition-all active:scale-95 shadow-sm hover:shadow-md"
+                    onClick={() => navigate('/devenir-premium')}
+                    className="mt-4 w-full rounded-full bg-white py-2 text-sm font-semibold text-indigo-700 transition hover:bg-indigo-50"
                   >
-                    <Crown size={13} />
                     Devenir Premium
                   </button>
                 </motion.div>
               )}
-
-              <motion.div
-                initial={{ opacity: 0, x: 12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: 0.4, delay: 0.25 }}
-                className="bg-white border border-slate-100 rounded-2xl shadow-sm p-5"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                    <MessageCircle className="text-blue-600" size={18} />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-slate-800">Besoin d'aide ?</p>
-                    <p className="text-xs text-slate-400">Notre équipe est là pour vous accompagner.</p>
-                  </div>
-                </div>
-                <Link
-                  to="/contact"
-                  className="mt-4 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 hover:gap-2 transition-all"
-                >
-                  Nous contacter
-                  <ArrowRight size={12} />
-                </Link>
-              </motion.div>
             </aside>
           </div>
         )}
       </div>
 
-      {renderModalContent()}
+      {/* ============= MODAL ============= */}
+      <AnimatePresence>
+        {modalResource && (
+          <motion.div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setModalResource(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              onClick={(e) => e.stopPropagation()}
+              role="dialog"
+              aria-modal="true"
+              aria-label={modalResource.nom}
+              className="relative w-full max-w-lg rounded-2xl bg-white p-7 shadow-2xl"
+            >
+              <button
+                onClick={() => setModalResource(null)}
+                aria-label="Fermer"
+                className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition hover:bg-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+              >
+                <X className="h-5 w-5" />
+              </button>
 
-      <AuthRequiredModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        title="Accès réservé"
-        message="Cette ressource est réservée aux membres connectés. Connectez-vous ou créez un compte gratuitement pour accéder à toutes les ressources."
-      />
+              <div className="mb-3 flex flex-wrap items-center gap-1.5 pr-10">
+                <AccessBadge premium={!!modalResource.premium} />
+                <TypeBadge type={modalResource.type} />
+              </div>
+              <h2 className="pr-8 text-xl font-bold text-gray-900">{modalResource.nom}</h2>
+              {renderResourceContent(modalResource, { inModal: true })}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ============= TOAST ============= */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-gray-900 px-4 py-2 text-sm text-white shadow-lg"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 };
