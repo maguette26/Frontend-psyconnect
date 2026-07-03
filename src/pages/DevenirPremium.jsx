@@ -1,7 +1,7 @@
 // src/pages/DevenirPremium.jsx
 
 import React, { useState } from "react";
-import Layout from "../components/commun/Layout";
+ 
 import api from "../services/api";
 import {
   CreditCard,
@@ -20,6 +20,7 @@ import {
   Headset,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import Layout from "../commun/Layout";
 
 // Contenu purement visuel — aucune donnée métier, aucun appel API.
 const AVANTAGES = [
@@ -152,7 +153,7 @@ console.log(api.defaults.baseURL);
   return (
     <Layout>
 
-      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 via-blue-50 to-white flex flex-col items-center justify-center px-4 py-14">
+      <main className="relative min-h-screen overflow-hidden bg-gradient-to-br from-indigo-50 via-blue-50 to-white flex flex-col items-center justify-center px-4 py-10 sm:py-14">
 
         {/* Formes floues discrètes en arrière-plan */}
         <div className="pointer-events-none absolute -top-24 -left-20 w-72 h-72 rounded-full bg-indigo-200/40 blur-3xl" />
@@ -171,14 +172,14 @@ console.log(api.defaults.baseURL);
           transition={{
             duration: 0.7
           }}
-          className="relative mb-6 flex items-center gap-3"
+          className="relative mb-6 flex flex-col sm:flex-row items-center gap-3 text-center sm:text-left"
         >
 
-          <span className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-500 shadow-md shadow-amber-200">
-            <Crown className="w-6 h-6 text-white" />
+          <span className="inline-flex items-center justify-center w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-gradient-to-br from-amber-300 to-yellow-500 shadow-md shadow-amber-200">
+            <Crown className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
           </span>
 
-          <h1 className="text-3xl md:text-4xl font-bold text-indigo-700">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-indigo-700">
             Devenez Membre Premium
           </h1>
 
@@ -212,7 +213,7 @@ console.log(api.defaults.baseURL);
             delay: 0.6,
             duration: 0.7
           }}
-          className="relative bg-white/80 backdrop-blur-sm rounded-[2rem] shadow-2xl shadow-indigo-100 border border-indigo-100 p-8 md:p-10 max-w-3xl w-full"
+          className="relative bg-white/80 backdrop-blur-sm rounded-3xl sm:rounded-[2rem] shadow-2xl shadow-indigo-100 border border-indigo-100 p-5 sm:p-8 md:p-10 max-w-3xl w-full"
         >
 
           <h2 className="flex items-center justify-center gap-2 text-xl font-semibold text-indigo-700 mb-8">
@@ -226,7 +227,7 @@ console.log(api.defaults.baseURL);
           </h2>
 
           {/* Cartes de sélection des plans (remplace les boutons pills) */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-8 sm:mb-10">
 
             {Object.keys(plans).map(
               (planKey) => {
@@ -244,7 +245,7 @@ console.log(api.defaults.baseURL);
                     whileHover={{ y: -3 }}
                     whileTap={{ scale: 0.98 }}
                     transition={{ duration: 0.2, ease: "easeOut" }}
-                    className={`relative text-left rounded-2xl border p-5 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2
+                    className={`relative text-left rounded-2xl border pt-6 px-5 pb-5 transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2
                       ${
                         isSelected
                           ? "border-indigo-500 bg-indigo-50 shadow-md shadow-indigo-100"
@@ -286,7 +287,7 @@ console.log(api.defaults.baseURL);
 
           <div className="text-center mb-8">
 
-            <p className="text-5xl font-extrabold text-gray-900">
+            <p className="text-4xl sm:text-5xl font-extrabold text-gray-900">
 
               {currentPlan.price.toFixed(2)} €
 
@@ -316,7 +317,7 @@ console.log(api.defaults.baseURL);
 
           )}
 
-          <div className="flex justify-center">
+          <div className="flex justify-center px-0 sm:px-0">
 
             <motion.button
               onClick={handleStripeCheckout}
@@ -325,7 +326,7 @@ console.log(api.defaults.baseURL);
               whileTap={!loading ? { scale: 0.97 } : {}}
               transition={{ duration: 0.2, ease: "easeOut" }}
               aria-label={loading ? "Redirection vers Stripe en cours" : `Payer ${currentPlan.price} euros`}
-              className="inline-flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-8 py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2"
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white px-8 py-3.5 sm:py-3 rounded-xl font-bold shadow-lg shadow-indigo-200 transition-all duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-2"
             >
 
               {loading ? (
@@ -356,7 +357,7 @@ console.log(api.defaults.baseURL);
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative max-w-3xl w-full mt-14"
+          className="relative max-w-3xl w-full mt-10 sm:mt-14"
         >
           <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
             Pourquoi devenir Premium ?
@@ -382,25 +383,25 @@ console.log(api.defaults.baseURL);
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative max-w-3xl w-full mt-14"
+          className="relative max-w-3xl w-full mt-10 sm:mt-14"
         >
           <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
             Gratuit vs Premium
           </h2>
-          <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-2xl border border-gray-200 bg-white/80 backdrop-blur-sm shadow-sm">
+            <table className="w-full min-w-[420px] text-xs sm:text-sm">
               <thead>
                 <tr className="bg-gray-50 text-gray-500">
-                  <th className="text-left font-semibold px-4 py-3">Fonctionnalité</th>
-                  <th className="font-semibold px-4 py-3">Gratuit</th>
-                  <th className="font-semibold px-4 py-3 text-indigo-700">Premium</th>
+                  <th className="text-left font-semibold px-3 sm:px-4 py-2.5 sm:py-3">Fonctionnalité</th>
+                  <th className="font-semibold px-3 sm:px-4 py-2.5 sm:py-3">Gratuit</th>
+                  <th className="font-semibold px-3 sm:px-4 py-2.5 sm:py-3 text-indigo-700">Premium</th>
                 </tr>
               </thead>
               <tbody>
                 {COMPARAISON.map((row, i) => (
                   <tr key={row.feature} className={i % 2 === 0 ? "bg-white" : "bg-gray-50/60"}>
-                    <td className="px-4 py-3 text-gray-700 font-medium">{row.feature}</td>
-                    <td className="px-4 py-3 text-center text-gray-500">
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-gray-700 font-medium">{row.feature}</td>
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-center text-gray-500">
                       {row.free === true ? (
                         <Check className="w-4 h-4 text-emerald-500 inline" aria-label="Inclus" />
                       ) : row.free === false ? (
@@ -409,7 +410,7 @@ console.log(api.defaults.baseURL);
                         row.free
                       )}
                     </td>
-                    <td className="px-4 py-3 text-center font-semibold text-indigo-700">
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-center font-semibold text-indigo-700">
                       {row.premium === true ? (
                         <Check className="w-4 h-4 text-indigo-600 inline" aria-label="Inclus" />
                       ) : (
@@ -429,7 +430,7 @@ console.log(api.defaults.baseURL);
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative max-w-3xl w-full mt-14 text-center"
+          className="relative max-w-3xl w-full mt-10 sm:mt-14 text-center"
         >
           <div className="inline-flex items-center gap-2 mb-4">
             <ShieldCheck className="w-5 h-5 text-indigo-600" />
@@ -448,10 +449,10 @@ console.log(api.defaults.baseURL);
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative max-w-3xl w-full mt-14"
+          className="relative max-w-3xl w-full mt-10 sm:mt-14"
         >
           <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
-            Pourquoi faire confiance à Psyconnect ?
+            Pourquoi nous faire confiance ?
           </h2>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {CONFIANCE.map((label) => (
@@ -472,7 +473,7 @@ console.log(api.defaults.baseURL);
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-80px" }}
           transition={{ duration: 0.6, ease: "easeOut" }}
-          className="relative max-w-3xl w-full mt-14 mb-6"
+          className="relative max-w-3xl w-full mt-10 sm:mt-14 mb-6"
         >
           <h2 className="text-xl font-semibold text-gray-900 text-center mb-6">
             Questions fréquentes
