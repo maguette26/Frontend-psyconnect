@@ -330,20 +330,7 @@ useEffect(() => {
           📚 Bibliothèque de Ressources
         </motion.h1>
 
-        {/* Barre de recherche discrète, alignée sur le style existant */}
-        <div className="max-w-md mx-auto mb-6">
-          <div className="relative">
-            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Rechercher une ressource..."
-              aria-label="Rechercher une ressource"
-              className="w-full pl-9 pr-3 py-2 text-sm bg-gray-100 rounded-full text-gray-700 placeholder:text-gray-400 outline-none transition-all duration-200 focus:bg-white focus:ring-2 focus:ring-indigo-300"
-            />
-          </div>
-        </div>
+       
 
         <div className="flex flex-wrap gap-3 justify-center mb-8">
           {categoriesOrder.map(({ key, title }) => (
@@ -369,13 +356,7 @@ useEffect(() => {
 
         {!loading && (
           <>
-            {/* Petit compteur discret au-dessus des ressources */}
-            <p className="text-center text-sm text-gray-500 mb-8 select-none">
-              {totalCount} ressource{totalCount !== 1 ? 's' : ''}
-              {gratuits.length > 0 && premiums.length > 0 && (
-                <> &nbsp;•&nbsp; {gratuits.length} gratuite{gratuits.length !== 1 ? 's' : ''} &nbsp;•&nbsp; {premiums.length} Premium</>
-              )}
-            </p>
+            
 
             <AnimatePresence mode="wait">
               <motion.div
