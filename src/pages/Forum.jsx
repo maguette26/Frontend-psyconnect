@@ -26,7 +26,6 @@ import {
     Check,
     X
 } from 'lucide-react';
-import AuthRequiredModal from '../components/commun/AuthRequiredModal';
 
 const getAuthorInitial = (author, isAnonymous) => {
     if (isAnonymous) return 'A';
@@ -89,7 +88,6 @@ const Forum = () => {
     const [editingSujetContenu, setEditingSujetContenu] = useState('');
     const [editingReponseId, setEditingReponseId] = useState(null);
     const [editingReponseMessage, setEditingReponseMessage] = useState('');
-    const [authModalOpen, setAuthModalOpen] = useState(false);
 
     const getAuthorDisplayName = (author, isAnonymous) => {
         if (isAnonymous) return 'Anonyme';
@@ -577,13 +575,13 @@ const Forum = () => {
                                     {!isAuthenticated ? (
                                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
                                             <p className="text-blue-800 mb-3 text-sm">Connectez-vous pour participer à la discussion</p>
-                                            <button
-                                                onClick={() => setAuthModalOpen(true)}
+                                            
+                                                href="/connexion"
                                                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm shadow-blue-600/20"
-                                            >
+                                            <a>
                                                 <UserCircle2 className="w-4 h-4 mr-2" />
                                                 Se connecter
-                                            </button>
+                                            </a>
                                         </div>
                                     ) : (
                                         <form onSubmit={handleSubmitReponse} className="space-y-4">
@@ -629,13 +627,13 @@ const Forum = () => {
                                     {!isAuthenticated ? (
                                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-center">
                                             <p className="text-blue-800 mb-3 text-sm">Connectez-vous pour créer une nouvelle discussion</p>
-                                            <button
-                                                onClick={() => setAuthModalOpen(true)}
+                                            <a
+                                                href="/connexion"
                                                 className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors font-medium text-sm shadow-sm shadow-blue-600/20"
                                             >
                                                 <UserCircle2 className="w-4 h-4 mr-2" />
                                                 Se connecter
-                                            </button>
+                                            </a>
                                         </div>
                                     ) : (
                                         <form onSubmit={handleSubmitSujet} className="space-y-4">
@@ -782,12 +780,6 @@ const Forum = () => {
                     )}
                 </div>
             </div>
-            <AuthRequiredModal
-                open={authModalOpen}
-                onClose={() => setAuthModalOpen(false)}
-                title="Connexion requise"
-                message="Vous devez être connecté pour publier, répondre ou créer une discussion sur le forum."
-            />
         </Layout>
     );
 };

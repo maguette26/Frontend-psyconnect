@@ -289,7 +289,7 @@ const Ressources = () => {
               Connectez-vous ou créez un compte gratuitement pour y accéder.
             </p>
             <button
-              onClick={() => setAuthModalOpen(true)}
+              onClick={() => navigate('/connexion')}
               className="px-6 py-2.5 bg-indigo-600 text-white rounded-full font-medium hover:bg-indigo-700 transition"
             >
               Se connecter
