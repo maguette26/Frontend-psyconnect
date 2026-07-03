@@ -51,14 +51,17 @@ const Ressources = () => {
     return () => window.removeEventListener("roleChange", syncUser);
   }, []);
 
-  // Chargement : accessible aux invités, on affine juste le statut premium si connecté
+  // Chargement : /fonctionnalites nécessite une connexion, donc on ne l'appelle
+  // que si un token est présent. Les invités voient directement le mur de connexion.
   useEffect(() => {
     const token = localStorage.getItem("token");
     setIsAuthenticated(!!token);
 
     if (!token) {
       setIsUserPremium(false);
-      fetchFonctionnalites();
+      setFonctionnalites([]);
+      setError(null);
+      setLoading(false);
       return;
     }
 
@@ -269,103 +272,124 @@ const Ressources = () => {
           📚 Bibliothèque de Ressources
         </motion.h1>
 
-        {!isAuthenticated && (
-          <div className="max-w-2xl mx-auto mb-8 text-center bg-blue-50 border border-blue-100 rounded-xl px-5 py-3 text-sm text-blue-700">
-            Vous consultez les ressources gratuites. <button onClick={() => setAuthModalOpen(true)} className="font-semibold underline underline-offset-2">Connectez-vous</button> pour débloquer les ressources Premium.
-          </div>
-        )}
-
-        <div className="flex flex-wrap gap-3 justify-center mb-8">
-          {categoriesOrder.map(({ key, title }) => (
-            <motion.button
-              key={key}
-              onClick={() => setSelectedCategory(key)}
-              className={`px-5 py-2 rounded-full font-medium transition-colors duration-300
-                ${selectedCategory === key ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700'}`}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-              aria-pressed={selectedCategory === key}
+        {!isAuthenticated ? (
+          // Mur de connexion pour les invités — /fonctionnalites nécessite une session active
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="max-w-xl mx-auto text-center bg-blue-50 border border-blue-100 rounded-2xl px-6 py-10"
+          >
+            <div className="text-4xl mb-3 select-none">🔒</div>
+            <h2 className="text-lg font-semibold text-blue-900 mb-2">
+              Connexion requise
+            </h2>
+            <p className="text-sm text-blue-700 mb-6">
+              La bibliothèque de ressources est réservée aux membres connectés.
+              Connectez-vous ou créez un compte gratuitement pour y accéder.
+            </p>
+            <button
+              onClick={() => setAuthModalOpen(true)}
+              className="px-6 py-2.5 bg-indigo-600 text-white rounded-full font-medium hover:bg-indigo-700 transition"
             >
-              {emojiByCategory[key.toLowerCase()] || '📁'} {title}
-            </motion.button>
-          ))}
-        </div>
-
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded mb-6">
-            {error}
-          </div>
-        )}
-
-        {!loading && (
+              Se connecter
+            </button>
+          </motion.div>
+        ) : (
           <>
-            {gratuits.length > 0 && (
-              <section className="mb-12">
-                <h2 className="text-2xl font-semibold mb-6 border-b border-gray-300 pb-2 flex items-center gap-2 select-none">
-                  ✨ Ressources Gratuites
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {gratuits.map(f => {
-                    const url = getRessourceUrl(f);
-                    return (
-                      <motion.div
-                        key={f.id}
-                        className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col justify-between cursor-pointer`}
-                        variants={cardVariants}
-                        initial="hidden"
-                        animate="visible"
-                        whileHover="hover"
-                        transition={{ duration: 0.3 }}
-                        onClick={() => {
-                          if (url) {
-                            if (url.startsWith('/')) {
-                              navigate(url);
-                            } else {
-                              window.open(url, '_blank', 'noopener noreferrer');
-                            }
-                          }
-                        }}
-                      >
-                        <div>
-                          <h3 className="font-semibold text-lg mb-2 text-gray-900">{f.nom}</h3>
-                          {renderResourceContent(f)}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </section>
+            <div className="flex flex-wrap gap-3 justify-center mb-8">
+              {categoriesOrder.map(({ key, title }) => (
+                <motion.button
+                  key={key}
+                  onClick={() => setSelectedCategory(key)}
+                  className={`px-5 py-2 rounded-full font-medium transition-colors duration-300
+                    ${selectedCategory === key ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700'}`}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.95 }}
+                  aria-pressed={selectedCategory === key}
+                >
+                  {emojiByCategory[key.toLowerCase()] || '📁'} {title}
+                </motion.button>
+              ))}
+            </div>
+
+            {error && (
+              <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded mb-6">
+                {error}
+              </div>
             )}
 
-            {premiums.length > 0 && (
-              <section>
-                <h2 className="text-2xl font-semibold mb-6 border-b border-yellow-400 pb-2 text-yellow-700 flex items-center gap-2 select-none">
-                  ⭐ Ressources Premium
-                </h2>
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {premiums.map(f => (
-                    <motion.div
-                      key={f.id}
-                      className="bg-yellow-50 rounded-lg shadow-sm border border-yellow-300 p-6 cursor-pointer flex flex-col justify-between"
-                      variants={cardVariants}
-                      initial="hidden"
-                      animate="visible"
-                      whileHover="hover"
-                      transition={{ duration: 0.3 }}
-                      onClick={handlePremiumClick}
-                      title={isAuthenticated ? "Cette ressource nécessite un abonnement Premium" : "Connectez-vous pour accéder à cette ressource"}
-                    >
-                      <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-semibold text-lg text-yellow-900">{f.nom}</h3>
-                        <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none">
-                          🔒 Premium
-                        </span>
-                      </div>
-                      <div>{renderResourceContent(f)}</div>
-                    </motion.div>
-                  ))}
-                </div>
-              </section>
+            {!loading && (
+              <>
+                {gratuits.length > 0 && (
+                  <section className="mb-12">
+                    <h2 className="text-2xl font-semibold mb-6 border-b border-gray-300 pb-2 flex items-center gap-2 select-none">
+                      ✨ Ressources Gratuites
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {gratuits.map(f => {
+                        const url = getRessourceUrl(f);
+                        return (
+                          <motion.div
+                            key={f.id}
+                            className={`bg-white rounded-lg shadow-sm border border-gray-200 p-6 flex flex-col justify-between cursor-pointer`}
+                            variants={cardVariants}
+                            initial="hidden"
+                            animate="visible"
+                            whileHover="hover"
+                            transition={{ duration: 0.3 }}
+                            onClick={() => {
+                              if (url) {
+                                if (url.startsWith('/')) {
+                                  navigate(url);
+                                } else {
+                                  window.open(url, '_blank', 'noopener noreferrer');
+                                }
+                              }
+                            }}
+                          >
+                            <div>
+                              <h3 className="font-semibold text-lg mb-2 text-gray-900">{f.nom}</h3>
+                              {renderResourceContent(f)}
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                )}
+
+                {premiums.length > 0 && (
+                  <section>
+                    <h2 className="text-2xl font-semibold mb-6 border-b border-yellow-400 pb-2 text-yellow-700 flex items-center gap-2 select-none">
+                      ⭐ Ressources Premium
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {premiums.map(f => (
+                        <motion.div
+                          key={f.id}
+                          className="bg-yellow-50 rounded-lg shadow-sm border border-yellow-300 p-6 cursor-pointer flex flex-col justify-between"
+                          variants={cardVariants}
+                          initial="hidden"
+                          animate="visible"
+                          whileHover="hover"
+                          transition={{ duration: 0.3 }}
+                          onClick={handlePremiumClick}
+                          title={isAuthenticated ? "Cette ressource nécessite un abonnement Premium" : "Connectez-vous pour accéder à cette ressource"}
+                        >
+                          <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-semibold text-lg text-yellow-900">{f.nom}</h3>
+                            <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none">
+                              🔒 Premium
+                            </span>
+                          </div>
+                          <div>{renderResourceContent(f)}</div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
             )}
           </>
         )}
@@ -380,7 +404,5 @@ const Ressources = () => {
     </Layout>
   );
 };
-
-
 
 export default Ressources;

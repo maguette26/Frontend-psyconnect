@@ -71,22 +71,30 @@ function AppWrapper() {
   const [authState, setAuthState] = useState("loading");
 
   useEffect(() => {
-    let isMounted = true;
-    getMe()
-      .then((user) => {
-        if (isMounted) {
-          setCurrentUser(user);
-          setAuthState("authenticated");
-        }
-      })
-      .catch(() => {
-        if (isMounted) {
-          setCurrentUser(null);
-          setAuthState("unauthenticated");
-        }
-      });
-    return () => { isMounted = false; };
-  }, []);
+  let isMounted = true;
+  const token = localStorage.getItem('token');
+
+  if (!token) {
+    setAuthState("unauthenticated");
+    return;
+  }
+
+  getMe()
+    .then((user) => {
+      if (isMounted) {
+        setCurrentUser(user);
+        setAuthState("authenticated");
+      }
+    })
+    .catch(() => {
+      if (isMounted) {
+        setCurrentUser(null);
+        setAuthState("unauthenticated");
+      }
+    });
+
+  return () => { isMounted = false; };
+}, []);
 
   const hideHeader = ROUTES_SANS_HEADER.some(r => location.pathname.startsWith(r));
   const afficherHeader = !hideHeader;
