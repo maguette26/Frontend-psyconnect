@@ -56,7 +56,6 @@ const Header = () => {
   const isAdmin = currentRole === 'ADMIN';
   const showMenu = isUser || isPro || isAdmin;
   const isPremium = ['PREMIUM', 'ADMIN'].includes(currentRole);
-  const canSeeReservation = !isPro && !isAdmin;
 
   const espaceLink  = isUser ? '/tableauUtilisateur' : isPro ? '/tableauProfessionnel' : '/tableauAdmin';
   const espaceLabel = isUser ? 'Espace Utilisateur'  : isPro ? 'Espace Professionnel'  : 'Espace Admin';
@@ -83,7 +82,7 @@ const Header = () => {
       <Link to="/ressources" className={`${cls} ${isActive('/ressources') ? activeCls : ''}`} onClick={onClick}><BookOpen      className="w-4 h-4 shrink-0" /><span>Ressources</span></Link>
       <Link to="/forum"      className={`${cls} ${isActive('/forum') ? activeCls : ''}`} onClick={onClick}><MessageCircle className="w-4 h-4 shrink-0" /><span>Forum</span></Link>
       <Link to="/chatbot"    className={`${cls} ${isActive('/chatbot') ? activeCls : ''}`} onClick={onClick}><Bot           className="w-4 h-4 shrink-0" /><span>PsyBotAI</span></Link>
-      {canSeeReservation && (
+      {isUser && (
         <Link to="/reservation" className={`${cls} ${isActive('/reservation') ? activeCls : ''}`} onClick={onClick}><CalendarCheck className="w-4 h-4 shrink-0" /><span>Nos Professionnels</span></Link>
       )}
     </>
@@ -153,7 +152,7 @@ const Header = () => {
             <NavLink to="/forum" icon={MessageCircle}>Forum</NavLink>
             <NavLink to="/chatbot" icon={Bot}>PsyBotAI</NavLink>
 
-            {canSeeReservation && (
+            {isUser && (
               <NavLink to="/reservation" icon={CalendarCheck}>Nos Professionnels</NavLink>
             )}
 
@@ -385,7 +384,7 @@ const Header = () => {
               </Link>
             );
           })}
-          {canSeeReservation && (
+          {isUser && (
             <Link
               to="/reservation"
               className={`flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition
