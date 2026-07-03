@@ -1,101 +1,83 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { AlertTriangle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Layout from '../components/commun/Layout';
+import AuthRequiredModal from '../components/commun/AuthRequiredModal';
 import { useRessource } from './RessourceContext.jsx';
 
 const Ressources = () => {
   const navigate = useNavigate();
   const { selectedCategory, setSelectedCategory, categoriesOrder } = useRessource();
-const [userReady, setUserReady] = useState(false);
   const [fonctionnalites, setFonctionnalites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isUserPremium, setIsUserPremium] = useState(false);
-  const [notConnectedMessage, setNotConnectedMessage] = useState('');
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   const fetchFonctionnalites = useCallback(async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const res = await api.get('/fonctionnalites');
-    console.log('RAW DATA:', res.data);
-    console.log('Types statut:', res.data?.map(f => ({ 
-      nom: f.nom, 
-      statut: f.statut, 
-      typeStatut: typeof f.statut 
-    })));
-    
-    if (Array.isArray(res.data)) {
-      const ressourcesFiltrees = res.data
-        .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)  // ← fix
-        .map(f => ({
-          ...f,
-          premium: f.type === 'podcast' ? true : f.premium
-        }));
-      console.log('Après filtre:', ressourcesFiltrees.length, 'ressources');
-      setFonctionnalites(ressourcesFiltrees);
-    } else {
-      throw new Error("Format de données invalide.");
-    }
-  } catch (err) {
-    console.error('Erreur fetch:', err);
-    setError("Erreur de chargement des fonctionnalités.");
-  } finally {
-    setLoading(false);
-  }
-}, []);
- 
- // 1. Sync role depuis localStorage (refresh instant UI)
-useEffect(() => {
-  const syncUser = () => {
-    const role = localStorage.getItem("role");
-
-    setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
-    setUserReady(true);
-  };
-
-  syncUser();
-
-  window.addEventListener("roleChange", syncUser);
-
-  return () => window.removeEventListener("roleChange", syncUser);
-}, []);
-
-// 2. Load user + data
-useEffect(() => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    setNotConnectedMessage("⚠️ Vous devez être connecté");
-    navigate("/connexion");
-    return;
-  }
-
-  const fetchUserInfo = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await api.get("/auth/me");
-
-      const role = res.data.role;
-
-      setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
-
-      localStorage.setItem("role", role);
-
-      // 🔥 IMPORTANT: notify UI partout
-      window.dispatchEvent(new Event("user-updated"));
-
-    } catch {
-      setIsUserPremium(false);
+      const res = await api.get('/fonctionnalites');
+      if (Array.isArray(res.data)) {
+        const ressourcesFiltrees = res.data
+          .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)
+          .map(f => ({
+            ...f,
+            premium: f.type === 'podcast' ? true : f.premium
+          }));
+        setFonctionnalites(ressourcesFiltrees);
+      } else {
+        throw new Error("Format de données invalide.");
+      }
+    } catch (err) {
+      console.error('Erreur fetch:', err);
+      setError("Erreur de chargement des fonctionnalités.");
     } finally {
-      fetchFonctionnalites();
+      setLoading(false);
     }
-  };
+  }, []);
 
-  fetchUserInfo();
-}, [navigate, fetchFonctionnalites]);
+  // Sync rôle depuis localStorage (refresh instant UI, sans jamais rediriger un invité)
+  useEffect(() => {
+    const syncUser = () => {
+      const role = localStorage.getItem("role");
+      setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+    };
+    syncUser();
+    window.addEventListener("roleChange", syncUser);
+    return () => window.removeEventListener("roleChange", syncUser);
+  }, []);
+
+  // Chargement : accessible aux invités, on affine juste le statut premium si connecté
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setIsAuthenticated(!!token);
+
+    if (!token) {
+      setIsUserPremium(false);
+      fetchFonctionnalites();
+      return;
+    }
+
+    const fetchUserInfo = async () => {
+      try {
+        const res = await api.get("/auth/me");
+        const role = res.data.role;
+        setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+        localStorage.setItem("role", role);
+        window.dispatchEvent(new Event("user-updated"));
+      } catch {
+        setIsUserPremium(false);
+      } finally {
+        fetchFonctionnalites();
+      }
+    };
+
+    fetchUserInfo();
+  }, [fetchFonctionnalites]);
 
   const filteredFonctionnalites = useMemo(() => {
     return fonctionnalites.filter(f =>
@@ -104,25 +86,6 @@ useEffect(() => {
       f.type === selectedCategory
     );
   }, [fonctionnalites, selectedCategory, categoriesOrder]);
-
-  if (notConnectedMessage) {
-    return (
-      <Layout>
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="max-w-md mx-auto mt-20 p-8 bg-red-50 border border-red-300 rounded-lg shadow-lg flex flex-col items-center gap-4 select-none"
-        >
-          <AlertTriangle className="w-12 h-12 text-red-500" />
-          <h2 className="text-xl font-semibold text-red-700 text-center">
-            ⚠️ Vous devez être connecté pour accéder aux ressources.
-          </h2>
-          <p className="text-red-600 text-center">Vous allez être redirigé vers la page de connexion...</p>
-        </motion.div>
-      </Layout>
-    );
-  }
 
   const gratuits = filteredFonctionnalites.filter(f => !f.premium);
   const premiums = filteredFonctionnalites.filter(f => f.premium);
@@ -133,6 +96,15 @@ useEffect(() => {
     "mini challenge decouverte": "/mini-defi-decouverte",
     "guide fixer des limites saines": "/guide-fixateur-limites",
     "auto evaluation basique": "/auto-evaluation-basique",
+  };
+
+  // Point d'entrée unique pour tout clic sur du contenu premium
+  const handlePremiumClick = () => {
+    if (!isAuthenticated) {
+      setAuthModalOpen(true);
+    } else {
+      navigate('/devenir-premium');
+    }
   };
 
   const renderResourceContent = (f) => {
@@ -147,15 +119,16 @@ useEffect(() => {
       .trim();
 
     if (premium && !isUserPremium) {
-      // Ressource premium + utilisateur non premium : message + bouton
       return (
         <div className="mt-3 text-gray-600 text-sm">
-          🔐 Cette ressource est réservée aux membres Premium.
+          🔐 {isAuthenticated
+            ? "Cette ressource est réservée aux membres Premium."
+            : "Cette ressource est réservée aux membres connectés."}
           <button
-            onClick={() => navigate('/devenir-premium')}
+            onClick={handlePremiumClick}
             className="ml-2 px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 transition"
           >
-            Devenir Premium
+            {isAuthenticated ? "Devenir Premium" : "Se connecter"}
           </button>
         </div>
       );
@@ -169,7 +142,7 @@ useEffect(() => {
           onClick={(e) => {
             if (premium && !isUserPremium) {
               e.preventDefault();
-              navigate('/devenir-premium');
+              handlePremiumClick();
             }
           }}
         >
@@ -202,12 +175,13 @@ useEffect(() => {
         }
         return (
           lienFichier
-            ? <a
+            ? 
+<a
                 href={lienFichier}
                 className="inline-flex items-center gap-1 mt-3 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
+                onClick={premium ? (e) => { e.preventDefault(); handlePremiumClick(); } : undefined}
               >
                 ▶️ Voir la vidéo
               </a>
@@ -242,7 +216,7 @@ useEffect(() => {
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline"
-                onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
+                onClick={premium ? (e) => { e.preventDefault(); handlePremiumClick(); } : undefined}
               >
                 📄 Consulter
               </a>
@@ -268,7 +242,6 @@ useEffect(() => {
     autres: '🔖',
   };
 
-  // Helper to get the link (route or file) for a resource (if free)
   const getRessourceUrl = (f) => {
     const normalizedNom = f.nom
       .toLowerCase()
@@ -295,6 +268,12 @@ useEffect(() => {
         >
           📚 Bibliothèque de Ressources
         </motion.h1>
+
+        {!isAuthenticated && (
+          <div className="max-w-2xl mx-auto mb-8 text-center bg-blue-50 border border-blue-100 rounded-xl px-5 py-3 text-sm text-blue-700">
+            Vous consultez les ressources gratuites. <button onClick={() => setAuthModalOpen(true)} className="font-semibold underline underline-offset-2">Connectez-vous</button> pour débloquer les ressources Premium.
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-3 justify-center mb-8">
           {categoriesOrder.map(({ key, title }) => (
@@ -373,8 +352,8 @@ useEffect(() => {
                       animate="visible"
                       whileHover="hover"
                       transition={{ duration: 0.3 }}
-                      onClick={() => navigate('/devenir-premium')}
-                      title="Cette ressource nécessite un abonnement Premium"
+                      onClick={handlePremiumClick}
+                      title={isAuthenticated ? "Cette ressource nécessite un abonnement Premium" : "Connectez-vous pour accéder à cette ressource"}
                     >
                       <div className="flex justify-between items-center mb-3">
                         <h3 className="font-semibold text-lg text-yellow-900">{f.nom}</h3>
@@ -391,8 +370,17 @@ useEffect(() => {
           </>
         )}
       </div>
+
+      <AuthRequiredModal
+        open={authModalOpen}
+        onClose={() => setAuthModalOpen(false)}
+        title="Accès réservé"
+        message="Cette ressource est réservée aux membres connectés. Connectez-vous ou créez un compte gratuitement pour accéder à toutes les ressources."
+      />
     </Layout>
   );
 };
+
+
 
 export default Ressources;
