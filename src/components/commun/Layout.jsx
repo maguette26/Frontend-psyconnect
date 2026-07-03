@@ -7,7 +7,7 @@ const Layout = ({ children, noPadding = false }) => {
     const saved = localStorage.getItem('darkMode');
     return saved ? JSON.parse(saved) : false;
   });
-
+console.log("LAYOUT MOUNT");
   useEffect(() => {
     const html = document.documentElement;
     if (darkMode) {
