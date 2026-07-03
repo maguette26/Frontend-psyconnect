@@ -49,3 +49,15 @@ export const getCurrentUserInfo = () => {
     return null;
   }
 };
+export const forgotPassword = async (email) => {
+  const response = await api.post("/auth/forgot-password", { email });
+  return response.data;
+};
+
+export const resetPassword = async (token, motDePasse) => {
+  const response = await api.post("/auth/reset-password", {
+    token,
+    motDePasse
+  });
+  return response.data;
+};

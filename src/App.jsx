@@ -34,6 +34,9 @@ import ConsultationAccessPage from './pages/ConsultationAccessPage';
 import { getMe } from './services/api';
 import PremiumSuccess from './pages/PremiumSuccess';
 
+import MotDePasseOublie from "./pages/MotDePasseOublie";
+import ResetPassword from "./pages/ResetPassword";
+
 function GlobalStyles() {
   useEffect(() => {
     const style = document.createElement('style');
@@ -149,6 +152,9 @@ function AppWrapper() {
           <Route path="/premium-success" element={<PremiumSuccess />} />
           <Route path="/premium-cancel" element={<DevenirPremium />} />
           <Route path="*" element={<Page404 />} />
+
+          <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+<Route path="/reset-password" element={<ResetPassword />} />
         </Routes>
       </div>
     </RessourceProvider>
