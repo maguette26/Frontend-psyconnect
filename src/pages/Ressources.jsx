@@ -10,6 +10,8 @@ import {
   FileText,
   Eye,
   Download,
+  Heart,
+  Share2,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -44,6 +46,9 @@ const [userReady, setUserReady] = useState(false);
   const [notConnectedMessage, setNotConnectedMessage] = useState('');
   // Recherche discrète — n'affecte que l'affichage, aucune logique métier.
   const [searchQuery, setSearchQuery] = useState('');
+  // Favoris + partage — état purement local/visuel, n'affecte aucune logique métier.
+  const [favorites, setFavorites] = useState(() => new Set());
+  const [toast, setToast] = useState('');
 
   const fetchFonctionnalites = useCallback(async () => {
   setLoading(true);
@@ -318,6 +323,37 @@ useEffect(() => {
     return f.lienFichier || null;
   };
 
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
+
+  const toggleFavorite = (e, id) => {
+    e.stopPropagation();
+    setFavorites(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleShare = async (e, f) => {
+    e.stopPropagation();
+    const url = getRessourceUrl(f);
+    const shareUrl = url && !url.startsWith('/') ? url : window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: f.nom, text: f.description, url: shareUrl });
+      } else {
+        await navigator.clipboard.writeText(shareUrl);
+        showToast('Lien copié.');
+      }
+    } catch {
+      // partage annulé par l'utilisateur : rien à faire
+    }
+  };
+
   return (
     <Layout>
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -330,7 +366,7 @@ useEffect(() => {
           📚 Bibliothèque de Ressources
         </motion.h1>
 
-       
+      
 
         <div className="flex flex-wrap gap-3 justify-center mb-8">
           {categoriesOrder.map(({ key, title }) => (
@@ -356,7 +392,7 @@ useEffect(() => {
 
         {!loading && (
           <>
-            
+             
 
             <AnimatePresence mode="wait">
               <motion.div
@@ -397,13 +433,33 @@ useEffect(() => {
                             }}
                           >
                             <div>
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
-                                  Gratuit
-                                </span>
-                                <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badgeClass}`}>
-                                  <TypeIcon className="w-3 h-3" /> {meta.label}
-                                </span>
+                              <div className="flex items-center justify-between gap-2 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                                    Gratuit
+                                  </span>
+                                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badgeClass}`}>
+                                    <TypeIcon className="w-3 h-3" /> {meta.label}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <button
+                                    type="button"
+                                    aria-label={favorites.has(f.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                                    onClick={(e) => toggleFavorite(e, f.id)}
+                                    className="p-1.5 rounded-full transition-colors duration-200 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                  >
+                                    <Heart className={`w-4 h-4 transition-colors ${favorites.has(f.id) ? 'fill-red-500 text-red-500' : 'text-gray-400'}`} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    aria-label="Partager cette ressource"
+                                    onClick={(e) => handleShare(e, f)}
+                                    className="p-1.5 rounded-full transition-colors duration-200 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                  >
+                                    <Share2 className="w-4 h-4 text-gray-400" />
+                                  </button>
+                                </div>
                               </div>
                               <h3 className="font-semibold text-lg mb-2 text-gray-900 leading-snug">{f.nom}</h3>
                               {renderResourceContent(f)}
@@ -442,9 +498,27 @@ useEffect(() => {
 
                             <div className="flex justify-between items-center mb-3 relative">
                               <h3 className="font-semibold text-lg text-yellow-900 leading-snug">{f.nom}</h3>
-                              <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none">
-                                🔒 Premium
-                              </span>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  type="button"
+                                  aria-label={favorites.has(f.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
+                                  onClick={(e) => toggleFavorite(e, f.id)}
+                                  className="p-1.5 rounded-full transition-colors duration-200 hover:bg-yellow-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                >
+                                  <Heart className={`w-4 h-4 transition-colors ${favorites.has(f.id) ? 'fill-red-500 text-red-500' : 'text-yellow-700/60'}`} />
+                                </button>
+                                <button
+                                  type="button"
+                                  aria-label="Partager cette ressource"
+                                  onClick={(e) => handleShare(e, f)}
+                                  className="p-1.5 rounded-full transition-colors duration-200 hover:bg-yellow-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400"
+                                >
+                                  <Share2 className="w-4 h-4 text-yellow-700/60" />
+                                </button>
+                                <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none">
+                                  🔒 Premium
+                                </span>
+                              </div>
                             </div>
                             <div className="mb-1 relative">
                               <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badgeClass}`}>
@@ -463,6 +537,19 @@ useEffect(() => {
           </>
         )}
       </div>
+
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"
+          >
+            {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </Layout>
   );
 };
