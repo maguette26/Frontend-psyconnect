@@ -20,7 +20,8 @@ import {
   Headset,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import Layout from "../commun/Layout";
+import Layout from "../components/commun/Layout";
+ 
 
 // Contenu purement visuel — aucune donnée métier, aucun appel API.
 const AVANTAGES = [
