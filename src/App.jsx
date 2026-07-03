@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import Chatbot from './components/Chatbot';
-import Layout from './components/commun/Layout';
+import Header from './components/commun/header';
 
 import Accueil from './pages/Accueil';
 import Inscription from './pages/Inscription';
@@ -36,44 +36,73 @@ import PremiumSuccess from './pages/PremiumSuccess';
 
 import MotDePasseOublie from "./pages/MotDePasseOublie";
 import ResetPassword from "./pages/ResetPassword";
+import Layout from './components/commun/Layout';
 
 function GlobalStyles() {
   useEffect(() => {
     const style = document.createElement('style');
     style.textContent = `
+      @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
       * { box-sizing: border-box; }
       body { margin: 0; }
-      textarea { font-family: Inter, sans-serif; }
+      ::-webkit-scrollbar { width: 4px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: #E2E8F0; border-radius: 99px; }
+      ::-webkit-scrollbar-thumb:hover { background: #94A3B8; }
+      textarea { font-family: 'Inter', sans-serif; }
+      @media (prefers-reduced-motion: reduce) {
+        *, *::before, *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
     `;
     document.head.appendChild(style);
-    return () => document.head.removeChild(style);
+    return () => {
+      if (document.head.contains(style)) document.head.removeChild(style);
+    };
   }, []);
   return null;
 }
 
+const ROUTES_SANS_HEADER = ['/chat/'];
+
 function AppWrapper() {
+  const location = useLocation();
+
   const [currentUser, setCurrentUser] = useState(null);
+  // ✅ 3 états distincts : "loading" | "authenticated" | "unauthenticated"
   const [authState, setAuthState] = useState("loading");
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+  let isMounted = true;
+  const token = localStorage.getItem('token');
 
-    if (!token) {
-      setAuthState("unauthenticated");
-      return;
-    }
+  if (!token) {
+    setAuthState("unauthenticated");
+    return;
+  }
 
-    getMe()
-      .then((user) => {
+  getMe()
+    .then((user) => {
+      if (isMounted) {
         setCurrentUser(user);
         setAuthState("authenticated");
-      })
-      .catch(() => {
+      }
+    })
+    .catch(() => {
+      if (isMounted) {
         setCurrentUser(null);
         setAuthState("unauthenticated");
-      });
-  }, []);
+      }
+    });
 
+  return () => { isMounted = false; };
+}, []);
+ 
+
+  // ✅ Tant que l'auth est en cours, on n'affiche rien
+  // (évite le redirect vers /connexion avant que getMe() réponde)
   if (authState === "loading") return null;
 
   const isAuth = authState === "authenticated";
@@ -81,76 +110,65 @@ function AppWrapper() {
   return (
     <RessourceProvider>
       <GlobalStyles />
-
       <div style={{ minHeight: "100vh" }}>
+         
 
         <Routes>
-
-          {/* 🌍 PUBLIC + LAYOUT (HEADER + FOOTER) */}
-          <Route element={<Layout />}>
-            <Route path="/" element={<Accueil />} />
-            <Route path="/chatbot" element={<Chatbot />} />
-            <Route path="/forum" element={<Forum />} />
-            <Route path="/ressources" element={<Ressources />} />
-            <Route path="/apropos" element={<APropos />} />
-            <Route path="/reservation" element={<ListeProfessionnels />} />
-
-            <Route path="/mini-defi-gratuite" element={<MiniDefiGratuite />} />
-            <Route path="/mini-defi-decouverte" element={<MiniDefiDecouverte />} />
-            <Route path="/guide-fixateur-limites" element={<GuideFixateurLimites />} />
-            <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
-            <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
-            <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
-          </Route>
-
-          {/* 🔐 AUTH */}
-          <Route path="/connexion" element={<Connexion />} />
+          <Route path="/" element={<Accueil />} />
+          <Route path="/chatbot" element={<Chatbot />} />
           <Route path="/inscription" element={<Inscription />} />
           <Route path="/inscription/utilisateur" element={<InscriptionUser />} />
           <Route path="/inscription/professionnel" element={<InscriptionProfessionnel />} />
-
-          {/* 👤 DASHBOARD */}
+          <Route path="/connexion" element={<Connexion />} />
+          <Route path="/ressources" element={<Ressources />} />
+          <Route path="/forum" element={<Forum />} />
+          <Route path="/devenir-premium" element={<DevenirPremium />} />
+          <Route path="/tableauAdmin" element={<TableauAdmin />} />
+          <Route path="/tableauUtilisateur" element={<TableauUtilisateur />} />
+          <Route path="/tableauProfessionnel" element={<TableauProfessionnel />} />
+          <Route path="/apropos" element={<APropos />} />
+          <Route path="/reservation" element={<ListeProfessionnels />} />
+               <Route path="/mini-defi-gratuite" element={<MiniDefiGratuite />} />
+                    <Route path="/liste-controle-bien-etre" element={<ListeControleBienEtre />} />
+                    <Route path="/mini-defi-decouverte" element={<MiniDefiDecouverte />} />
+                    <Route path="/guide-fixateur-limites" element={<GuideFixateurLimites />} />
+                    <Route path="/auto-evaluation-basique" element={<AutoEvaluationBasique />} />
+                    <Route path="/analyse-emotionnelle" element={<EmotionAnalyzer />} />
           <Route
             path="/consultations"
             element={isAuth ? <ConsultationsPage /> : <Navigate to="/connexion" replace />}
           />
-
           <Route
             path="/consultations/pro"
             element={isAuth ? <TableauProfessionnel /> : <Navigate to="/connexion" replace />}
           />
-
+          <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
+          {/* ✅ currentUser passé en prop pour que ChatPage connaisse le user connecté */}
           <Route
             path="/chat/:consultationId"
             element={isAuth ? <ChatPage currentUser={currentUser} /> : <Navigate to="/connexion" replace />}
           />
-
-          <Route path="/access/consultation/:id" element={<ConsultationAccessPage />} />
-
-          {/* 💳 PREMIUM */}
-          <Route path="/devenir-premium" element={<DevenirPremium />} />
           <Route path="/premium-success" element={<PremiumSuccess />} />
           <Route path="/premium-cancel" element={<DevenirPremium />} />
-
-          {/* 👑 ADMIN */}
-          <Route path="/tableauAdmin" element={<TableauAdmin />} />
-          <Route path="/tableauUtilisateur" element={<TableauUtilisateur />} />
-          <Route path="/tableauProfessionnel" element={<TableauProfessionnel />} />
-
-          {/* 🔑 PASSWORD */}
-          <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-
-          {/* ❌ 404 */}
           <Route path="*" element={<Page404 />} />
 
+          <Route path="/mot-de-passe-oublie" element={<MotDePasseOublie />} />
+<Route path="/reset-password" element={<ResetPassword />} />
+<Route
+  path="/chatbot"
+  element={
+    <Layout>
+      <Chatbot />
+    </Layout>
+  }
+/>
         </Routes>
       </div>
     </RessourceProvider>
   );
 }
 
-export default function App() {
+function App() {
   return (
     <Router>
       <ScrollToTop />
@@ -158,3 +176,6 @@ export default function App() {
     </Router>
   );
 }
+
+
+export default App;
