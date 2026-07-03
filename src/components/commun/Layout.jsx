@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import PiedPage from './PiedPage';
 import Header from './header';
+import Chatbot from '../Chatbot';
 
 const Layout = ({ children, noPadding = false }) => {
   const [darkMode, setDarkMode] = useState(() => {
@@ -25,6 +26,7 @@ const Layout = ({ children, noPadding = false }) => {
         {children}
       </main>
       <PiedPage />
+      <Chatbot />
     </div>
   );
 };
