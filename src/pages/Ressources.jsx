@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Lock, Play, Download, ExternalLink, Headphones, FileText,
-  Quote, BookOpen, Video, Sparkles, Library, Clock, ArrowRight
+  Quote, BookOpen, Video, Sparkles, Library, Clock, ArrowRight,
+  Heart, Share2, Copy, X, Eye, Star, Check
 } from 'lucide-react';
 import api from '../services/api';
 import Layout from '../components/commun/Layout';
@@ -19,6 +20,22 @@ const Ressources = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isUserPremium, setIsUserPremium] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  // ============================================================
+  // ÉTAT UI UNIQUEMENT (aucun impact sur la logique métier) :
+  // gère l'ouverture des modals de lecture et les favoris locaux.
+  // Les favoris ne sont pas persistés côté API (aucun endpoint
+  // n'existe pour ça dans le code fourni) — à brancher plus tard
+  // si besoin d'une vraie persistance.
+  // ============================================================
+  const [activeModal, setActiveModal] = useState(null); // { type, resource } | null
+  const [favoris, setFavoris] = useState(() => new Set());
+  const [copiedId, setCopiedId] = useState(null);
+  const [shareFeedbackId, setShareFeedbackId] = useState(null);
+
+  // ============================================================
+  // LOGIQUE MÉTIER INCHANGÉE À PARTIR D'ICI
+  // ============================================================
 
   const fetchFonctionnalites = useCallback(async () => {
     setLoading(true);
@@ -110,7 +127,6 @@ const Ressources = () => {
     }
   };
 
-  // ---- Statistiques calculées à partir des données existantes ----
   const stats = useMemo(() => {
     const total = fonctionnalites.length;
     const videos = fonctionnalites.filter(f => f.type?.toLowerCase() === 'video').length;
@@ -167,199 +183,504 @@ const Ressources = () => {
       ? lienFichier.split('v=')[1]?.split('&')[0]
       : lienFichier?.split('/').pop();
 
-  // ---- Rendu du "media" en haut de carte, selon le type ----
-  const renderCardMedia = (f) => {
-    const { type, lienFichier, nom, premium } = f;
-    const Icon = typeIcon(type);
-    const isLocked = premium && !isUserPremium;
+  // ============================================================
+  // FIN DE LA LOGIQUE MÉTIER INCHANGÉE
+  // ============================================================
 
-    switch (type?.toLowerCase()) {
-      case 'citation':
-        return (
-          <div className="relative h-40 rounded-t-2xl bg-gradient-to-br from-blue-500 via-indigo-500 to-indigo-600 flex items-center justify-center overflow-hidden">
-            <Quote className="absolute -top-3 -left-2 text-white/20" size={90} strokeWidth={1} />
-            <Quote className="text-white/90" size={34} strokeWidth={1.5} />
-            <div className="absolute bottom-3 right-4 w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm" />
-          </div>
-        );
+  // ============================================================
+  // NOUVEAU — UI / PRÉSENTATION UNIQUEMENT
+  // ============================================================
 
-      case 'video': {
-        const youtubeId = lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'))
-          ? getYoutubeId(lienFichier)
-          : null;
-        return (
-          <div className="relative h-40 rounded-t-2xl overflow-hidden bg-slate-900 group/media">
-            {youtubeId ? (
-              <img
-                src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
-                alt={nom}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover/media:scale-110"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-slate-700 to-slate-900" />
-            )}
-            <div className="absolute inset-0 bg-black/25 group-hover/media:bg-black/35 transition-colors" />
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-12 h-12 rounded-full bg-white/90 flex items-center justify-center shadow-lg transition-transform duration-300 group-hover/media:scale-110">
-                {isLocked ? <Lock size={18} className="text-slate-700" /> : <Play size={18} className="text-blue-600 ml-0.5" fill="currentColor" />}
-              </div>
-            </div>
-          </div>
-        );
+  // Palette de badges par type, dans les tons PsyConnect (bleu
+  // principal conservé) + accents doux pour différencier les types.
+  const typeConfig = {
+    citation: { label: 'Citation', badge: 'bg-violet-50 text-violet-600 ring-1 ring-violet-100', icon: Quote },
+    article: { label: 'Article', badge: 'bg-blue-50 text-blue-600 ring-1 ring-blue-100', icon: FileText },
+    video: { label: 'Vidéo', badge: 'bg-rose-50 text-rose-600 ring-1 ring-rose-100', icon: Video },
+    podcast: { label: 'Podcast', badge: 'bg-orange-50 text-orange-600 ring-1 ring-orange-100', icon: Headphones },
+    guide: { label: 'Guide', badge: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100', icon: BookOpen },
+  };
+
+  const getTypeConfig = (type) =>
+    typeConfig[type?.toLowerCase()] || { label: type || 'Ressource', badge: 'bg-slate-50 text-slate-600 ring-1 ring-slate-100', icon: FileText };
+
+  const isYoutube = (lienFichier) =>
+    !!lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'));
+
+  const toggleFavori = (id, e) => {
+    e?.stopPropagation();
+    setFavoris(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const handleShare = async (f, e) => {
+    e?.stopPropagation();
+    const shareData = {
+      title: f.nom,
+      text: f.description || f.nom,
+      url: window.location.href,
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        setShareFeedbackId(f.id);
+        setTimeout(() => setShareFeedbackId(null), 1800);
       }
-
-      case 'podcast':
-        return (
-          <div className="relative h-40 rounded-t-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center overflow-hidden">
-            <Headphones className="text-white/90" size={44} strokeWidth={1.3} />
-            <span className="absolute top-3 left-3 text-[11px] font-semibold bg-white/20 backdrop-blur-sm text-white px-2.5 py-1 rounded-full">
-              🎧 Podcast
-            </span>
-          </div>
-        );
-
-      case 'guide':
-        return (
-          <div className="relative h-40 rounded-t-2xl bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center overflow-hidden">
-            <FileText className="text-blue-500" size={44} strokeWidth={1.3} />
-          </div>
-        );
-
-      default:
-        return (
-          <div className="relative h-40 rounded-t-2xl bg-gradient-to-br from-slate-100 to-blue-50 flex items-center justify-center overflow-hidden">
-            <Icon className="text-blue-400" size={40} strokeWidth={1.3} />
-          </div>
-        );
+    } catch {
+      // partage annulé par l'utilisateur : rien à faire
     }
   };
 
-  // ---- Conserve la logique existante de contenu / liens / clics ----
-  const renderResourceContent = (f) => {
-    const { type, description, lienFichier, premium, nom } = f;
+  const handleCopyCitation = async (f, e) => {
+    e?.stopPropagation();
+    try {
+      await navigator.clipboard.writeText(f.description || '');
+      setCopiedId(f.id);
+      setTimeout(() => setCopiedId(null), 1800);
+    } catch {
+      // clipboard indisponible : on ignore silencieusement
+    }
+  };
 
-    const normalizedNom = nom
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[^a-z0-9]/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
+  // Détermine ce qui se passe au clic principal sur une carte,
+  // sans jamais modifier la logique d'accès premium existante.
+  const handleCardOpen = (f) => {
+    if (f.premium && !isUserPremium) {
+      handlePremiumClick();
+      return;
+    }
+    const type = f.type?.toLowerCase();
+    if (type === 'video' && isYoutube(f.lienFichier)) {
+      setActiveModal({ type: 'video', resource: f });
+      return;
+    }
+    if (type === 'article') {
+      setActiveModal({ type: 'article', resource: f });
+      return;
+    }
+    if (type === 'guide') {
+      setActiveModal({ type: 'pdf', resource: f });
+      return;
+    }
+    if (type === 'citation') {
+      setActiveModal({ type: 'citation', resource: f });
+      return;
+    }
+    // podcast et autres cas : comportement d'ouverture externe conservé
+    const url = getRessourceUrl(f);
+    if (url) {
+      url.startsWith('/') ? navigate(url) : window.open(url, '_blank', 'noopener noreferrer');
+    }
+  };
 
-    if (premium && !isUserPremium) {
+  // Boutons d'action spécifiques au type de ressource (fond de carte),
+  // remplace les deux boutons redondants "Voir" / "Ouvrir" d'origine.
+  const CardActionButton = ({ onClick, icon: Icon, label, primary, done }) => (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-200 active:scale-95
+        ${primary
+          ? 'flex-1 bg-blue-600 text-white hover:bg-blue-700 shadow-sm hover:shadow-md'
+          : 'w-9 h-9 bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600'}`}
+      title={label}
+    >
+      <Icon size={14} className={done ? 'text-emerald-500' : ''} />
+      {primary && <span>{done ? 'Copié' : label}</span>}
+    </button>
+  );
+
+  const renderCardActions = (f) => {
+    const isLocked = f.premium && !isUserPremium;
+    const type = f.type?.toLowerCase();
+    const isFav = favoris.has(f.id);
+
+    if (isLocked) {
       return (
-        <div className="mt-3 flex items-start gap-2 text-sm text-slate-500">
-          <Lock size={15} className="mt-0.5 shrink-0 text-slate-400" />
-          <div>
-            <p>
-              {isAuthenticated
-                ? "Réservé aux membres Premium."
-                : "Réservé aux membres connectés."}
-            </p>
-            <button
-              onClick={handlePremiumClick}
-              className="mt-2 inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-sm hover:shadow-md active:scale-95"
-            >
-              {isAuthenticated ? "Devenir Premium" : "Se connecter"}
-              <ArrowRight size={12} />
-            </button>
-          </div>
+        <button
+          onClick={(e) => { e.stopPropagation(); handlePremiumClick(); }}
+          className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all active:scale-95 shadow-sm"
+        >
+          <Lock size={13} />
+          {isAuthenticated ? 'Débloquer en Premium' : 'Se connecter'}
+        </button>
+      );
+    }
+
+    const favBtn = (
+      <CardActionButton
+        onClick={(e) => toggleFavori(f.id, e)}
+        icon={Heart}
+        label="Favori"
+      />
+    );
+    // survole la couleur du coeur séparément pour l'état actif
+    const FavIcon = () => (
+      <button
+        onClick={(e) => toggleFavori(f.id, e)}
+        className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 hover:bg-rose-50 transition-all duration-200 active:scale-95"
+        title="Favori"
+      >
+        <Heart size={14} className={isFav ? 'fill-rose-500 text-rose-500' : 'text-slate-400'} />
+      </button>
+    );
+
+    if (type === 'video') {
+      return (
+        <div className="flex items-center gap-2">
+          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={Play} label="Regarder" primary />
+          <FavIcon />
+          <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
         </div>
       );
     }
 
-    if (resourceLinks[normalizedNom]) {
+    if (type === 'guide') {
       return (
-        <Link
-          to={resourceLinks[normalizedNom]}
-          className="inline-flex items-center gap-1.5 mt-3 text-blue-600 font-semibold text-sm no-underline hover:text-blue-800 hover:no-underline transition-colors"
-          onClick={(e) => {
-            if (premium && !isUserPremium) {
-              e.preventDefault();
-              handlePremiumClick();
-            }
-          }}
-        >
-          Accéder à la ressource <ArrowRight size={14} />
-        </Link>
+        <div className="flex items-center gap-2">
+          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={FileText} label="Lire" primary />
+          {f.lienFichier && (
+            <a
+              href={f.lienFichier}
+              download
+              onClick={(e) => e.stopPropagation()}
+              className="w-9 h-9 inline-flex items-center justify-center rounded-xl bg-slate-50 text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition-all duration-200 active:scale-95"
+              title="Télécharger"
+            >
+              <Download size={14} />
+            </a>
+          )}
+          <FavIcon />
+        </div>
       );
     }
 
-    switch (type.toLowerCase()) {
-      case 'citation':
-        return (
-          <blockquote className="mt-1 text-center text-slate-700 font-medium italic leading-relaxed">
-            "{description}"
-          </blockquote>
-        );
-
-      case 'video':
-        return (
-          lienFichier
-            ? null // le bouton Play est géré visuellement dans le media, le clic global de la carte ouvre le lien
-            : <p className="mt-3 text-sm text-slate-600 line-clamp-3">{description}</p>
-        );
-
-      case 'podcast':
-        return (
-          <div className="mt-3 flex flex-col gap-2">
-            <audio controls className="w-full rounded-lg shadow-sm h-9">
-              <source src={lienFichier} type="audio/mpeg" />
-            </audio>
-          </div>
-        );
-
-      default:
-        return (
-          <p className="mt-2 text-sm text-slate-600 line-clamp-3">{description}</p>
-        );
+    if (type === 'article') {
+      return (
+        <div className="flex items-center gap-2">
+          <CardActionButton onClick={(e) => { e.stopPropagation(); handleCardOpen(f); }} icon={FileText} label="Lire" primary />
+          <FavIcon />
+          <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
+        </div>
+      );
     }
-  };
 
-  // ---- Boutons bas de carte : "Voir" + "Télécharger/Ouvrir" ----
-  const renderCardActions = (f) => {
-    const { premium, lienFichier, type } = f;
-    const isLocked = premium && !isUserPremium;
-    const url = getRessourceUrl(f);
-    const isPodcast = type?.toLowerCase() === 'podcast';
+    if (type === 'citation') {
+      return (
+        <div className="flex items-center gap-2">
+          <CardActionButton
+            onClick={(e) => handleCopyCitation(f, e)}
+            icon={copiedId === f.id ? Check : Copy}
+            label="Copier"
+            primary
+            done={copiedId === f.id}
+          />
+          <FavIcon />
+          <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
+        </div>
+      );
+    }
 
-    const handleOpen = (e) => {
-      e.stopPropagation();
-      if (isLocked) {
-        handlePremiumClick();
-        return;
-      }
-      if (url) {
-        url.startsWith('/') ? navigate(url) : window.open(url, '_blank', 'noopener noreferrer');
-      }
-    };
-
+    // podcast : la lecture reste inline (audio natif) plus bouton favori
     return (
-      <div className="mt-4 flex items-center gap-2">
-        <button
-          onClick={handleOpen}
-          className="relative overflow-hidden flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-blue-50 text-blue-700 text-sm font-semibold hover:bg-blue-100 active:scale-95 transition-all duration-200"
-        >
-          <ExternalLink size={14} />
-          Voir
-        </button>
-        {(lienFichier || url) && !isPodcast && (
-          <button
-            onClick={handleOpen}
-            className="relative overflow-hidden flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 active:scale-95 shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            {isLocked ? <Lock size={14} /> : <Download size={14} />}
-            {isLocked ? 'Premium' : 'Ouvrir'}
-          </button>
-        )}
+      <div className="flex items-center gap-2">
+        <FavIcon />
+        <CardActionButton onClick={(e) => handleShare(f, e)} icon={Share2} label="Partager" />
       </div>
     );
   };
 
   const cardVariants = {
-    hidden: { opacity: 0, y: 24, scale: 0.98 },
-    visible: { opacity: 1, y: 0, scale: 1 },
+    hidden: { opacity: 0, y: 16 },
+    visible: { opacity: 1, y: 0 },
   };
+
+  // Carte minimaliste : petite icône + badge coloré, plus d'imagerie lourde.
+  const ResourceCard = ({ f, index, isPremiumSection }) => {
+    const cfg = getTypeConfig(f.type);
+    const TypeIcon = cfg.icon;
+    const isLocked = f.premium && !isUserPremium;
+    const type = f.type?.toLowerCase();
+
+    return (
+      <motion.div
+        key={f.id}
+        variants={cardVariants}
+        transition={{ duration: 0.3, delay: Math.min(index * 0.04, 0.4), ease: 'easeOut' }}
+        whileHover={{ y: -3, scale: 1.02 }}
+        className="group relative bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-lg hover:shadow-blue-100/50 transition-shadow duration-300 flex flex-col cursor-pointer overflow-hidden"
+        onClick={() => handleCardOpen(f)}
+      >
+        <div className="p-5 flex flex-col flex-1">
+          {/* En-tête : icône + badge + statut */}
+          <div className="flex items-center justify-between mb-3">
+            <span className={`inline-flex items-center justify-center w-9 h-9 rounded-xl ${cfg.badge}`}>
+              <TypeIcon size={16} />
+            </span>
+            <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${
+              f.premium ? 'bg-amber-50 text-amber-700' : 'bg-emerald-50 text-emerald-700'
+            }`}>
+              {f.premium ? 'Premium' : 'Gratuit'}
+            </span>
+          </div>
+
+          <span className={`self-start text-[10px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full mb-2 ${cfg.badge}`}>
+            {cfg.label}
+          </span>
+
+          {type !== 'citation' ? (
+            <h3 className="font-semibold text-slate-800 leading-snug mb-1.5 line-clamp-2">
+              {f.nom}
+            </h3>
+          ) : (
+            <blockquote className="flex-1 flex items-center text-slate-700 font-medium italic leading-relaxed line-clamp-4 mb-2">
+              "{f.description}"
+            </blockquote>
+          )}
+
+          {type !== 'citation' && f.description && (
+            <p className="text-sm text-slate-500 line-clamp-2 mb-3">{f.description}</p>
+          )}
+
+          {/* Métadonnées optionnelles — n'affiche que ce qui existe réellement */}
+          {(f.duree || f.categorie || f.vues != null || f.note != null || f.dateCreation) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 mb-3">
+              {f.duree && (
+                <span className="inline-flex items-center gap-1"><Clock size={11} />{f.duree}</span>
+              )}
+              {f.categorie && (
+                <span className="inline-flex items-center gap-1">{f.categorie}</span>
+              )}
+              {f.vues != null && (
+                <span className="inline-flex items-center gap-1"><Eye size={11} />{f.vues}</span>
+              )}
+              {f.note != null && (
+                <span className="inline-flex items-center gap-1"><Star size={11} className="text-amber-400 fill-amber-400" />{f.note}</span>
+              )}
+              {f.dateCreation && (
+                <span>{new Date(f.dateCreation).toLocaleDateString('fr-FR')}</span>
+              )}
+            </div>
+          )}
+
+          {type === 'podcast' && !isLocked && (
+            <div className="mb-3" onClick={(e) => e.stopPropagation()}>
+              <audio controls className="w-full h-9 rounded-lg">
+                <source src={f.lienFichier} type="audio/mpeg" />
+              </audio>
+            </div>
+          )}
+
+          {shareFeedbackId === f.id && (
+            <p className="text-[11px] text-emerald-600 mb-2">Lien copié ✓</p>
+          )}
+
+          <div className="mt-auto pt-1">
+            {renderCardActions(f)}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
+  // ---- Modal générique ----
+  const ModalShell = ({ children, wide }) => (
+    <AnimatePresence>
+      {activeModal && (
+        <motion.div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          onClick={() => setActiveModal(null)}
+        >
+          <motion.div
+            className={`bg-white rounded-3xl shadow-2xl w-full ${wide ? 'max-w-3xl' : 'max-w-lg'} max-h-[88vh] overflow-y-auto`}
+            initial={{ opacity: 0, y: 20, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.97 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+
+  const ModalHeader = ({ f }) => {
+    const cfg = getTypeConfig(f.type);
+    const isFav = favoris.has(f.id);
+    return (
+      <div className="flex items-start justify-between p-6 pb-4 border-b border-slate-100">
+        <div>
+          <span className={`inline-flex text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-full ${cfg.badge} mb-2`}>
+            {cfg.label}
+          </span>
+          <h2 className="text-xl font-bold text-slate-800 leading-snug">{f.nom}</h2>
+        </div>
+        <button
+          onClick={() => setActiveModal(null)}
+          className="shrink-0 w-9 h-9 inline-flex items-center justify-center rounded-full bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+        >
+          <X size={16} />
+        </button>
+      </div>
+    );
+  };
+
+  const ModalFooterActions = ({ f, extra }) => {
+    const isFav = favoris.has(f.id);
+    return (
+      <div className="flex items-center gap-2 px-6 pb-6 pt-4">
+        {extra}
+        <button
+          onClick={(e) => toggleFavori(f.id, e)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-rose-50 transition-colors"
+        >
+          <Heart size={14} className={isFav ? 'fill-rose-500 text-rose-500' : ''} />
+          Favori
+        </button>
+        <button
+          onClick={(e) => handleShare(f, e)}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-50 text-sm font-semibold text-slate-600 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+        >
+          <Share2 size={14} />
+          Partager
+        </button>
+      </div>
+    );
+  };
+
+  const renderModalContent = () => {
+    if (!activeModal) return null;
+    const { type, resource: f } = activeModal;
+
+    if (type === 'video') {
+      const youtubeId = getYoutubeId(f.lienFichier);
+      return (
+        <ModalShell wide>
+          <ModalHeader f={f} />
+          <div className="px-6">
+            <div className="relative w-full rounded-2xl overflow-hidden bg-black" style={{ paddingTop: '56.25%' }}>
+              {youtubeId && (
+                <iframe
+                  className="absolute inset-0 w-full h-full"
+                  src={`https://www.youtube.com/embed/${youtubeId}`}
+                  title={f.nom}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              )}
+            </div>
+            {f.description && (
+              <p className="text-sm text-slate-600 mt-4 leading-relaxed">{f.description}</p>
+            )}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mt-3">
+              {f.duree && <span className="inline-flex items-center gap-1"><Clock size={12} />{f.duree}</span>}
+              {f.categorie && <span>{f.categorie}</span>}
+            </div>
+          </div>
+          <ModalFooterActions f={f} />
+        </ModalShell>
+      );
+    }
+
+    if (type === 'article') {
+      return (
+        <ModalShell wide>
+          <ModalHeader f={f} />
+          <div className="px-6">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-400 mb-4">
+              {f.auteur && <span>Par {f.auteur}</span>}
+              {f.dateCreation && <span>{new Date(f.dateCreation).toLocaleDateString('fr-FR')}</span>}
+              {f.categorie && <span>{f.categorie}</span>}
+            </div>
+            <div className="prose prose-sm max-w-none text-slate-600 leading-relaxed whitespace-pre-line">
+              {f.contenu || f.description}
+            </div>
+          </div>
+          <ModalFooterActions f={f} />
+        </ModalShell>
+      );
+    }
+
+    if (type === 'pdf') {
+      return (
+        <ModalShell wide>
+          <ModalHeader f={f} />
+          <div className="px-6">
+            {f.lienFichier ? (
+              <iframe
+                src={f.lienFichier}
+                title={f.nom}
+                className="w-full h-[60vh] rounded-2xl border border-slate-100"
+              />
+            ) : (
+              <p className="text-sm text-slate-500">Aucun document disponible.</p>
+            )}
+          </div>
+          <ModalFooterActions
+            f={f}
+            extra={f.lienFichier && (
+              <a
+                href={f.lienFichier}
+                download
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Download size={14} />
+                Télécharger
+              </a>
+            )}
+          />
+        </ModalShell>
+      );
+    }
+
+    if (type === 'citation') {
+      return (
+        <ModalShell>
+          <div className="relative rounded-t-3xl bg-gradient-to-br from-blue-600 via-indigo-600 to-indigo-700 px-8 py-12 text-center overflow-hidden">
+            <Quote className="absolute -top-4 -left-2 text-white/10" size={110} strokeWidth={1} />
+            <button
+              onClick={() => setActiveModal(null)}
+              className="absolute top-4 right-4 w-9 h-9 inline-flex items-center justify-center rounded-full bg-white/15 text-white hover:bg-white/25 transition-colors"
+            >
+              <X size={16} />
+            </button>
+            <p className="relative text-white text-2xl font-serif italic leading-relaxed">
+              "{f.description}"
+            </p>
+          </div>
+          <ModalFooterActions
+            f={f}
+            extra={
+              <button
+                onClick={(e) => handleCopyCitation(f, e)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                {copiedId === f.id ? <Check size={14} /> : <Copy size={14} />}
+                {copiedId === f.id ? 'Copié' : 'Copier'}
+              </button>
+            }
+          />
+        </ModalShell>
+      );
+    }
+
+    return null;
+  };
+
+  // ============================================================
+  // FIN DU CODE UI NOUVEAU
+  // ============================================================
 
   return (
     <Layout>
@@ -482,7 +803,7 @@ const Ressources = () => {
             {loading && (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-72 rounded-2xl bg-slate-100 animate-pulse" />
+                  <div key={i} className="h-56 rounded-2xl bg-slate-100 animate-pulse" />
                 ))}
               </div>
             )}
@@ -499,56 +820,11 @@ const Ressources = () => {
                       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                       initial="hidden"
                       animate="visible"
-                      variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                      variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                     >
-                      {gratuits.map((f, index) => {
-                        const url = getRessourceUrl(f);
-                        const TypeIcon = typeIcon(f.type);
-                        const isCitation = f.type?.toLowerCase() === 'citation';
-                        return (
-                          <motion.div
-                            key={f.id}
-                            className="group bg-white rounded-2xl border border-slate-100 shadow-sm hover:shadow-xl hover:shadow-blue-100/60 overflow-hidden flex flex-col cursor-pointer transition-shadow duration-300"
-                            variants={cardVariants}
-                            transition={{ duration: 0.35, delay: index * 0.06 }}
-                            whileHover={{ y: -4 }}
-                            onClick={() => {
-                              if (url) {
-                                url.startsWith('/') ? navigate(url) : window.open(url, '_blank', 'noopener noreferrer');
-                              }
-                            }}
-                          >
-                            {renderCardMedia(f)}
-
-                            <div className="p-5 flex flex-col flex-1">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                                  <TypeIcon size={11} />
-                                  {f.type}
-                                </span>
-                                {f.dateCreation && (
-                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                                    <Clock size={11} />
-                                    {new Date(f.dateCreation).toLocaleDateString('fr-FR')}
-                                  </span>
-                                )}
-                              </div>
-
-                              {!isCitation && (
-                                <h3 className="font-semibold text-slate-800 leading-snug mb-1 line-clamp-2">
-                                  {f.nom}
-                                </h3>
-                              )}
-
-                              <div className={isCitation ? "flex-1 flex items-center justify-center py-2" : "flex-1"}>
-                                {renderResourceContent(f)}
-                              </div>
-
-                              {renderCardActions(f)}
-                            </div>
-                          </motion.div>
-                        );
-                      })}
+                      {gratuits.map((f, index) => (
+                        <ResourceCard key={f.id} f={f} index={index} />
+                      ))}
                     </motion.div>
                   </section>
                 )}
@@ -563,57 +839,11 @@ const Ressources = () => {
                       className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
                       initial="hidden"
                       animate="visible"
-                      variants={{ visible: { transition: { staggerChildren: 0.06 } } }}
+                      variants={{ visible: { transition: { staggerChildren: 0.05 } } }}
                     >
-                      {premiums.map((f, index) => {
-                        const TypeIcon = typeIcon(f.type);
-                        const isCitation = f.type?.toLowerCase() === 'citation';
-                        return (
-                          <motion.div
-                            key={f.id}
-                            className="group relative bg-white rounded-2xl border border-amber-100 shadow-sm hover:shadow-xl hover:shadow-amber-100/60 overflow-hidden flex flex-col cursor-pointer transition-shadow duration-300"
-                            variants={cardVariants}
-                            transition={{ duration: 0.35, delay: index * 0.06 }}
-                            whileHover={{ y: -4 }}
-                            onClick={handlePremiumClick}
-                            title={isAuthenticated ? "Cette ressource nécessite un abonnement Premium" : "Connectez-vous pour accéder à cette ressource"}
-                          >
-                            <div className="relative">
-                              {renderCardMedia(f)}
-                              <span className="absolute top-3 right-3 inline-flex items-center gap-1 bg-amber-400 text-amber-900 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-sm">
-                                <Lock size={10} /> Premium
-                              </span>
-                            </div>
-
-                            <div className="p-5 flex flex-col flex-1">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full">
-                                  <TypeIcon size={11} />
-                                  {f.type}
-                                </span>
-                                {f.dateCreation && (
-                                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                                    <Clock size={11} />
-                                    {new Date(f.dateCreation).toLocaleDateString('fr-FR')}
-                                  </span>
-                                )}
-                              </div>
-
-                              {!isCitation && (
-                                <h3 className="font-semibold text-slate-800 leading-snug mb-1 line-clamp-2">
-                                  {f.nom}
-                                </h3>
-                              )}
-
-                              <div className={isCitation ? "flex-1 flex items-center justify-center py-2" : "flex-1"}>
-                                {renderResourceContent(f)}
-                              </div>
-
-                              {renderCardActions(f)}
-                            </div>
-                          </motion.div>
-                        );
-                      })}
+                      {premiums.map((f, index) => (
+                        <ResourceCard key={f.id} f={f} index={index} isPremiumSection />
+                      ))}
                     </motion.div>
                   </section>
                 )}
@@ -622,6 +852,8 @@ const Ressources = () => {
           </>
         )}
       </div>
+
+      {renderModalContent()}
 
       <AuthRequiredModal
         open={authModalOpen}
