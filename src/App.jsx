@@ -115,7 +115,7 @@ function AppWrapper() {
 
         <Routes>
           <Route path="/" element={<Accueil />} />
-          <Route path="/chatbot" element={<Chatbot />} />
+          
           <Route path="/inscription" element={<Inscription />} />
           <Route path="/inscription/utilisateur" element={<InscriptionUser />} />
           <Route path="/inscription/professionnel" element={<InscriptionProfessionnel />} />
