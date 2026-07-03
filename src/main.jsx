@@ -11,8 +11,8 @@ window.global = window;
 window.Buffer = Buffer;
 window.process = process;
 ReactDOM.createRoot(document.getElementById('root')).render(
-  
+  <React.StrictMode>
     <App />
-  
+  </React.StrictMode>,
   
 );
