@@ -1,5 +1,4 @@
-// src/components/auth/AuthVisual.jsx
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Heart, Brain, ShieldCheck, MessageCircle, CheckCircle2 } from 'lucide-react';
 
 const DEFAULT_BENEFITS = [
@@ -12,6 +11,13 @@ const DEFAULT_BENEFITS = [
  * Left-hand illustrated panel shared across Connexion / Inscription pages.
  * Signature element: two "breathing" rings connected by a dialogue line —
  * an abstract, calm visualisation of a therapist/patient conversation.
+ *
+ * NOTE: the background blobs previously drifted via a requestAnimationFrame
+ * loop calling setState on every frame. That created a real risk of a React
+ * commit race when the component unmounts mid-navigation (e.g. right after
+ * a successful login triggers navigate()), which could surface as
+ * "Failed to execute 'removeChild' on 'Node'". The drift is now pure CSS,
+ * which removes that class of bug entirely and is cheaper on the main thread.
  */
 const AuthVisual = ({
   title = 'Bienvenue sur PsyConnect',
@@ -19,23 +25,6 @@ const AuthVisual = ({
   showBenefits = false,
   benefits = DEFAULT_BENEFITS,
 }) => {
-  const [drift, setDrift] = useState({ a: 0, b: 0, c: 0 });
-
-  useEffect(() => {
-    let frame;
-    const animate = () => {
-      const t = Date.now() / 1000;
-      setDrift({
-        a: 14 * Math.sin(t / 2.2),
-        b: 18 * Math.cos(t / 2.8),
-        c: 10 * Math.sin(t / 1.6),
-      });
-      frame = requestAnimationFrame(animate);
-    };
-    animate();
-    return () => cancelAnimationFrame(frame);
-  }, []);
-
   return (
     <div className="pc-visual hidden md:flex w-1/2 relative overflow-hidden items-center justify-center bg-gradient-to-br from-[#EAF4FF] to-[#D8E9FF]">
       <style>{`
@@ -53,21 +42,39 @@ const AuthVisual = ({
         }
         @keyframes pc-dash { to { stroke-dashoffset: -40; } }
 
+        @keyframes pc-drift-a {
+          0%, 100% { transform: translate(0px, 0px); }
+          50% { transform: translate(14px, 18px); }
+        }
+        @keyframes pc-drift-b {
+          0%, 100% { transform: translate(0px, 0px); }
+          50% { transform: translate(-18px, 10px); }
+        }
+        @keyframes pc-drift-c {
+          0%, 100% { transform: translate(0px, 0px); }
+          50% { transform: translate(10px, -14px); }
+        }
+
         .pc-ring { animation: pc-breathe 7s ease-in-out infinite; transform-origin: center; }
         .pc-ring-delay { animation-delay: 1.2s; }
         .pc-icon-float { animation: pc-float 5.5s ease-in-out infinite; }
         .pc-dialogue-line { stroke-dasharray: 6 8; animation: pc-dash 3s linear infinite; }
 
+        .pc-blob-a { animation: pc-drift-a 9s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+        .pc-blob-b { animation: pc-drift-b 11s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+        .pc-blob-c { animation: pc-drift-c 8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
         @media (prefers-reduced-motion: reduce) {
-          .pc-ring, .pc-icon-float, .pc-dialogue-line { animation: none !important; }
+          .pc-ring, .pc-icon-float, .pc-dialogue-line,
+          .pc-blob-a, .pc-blob-b, .pc-blob-c { animation: none !important; }
         }
       `}</style>
 
-      {/* organic background shapes */}
+      {/* organic background shapes - pure CSS drift, no JS animation loop */}
       <svg className="absolute inset-0 w-full h-full" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
-        <circle cx={150 + drift.a} cy={140 + drift.b} r="140" fill="#BFDBFE" opacity="0.45" />
-        <circle cx={660 + drift.b} cy={460 + drift.c} r="170" fill="#93C5FD" opacity="0.4" />
-        <circle cx={430 + drift.c} cy={310 + drift.a} r="200" fill="#60A5FA" opacity="0.22" />
+        <circle className="pc-blob-a" cx="150" cy="140" r="140" fill="#BFDBFE" opacity="0.45" />
+        <circle className="pc-blob-b" cx="660" cy="460" r="170" fill="#93C5FD" opacity="0.4" />
+        <circle className="pc-blob-c" cx="430" cy="310" r="200" fill="#60A5FA" opacity="0.22" />
         <path
           d="M0,420 C160,470 260,360 420,410 C580,460 680,380 800,430 L800,600 L0,600 Z"
           fill="#DBEAFE"
