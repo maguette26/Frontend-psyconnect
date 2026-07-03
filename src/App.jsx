@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 
 import Chatbot from './components/Chatbot';
-import Header from './components/commun/header';
+//import Header from './components/commun/header';
 
 import Accueil from './pages/Accueil';
 import Inscription from './pages/Inscription';
@@ -112,7 +112,7 @@ function AppWrapper() {
     <RessourceProvider>
       <GlobalStyles />
       <div style={{ minHeight: "100vh" }}>
-        {afficherHeader && <Header onOpenChat={() => {}} />}
+     
 
         <Routes>
           <Route path="/" element={<Accueil />} />

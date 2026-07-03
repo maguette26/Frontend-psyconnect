@@ -46,6 +46,7 @@ const DisponibilitesModal = ({ pro, disponibilites, onReserver, onPayer, onClose
 
     return sousCreneaux;
   };
+  
 
   // Détermine si un créneau (date + heure) est déjà passé
   const estCreneauPasse = (dateStr, heureStr) => {
