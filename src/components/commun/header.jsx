@@ -41,7 +41,10 @@ const Header = () => {
       window.removeEventListener('storage', update);
     };
   }, []);
-
+useEffect(() => {
+  console.log("Header mounted");
+  return () => console.log("Header unmounted");
+}, []);
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setUserMenuOpen(false);

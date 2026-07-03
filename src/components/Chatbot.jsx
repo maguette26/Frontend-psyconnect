@@ -317,28 +317,7 @@ export default function Chatbot() {
         .send-btn:hover:not(:disabled) { transform: scale(1.08); }
       `}</style>
 
-      {/* ── HEADER ── */}
-      <div style={{ borderBottom: "1px solid #f1f5f9", padding: "14px 24px", background: "#fff" }}>
-        <div style={{ maxWidth: 740, margin: "0 auto", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" }}>
-          <div style={{ display: "inline-flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <div style={{ width: 42, height: 42, borderRadius: "50%", background: "linear-gradient(135deg, #3b82f6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(37,99,235,0.35)" }}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4" />
-                <circle cx="8.5" cy="15.5" r="1.5" fill="white" stroke="none" /><circle cx="15.5" cy="15.5" r="1.5" fill="white" stroke="none" />
-              </svg>
-            </div>
-            <span style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.04em" }}>PsyBot</span>
-            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 20, padding: "3px 10px", fontSize: 11.5, color: "#16a34a", fontWeight: 500 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#22c55e", display: "inline-block" }} />
-              En ligne
-            </span>
-          </div>
-          <p style={{ margin: 0, fontSize: 12.5, color: "#64748b", lineHeight: 1.5, maxWidth: 480, textAlign: "center" }}>
-            Assistant de soutien psychologique — aide à exprimer les émotions, gérer le stress et trouver des ressources adaptées.
-            {!isAuthenticated && " Connectez-vous pour retrouver votre historique de conversations."}
-          </p>
-        </div>
-      </div>
+      
 
       {/* ── MESSAGES ── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 16px 12px", maxWidth: 740, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
