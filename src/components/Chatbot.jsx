@@ -1,11 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Mic, Square, Send, MessageCircleOff } from "lucide-react";
+import { Mic, Square, Send } from "lucide-react";
 import api from "../services/api";
 import { getCurrentUserInfo } from "../services/serviceAuth";
-import AuthRequiredModal from "../components/commun/AuthRequiredModal";
 
 const PSYBOT_URL = import.meta.env.VITE_PSYBOT_URL;
-const GUEST_MESSAGE_LIMIT = 5;
 
 /* ─────────────────── AVATARS ─────────────────── */
 const BotAvatar = () => (
@@ -159,8 +157,6 @@ const WELCOME_MESSAGE = {
   time: formatTime(),
 };
 
-const GUEST_COUNT_KEY = "psybot_guest_count";
-
 /* ─────────────────── MAIN CHATBOT ─────────────────── */
 export default function Chatbot() {
   const [messages, setMessages] = useState([]);
@@ -169,18 +165,11 @@ export default function Chatbot() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const [guestMessageCount, setGuestMessageCount] = useState(() => {
-    const saved = localStorage.getItem(GUEST_COUNT_KEY);
-    return saved ? parseInt(saved, 10) || 0 : 0;
-  });
-  const [authModalOpen, setAuthModalOpen] = useState(false);
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
   const { isRecording, supported: micSupported, start: startMic, stop: stopMic } =
     useSpeech((text) => setInput(text));
-
-  const guestLimitReached = !isAuthenticated && guestMessageCount >= GUEST_MESSAGE_LIMIT;
 
   // Sync statut auth + userId (même pattern que Forum.jsx)
   useEffect(() => {
@@ -265,12 +254,6 @@ export default function Chatbot() {
   const sendMessage = async (textOverride) => {
     const text = (textOverride || input).trim();
     if (!text) return;
-
-    if (guestLimitReached) {
-      setAuthModalOpen(true);
-      return;
-    }
-
     if (isRecording) stopMic();
     const userMsg = {
       id: Date.now(), sender: "user", text,
@@ -282,12 +265,6 @@ export default function Chatbot() {
     setIsTyping(true);
 
     persistMessage("user", text);
-
-    if (!isAuthenticated) {
-      const next = guestMessageCount + 1;
-      setGuestMessageCount(next);
-      localStorage.setItem(GUEST_COUNT_KEY, String(next));
-    }
 
     try {
       const res = await fetch(`${PSYBOT_URL}/api/chat`, {
@@ -319,7 +296,6 @@ export default function Chatbot() {
   const editMessage = (id, newText) => setMessages(prev => prev.map(m => m.id === id ? { ...m, text: newText } : m));
 
   const handleMicClick = () => {
-    if (guestLimitReached) { setAuthModalOpen(true); return; }
     if (isRecording) { stopMic(); } else { setInput(""); startMic(); }
   };
 
@@ -359,14 +335,14 @@ export default function Chatbot() {
           </div>
           <p style={{ margin: 0, fontSize: 12.5, color: "#64748b", lineHeight: 1.5, maxWidth: 480, textAlign: "center" }}>
             Assistant de soutien psychologique — aide à exprimer les émotions, gérer le stress et trouver des ressources adaptées.
-            {!isAuthenticated && !guestLimitReached && ` Connectez-vous pour un historique illimité (${GUEST_MESSAGE_LIMIT - guestMessageCount} message${GUEST_MESSAGE_LIMIT - guestMessageCount > 1 ? "s" : ""} gratuit${GUEST_MESSAGE_LIMIT - guestMessageCount > 1 ? "s" : ""} restant${GUEST_MESSAGE_LIMIT - guestMessageCount > 1 ? "s" : ""}).`}
+            {!isAuthenticated && " Connectez-vous pour retrouver votre historique de conversations."}
           </p>
         </div>
       </div>
 
       {/* ── MESSAGES ── */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 16px 12px", maxWidth: 740, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
-        {messages.length <= 1 && !guestLimitReached && (
+        {messages.length <= 1 && (
           <div style={{ marginBottom: 28, display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
             {suggestions.map((s, i) => (
               <button key={i} onClick={() => sendMessage(s)}
@@ -393,20 +369,6 @@ export default function Chatbot() {
             </div>
           </div>
         )}
-
-        {guestLimitReached && (
-          <div style={{ margin: "20px auto 0", maxWidth: 420, textAlign: "center", background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 16, padding: "20px 18px", animation: "psySlideIn 0.25s ease" }}>
-            <div style={{ width: 44, height: 44, borderRadius: 12, margin: "0 auto 10px", background: "linear-gradient(135deg, #3b82f6, #2563EB)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <MessageCircleOff size={20} color="#fff" />
-            </div>
-            <p style={{ fontSize: 14, color: "#334155", fontWeight: 600, margin: 0 }}>Vous avez utilisé vos messages gratuits.</p>
-            <p style={{ fontSize: 12.5, color: "#64748b", margin: "6px 0 14px" }}>Connectez-vous ou créez un compte gratuitement pour continuer à discuter avec PsyBot.</p>
-            <button onClick={() => setAuthModalOpen(true)}
-              style={{ background: "linear-gradient(135deg, #3b82f6, #2563EB)", color: "#fff", border: "none", borderRadius: 10, padding: "8px 18px", fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-              Continuer
-            </button>
-          </div>
-        )}
         <div ref={bottomRef} />
       </div>
 
@@ -430,19 +392,18 @@ export default function Chatbot() {
             </div>
           )}
 
-          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: guestLimitReached ? "#f1f5f9" : "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: "8px 10px", transition: "border-color 0.2s, box-shadow 0.2s", opacity: guestLimitReached ? 0.7 : 1 }}
-            onFocusCapture={e => { if (!guestLimitReached) { e.currentTarget.style.borderColor = "#93C5FD"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; } }}
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 8, background: "#f8fafc", border: "1.5px solid #e2e8f0", borderRadius: 18, padding: "8px 10px", transition: "border-color 0.2s, box-shadow 0.2s" }}
+            onFocusCapture={e => { e.currentTarget.style.borderColor = "#93C5FD"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(37,99,235,0.12)"; }}
             onBlurCapture={e => { e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.boxShadow = "none"; }}>
 
             <textarea
               ref={textareaRef}
               value={input}
-              placeholder={guestLimitReached ? "Connectez-vous pour continuer la discussion…" : isRecording ? "Parlez maintenant…" : "Écrivez votre message… (Entrée pour envoyer)"}
-              disabled={guestLimitReached}
+              placeholder={isRecording ? "Parlez maintenant…" : "Écrivez votre message… (Entrée pour envoyer)"}
               onChange={e => { setInput(e.target.value); autoResize(); }}
               onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
               rows={1}
-              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3, cursor: guestLimitReached ? "not-allowed" : "text" }}
+              style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }}
             />
 
             <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
@@ -451,14 +412,13 @@ export default function Chatbot() {
                 <button
                   className={`mic-btn${isRecording ? " active" : ""}`}
                   onClick={handleMicClick}
-                  disabled={guestLimitReached}
                   title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
                   style={{
                     width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
                     border: isRecording ? "none" : "1.5px solid #e2e8f0",
                     background: isRecording ? "#ef4444" : "#fff",
                     color: isRecording ? "#fff" : "#64748b",
-                    cursor: guestLimitReached ? "not-allowed" : "pointer",
+                    cursor: "pointer",
                     display: "flex", alignItems: "center", justifyContent: "center",
                     transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
                     animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
@@ -471,17 +431,17 @@ export default function Chatbot() {
               <button
                 className="send-btn"
                 onClick={() => sendMessage()}
-                disabled={!input.trim() || guestLimitReached}
+                disabled={!input.trim()}
                 title="Envoyer"
                 style={{
                   width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
                   border: "none",
-                  background: (input.trim() && !guestLimitReached) ? "linear-gradient(135deg, #3b82f6, #2563EB)" : "#e2e8f0",
-                  color: (input.trim() && !guestLimitReached) ? "#fff" : "#94a3b8",
-                  cursor: (input.trim() && !guestLimitReached) ? "pointer" : "not-allowed",
+                  background: input.trim() ? "linear-gradient(135deg, #3b82f6, #2563EB)" : "#e2e8f0",
+                  color: input.trim() ? "#fff" : "#94a3b8",
+                  cursor: input.trim() ? "pointer" : "not-allowed",
                   display: "flex", alignItems: "center", justifyContent: "center",
                   transition: "all 0.2s",
-                  boxShadow: (input.trim() && !guestLimitReached) ? "0 2px 10px rgba(37,99,235,0.4)" : "none",
+                  boxShadow: input.trim() ? "0 2px 10px rgba(37,99,235,0.4)" : "none",
                 }}>
                 <Send size={16} strokeWidth={2.2} />
               </button>
@@ -494,13 +454,6 @@ export default function Chatbot() {
           </p>
         </div>
       </div>
-
-      <AuthRequiredModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        title="Vous avez utilisé vos messages gratuits"
-        message="Connectez-vous ou créez un compte gratuitement pour continuer à discuter avec PsyBot."
-      />
     </div>
   );
 }

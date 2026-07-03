@@ -29,8 +29,6 @@ const Connexion = () => {
       localStorage.setItem('role', roleToStore);
       localStorage.setItem('userId', id);
 
-      window.dispatchEvent(new Event('storage'));
-
       setMessage('Connexion réussie ! Redirection en cours...');
 
       switch (cleanedRole) {
@@ -45,6 +43,17 @@ const Connexion = () => {
         default:
           navigate('/');
       }
+
+      // Déclenché après navigate() et différé au tick suivant : le Header
+      // (toujours monté via Layout) se met ainsi à jour dans un commit React
+      // séparé de celui du démontage de la page Connexion. Faire les deux
+      // dans le même commit synchrone provoquait une collision entre le
+      // cleanup de framer-motion (AnimatePresence du menu "Connexion/Inscription"
+      // dans Header) et la réconciliation DOM de React, d'où le
+      // "NotFoundError: Failed to execute 'removeChild' on 'Node'".
+      setTimeout(() => {
+        window.dispatchEvent(new Event('storage'));
+      }, 0);
     } catch (error) {
       const errorMessage =
         error.response?.data?.message ||
