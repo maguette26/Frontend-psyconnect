@@ -232,7 +232,17 @@ export default function Chatbot() {
     if (messages.length) localStorage.setItem(`psybot_guest`, JSON.stringify(messages));
   }, [messages, isAuthenticated, historyLoaded]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, isTyping]);
+  // ── Scroll : ne défile automatiquement qu'après le premier rendu
+  // (nouveaux messages / indicateur de frappe), jamais au chargement initial.
+  const isFirstScrollableRender = useRef(true);
+  useEffect(() => {
+    if (!historyLoaded) return;
+    if (isFirstScrollableRender.current) {
+      isFirstScrollableRender.current = false;
+      return;
+    }
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping, historyLoaded]);
 
   const autoResize = () => {
     const ta = textareaRef.current;
@@ -306,15 +316,18 @@ export default function Chatbot() {
       <style>{`
         @keyframes psySlideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes psyDot { 0%,80%,100%{transform:scale(0.6);opacity:0.4} 40%{transform:scale(1);opacity:1} }
-        @keyframes micPulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0.5)} 70%{box-shadow:0 0 0 9px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
+        @keyframes micPulse { 0%{box-shadow:0 0 0 0 rgba(239,68,68,0.45)} 70%{box-shadow:0 0 0 8px rgba(239,68,68,0)} 100%{box-shadow:0 0 0 0 rgba(239,68,68,0)} }
         @keyframes micWave { 0%,100%{transform:scaleY(1)} 50%{transform:scaleY(1.6)} }
         textarea:focus { outline: none; }
         textarea::placeholder { color: #94a3b8; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
-        .mic-btn:hover { background: #f8fafc !important; }
-        .mic-btn.active:hover { background: #dc2626 !important; }
-        .send-btn:hover:not(:disabled) { transform: scale(1.08); }
+        .icon-btn { border: none; background: transparent; padding: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; border-radius: 8px; color: #64748B; transition: color 0.18s ease, background 0.18s ease; }
+        .icon-btn:hover:not(:disabled) { color: #2563EB; background: rgba(37,99,235,0.06); }
+        .icon-btn:disabled { cursor: not-allowed; color: #cbd5e1; }
+        .mic-btn.recording { color: #EF4444; animation: micPulse 1.6s ease-out infinite; border-radius: 999px; }
+        .mic-btn.recording:hover { color: #EF4444; background: rgba(239,68,68,0.08); }
+        .send-btn.ready { color: #2563EB; }
       `}</style>
 
       {/* ── HEADER ── */}
@@ -406,44 +419,31 @@ export default function Chatbot() {
               style={{ flex: 1, border: "none", background: "transparent", fontSize: 14.5, color: "#1e293b", resize: "none", fontFamily: "inherit", lineHeight: 1.55, maxHeight: 130, overflowY: "auto", letterSpacing: "-0.01em", paddingTop: 3 }}
             />
 
-            <div style={{ display: "flex", gap: 7, alignItems: "center", flexShrink: 0 }}>
+            <div style={{ display: "flex", gap: 4, alignItems: "center", flexShrink: 0 }}>
 
+              {/* Bouton Micro — icône seule, épurée */}
               {micSupported && (
                 <button
-                  className={`mic-btn${isRecording ? " active" : ""}`}
                   onClick={handleMicClick}
-                  title={isRecording ? "Arrêter l'enregistrement" : "Dicter un message"}
-                  style={{
-                    width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
-                    border: isRecording ? "none" : "1.5px solid #e2e8f0",
-                    background: isRecording ? "#ef4444" : "#fff",
-                    color: isRecording ? "#fff" : "#64748b",
-                    cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    transition: "background 0.2s, color 0.2s, box-shadow 0.2s",
-                    animation: isRecording ? "micPulse 1.4s ease-out infinite" : "none",
-                    boxShadow: isRecording ? "0 2px 10px rgba(239,68,68,0.4)" : "none",
-                  }}>
-                  {isRecording ? <Square size={15} fill="currentColor" /> : <Mic size={17} strokeWidth={2.2} />}
+                  title={isRecording ? "Arrêter l'enregistrement" : "Message vocal"}
+                  className={`icon-btn mic-btn${isRecording ? " recording" : ""}`}
+                >
+                  {isRecording ? (
+                    <Square size={20} fill="currentColor" />
+                  ) : (
+                    <Mic size={22} strokeWidth={2} />
+                  )}
                 </button>
               )}
 
+              {/* Bouton Envoyer — icône seule, épurée */}
               <button
-                className="send-btn"
                 onClick={() => sendMessage()}
                 disabled={!input.trim()}
                 title="Envoyer"
-                style={{
-                  width: 38, height: 38, borderRadius: "50%", flexShrink: 0,
-                  border: "none",
-                  background: input.trim() ? "linear-gradient(135deg, #3b82f6, #2563EB)" : "#e2e8f0",
-                  color: input.trim() ? "#fff" : "#94a3b8",
-                  cursor: input.trim() ? "pointer" : "not-allowed",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  transition: "all 0.2s",
-                  boxShadow: input.trim() ? "0 2px 10px rgba(37,99,235,0.4)" : "none",
-                }}>
-                <Send size={16} strokeWidth={2.2} />
+                className={`icon-btn send-btn${input.trim() ? " ready" : ""}`}
+              >
+                <Send size={22} strokeWidth={2} />
               </button>
 
             </div>
