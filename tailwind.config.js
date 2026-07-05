@@ -3,7 +3,11 @@ export default {
   darkMode: 'class',
   content: [ "./src/**/*.{js,jsx,ts,tsx}",],
   theme: {
-    extend: {},
+    extend: {
+       screens: {
+        'xs': '420px', // nouveau breakpoint utilisé pour les grilles de catégories/cartes sur mobile
+      },
+    },
   },
   plugins: [],
 }

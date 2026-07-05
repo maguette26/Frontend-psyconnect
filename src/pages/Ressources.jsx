@@ -55,21 +55,13 @@ const [userReady, setUserReady] = useState(false);
   setError(null);
   try {
     const res = await api.get('/fonctionnalites');
-    console.log('RAW DATA:', res.data);
-    console.log('Types statut:', res.data?.map(f => ({ 
-      nom: f.nom, 
-      statut: f.statut, 
-      typeStatut: typeof f.statut 
-    })));
-    
     if (Array.isArray(res.data)) {
       const ressourcesFiltrees = res.data
-        .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)  // ← fix
+        .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)
         .map(f => ({
           ...f,
           premium: f.type === 'podcast' ? true : f.premium
         }));
-      console.log('Après filtre:', ressourcesFiltrees.length, 'ressources');
       setFonctionnalites(ressourcesFiltrees);
     } else {
       throw new Error("Format de données invalide.");
@@ -150,13 +142,13 @@ useEffect(() => {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="max-w-md mx-auto mt-20 p-8 bg-red-50 border border-red-300 rounded-lg shadow-lg flex flex-col items-center gap-4 select-none"
+          className="max-w-md mx-auto mt-16 sm:mt-20 p-6 sm:p-8 bg-red-50 border border-red-300 rounded-lg shadow-lg flex flex-col items-center gap-4 select-none mx-4"
         >
-          <AlertTriangle className="w-12 h-12 text-red-500" />
-          <h2 className="text-xl font-semibold text-red-700 text-center">
+          <AlertTriangle className="w-12 h-12 text-red-500 shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold text-red-700 text-center">
             ⚠️ Vous devez être connecté pour accéder aux ressources.
           </h2>
-          <p className="text-red-600 text-center">Vous allez être redirigé vers la page de connexion...</p>
+          <p className="text-red-600 text-center text-sm sm:text-base">Vous allez être redirigé vers la page de connexion...</p>
         </motion.div>
       </Layout>
     );
@@ -186,13 +178,12 @@ useEffect(() => {
       .trim();
 
     if (premium && !isUserPremium) {
-      // Ressource premium + utilisateur non premium : message + bouton
       return (
-        <div className="mt-3 text-gray-600 text-sm">
-          🔐 Cette ressource est réservée aux membres Premium.
+        <div className="mt-3 text-gray-600 text-sm flex flex-wrap items-center gap-2">
+          <span>🔐 Cette ressource est réservée aux membres Premium.</span>
           <button
             onClick={() => navigate('/devenir-premium')}
-            className="ml-2 px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 active:scale-[0.97] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1"
+            className="px-3 py-1 bg-indigo-600 text-white rounded text-xs hover:bg-indigo-700 active:scale-[0.97] transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 shrink-0"
           >
             Devenir Premium
           </button>
@@ -212,7 +203,7 @@ useEffect(() => {
             }
           }}
         >
-          <Eye className="w-4 h-4" /> Accéder à la ressource
+          <Eye className="w-4 h-4 shrink-0" /> Accéder à la ressource
         </Link>
       );
     }
@@ -220,7 +211,7 @@ useEffect(() => {
     switch (type.toLowerCase()) {
       case 'citation':
         return (
-          <blockquote className="mt-3 italic text-gray-700 border-l-2 border-indigo-300 pl-3">
+          <blockquote className="mt-3 italic text-gray-700 border-l-2 border-indigo-300 pl-3 break-words">
             💬 "{description}"
           </blockquote>
         );
@@ -248,9 +239,9 @@ useEffect(() => {
                 rel="noopener noreferrer"
                 onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
               >
-                <PlayCircle className="w-4 h-4" /> Voir la vidéo
+                <PlayCircle className="w-4 h-4 shrink-0" /> Voir la vidéo
               </a>
-            : <p className="mt-3 text-gray-800">{description}</p>
+            : <p className="mt-3 text-gray-800 break-words">{description}</p>
         );
 
       case 'podcast':
@@ -266,7 +257,7 @@ useEffect(() => {
               className="inline-flex items-center gap-1 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
               onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
             >
-              <Headphones className="w-4 h-4" /> Écouter le podcast
+              <Headphones className="w-4 h-4 shrink-0" /> Écouter le podcast
             </a>
           </div>
         );
@@ -274,7 +265,7 @@ useEffect(() => {
       default:
         return (
           <div className="mt-3 text-gray-800">
-            <p>{description}</p>
+            <p className="break-words">{description}</p>
             {lienFichier && (
               <a
                 href={lienFichier}
@@ -283,7 +274,7 @@ useEffect(() => {
                 className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
                 onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
               >
-                <Download className="w-4 h-4" /> Consulter
+                <Download className="w-4 h-4 shrink-0" /> Consulter
               </a>
             )}
           </div>
@@ -307,7 +298,6 @@ useEffect(() => {
     autres: '🔖',
   };
 
-  // Helper to get the link (route or file) for a resource (if free)
   const getRessourceUrl = (f) => {
     const normalizedNom = f.nom
       .toLowerCase()
@@ -356,9 +346,9 @@ useEffect(() => {
 
   return (
     <Layout>
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 py-6 sm:py-8 overflow-x-hidden">
         <motion.h1
-          className="text-3xl font-bold mb-8 text-gray-900 text-center select-none"
+          className="text-2xl sm:text-3xl font-bold mb-6 sm:mb-8 text-gray-900 text-center select-none"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, ease: 'easeOut' }}
@@ -366,16 +356,15 @@ useEffect(() => {
           📚 Bibliothèque de Ressources
         </motion.h1>
 
-      
-
-        <div className="flex flex-wrap gap-3 justify-center mb-8">
+        {/* Catégories : largeur homogène, centrées, grille sur mobile pour éviter le scroll horizontal */}
+        <div className="grid grid-cols-2 xs:grid-cols-3 sm:flex sm:flex-wrap gap-2 sm:gap-3 justify-center mb-6 sm:mb-8 px-1">
           {categoriesOrder.map(({ key, title }) => (
             <motion.button
               key={key}
               onClick={() => setSelectedCategory(key)}
-              className={`px-5 py-2 rounded-full font-medium transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1
+              className={`px-3 sm:px-5 py-2 rounded-full font-medium text-sm sm:text-base transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 text-center truncate
                 ${selectedCategory === key ? 'bg-indigo-600 text-white shadow-md' : 'bg-gray-100 text-gray-700 hover:bg-indigo-100 hover:text-indigo-700'}`}
-              whileHover={{ scale: 1.1 }}
+              whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
               aria-pressed={selectedCategory === key}
             >
@@ -385,15 +374,13 @@ useEffect(() => {
         </div>
 
         {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded mb-6">
+          <div className="bg-red-100 border border-red-400 text-red-700 p-4 rounded mb-6 break-words">
             {error}
           </div>
         )}
 
         {!loading && (
           <>
-             
-
             <AnimatePresence mode="wait">
               <motion.div
                 key={`${selectedCategory}-${searchQuery}`}
@@ -403,11 +390,11 @@ useEffect(() => {
                 transition={{ duration: 0.25, ease: 'easeOut' }}
               >
                 {gratuits.length > 0 && (
-                  <section className="mb-16">
-                    <h2 className="text-2xl font-semibold mb-6 border-b border-gray-300 pb-2 flex items-center gap-2 select-none">
+                  <section className="mb-10 sm:mb-16">
+                    <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 border-b border-gray-300 pb-2 flex items-center gap-2 select-none">
                       ✨ Ressources Gratuites
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                       {gratuits.map(f => {
                         const url = getRessourceUrl(f);
                         const meta = getTypeMeta(f.type);
@@ -415,7 +402,7 @@ useEffect(() => {
                         return (
                           <motion.div
                             key={f.id}
-                            className={`bg-white rounded-xl shadow-md border border-gray-200 p-6 flex flex-col justify-between cursor-pointer transition-shadow duration-300`}
+                            className={`bg-white rounded-xl shadow-md border border-gray-200 p-5 sm:p-6 flex flex-col justify-between cursor-pointer transition-shadow duration-300`}
                             variants={cardVariants}
                             initial="hidden"
                             animate="visible"
@@ -433,16 +420,16 @@ useEffect(() => {
                             }}
                           >
                             <div>
-                              <div className="flex items-center justify-between gap-2 mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600">
+                              <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 shrink-0">
                                     Gratuit
                                   </span>
-                                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badgeClass}`}>
-                                    <TypeIcon className="w-3 h-3" /> {meta.label}
+                                  <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${meta.badgeClass}`}>
+                                    <TypeIcon className="w-3 h-3 shrink-0" /> {meta.label}
                                   </span>
                                 </div>
-                                <div className="flex items-center gap-1">
+                                <div className="flex items-center gap-1 shrink-0">
                                   <button
                                     type="button"
                                     aria-label={favorites.has(f.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -461,7 +448,7 @@ useEffect(() => {
                                   </button>
                                 </div>
                               </div>
-                              <h3 className="font-semibold text-lg mb-2 text-gray-900 leading-snug">{f.nom}</h3>
+                              <h3 className="font-semibold text-base sm:text-lg mb-2 text-gray-900 leading-snug break-words">{f.nom}</h3>
                               {renderResourceContent(f)}
                             </div>
                           </motion.div>
@@ -473,17 +460,17 @@ useEffect(() => {
 
                 {premiums.length > 0 && (
                   <section>
-                    <h2 className="text-2xl font-semibold mb-6 border-b border-yellow-400 pb-2 text-yellow-700 flex items-center gap-2 select-none">
+                    <h2 className="text-xl sm:text-2xl font-semibold mb-4 sm:mb-6 border-b border-yellow-400 pb-2 text-yellow-700 flex items-center gap-2 select-none">
                       ⭐ Ressources Premium
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                       {premiums.map(f => {
                         const meta = getTypeMeta(f.type);
                         const TypeIcon = meta.icon;
                         return (
                           <motion.div
                             key={f.id}
-                            className="relative overflow-hidden bg-yellow-50 rounded-xl shadow-md border border-yellow-300 p-6 cursor-pointer flex flex-col justify-between transition-shadow duration-300"
+                            className="relative overflow-hidden bg-yellow-50 rounded-xl shadow-md border border-yellow-300 p-5 sm:p-6 cursor-pointer flex flex-col justify-between transition-shadow duration-300"
                             variants={cardVariants}
                             initial="hidden"
                             animate="visible"
@@ -493,12 +480,11 @@ useEffect(() => {
                             onClick={() => navigate('/devenir-premium')}
                             title="Cette ressource nécessite un abonnement Premium"
                           >
-                            {/* Léger effet de brillance, très discret */}
                             <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-white/40 blur-2xl" />
 
-                            <div className="flex justify-between items-center mb-3 relative">
-                              <h3 className="font-semibold text-lg text-yellow-900 leading-snug">{f.nom}</h3>
-                              <div className="flex items-center gap-1">
+                            <div className="flex justify-between items-start gap-2 mb-3 relative flex-wrap">
+                              <h3 className="font-semibold text-base sm:text-lg text-yellow-900 leading-snug break-words flex-1 min-w-0">{f.nom}</h3>
+                              <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                                 <button
                                   type="button"
                                   aria-label={favorites.has(f.id) ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -515,14 +501,14 @@ useEffect(() => {
                                 >
                                   <Share2 className="w-4 h-4 text-yellow-700/60" />
                                 </button>
-                                <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none">
+                                <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none whitespace-nowrap">
                                   🔒 Premium
                                 </span>
                               </div>
                             </div>
                             <div className="mb-1 relative">
                               <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.badgeClass}`}>
-                                <TypeIcon className="w-3 h-3" /> {meta.label}
+                                <TypeIcon className="w-3 h-3 shrink-0" /> {meta.label}
                               </span>
                             </div>
                             <div className="relative">{renderResourceContent(f)}</div>
@@ -544,7 +530,7 @@ useEffect(() => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50"
+            className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 max-w-[90vw] text-center"
           >
             {toast}
           </motion.div>

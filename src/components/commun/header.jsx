@@ -35,9 +35,11 @@ const Header = () => {
     update();
     window.addEventListener('roleChange', update);
     window.addEventListener('storage', update);
+    window.addEventListener('user-updated', update);
     return () => {
       window.removeEventListener('roleChange', update);
       window.removeEventListener('storage', update);
+      window.removeEventListener('user-updated', update);
     };
   }, []);
 
@@ -51,11 +53,22 @@ const Header = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  // Empêche le scroll du body quand la sidebar mobile/tablette est ouverte
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
+
   const isUser  = currentRole === 'UTILISATEUR';
   const isPro   = ['PSYCHIATRE', 'PSYCHOLOGUE'].includes(currentRole);
   const isAdmin = currentRole === 'ADMIN';
   const showMenu = isUser || isPro || isAdmin;
   const isPremium = ['PREMIUM', 'ADMIN'].includes(currentRole);
+  const isAuthenticated = !!currentRole;
 
   const espaceLink  = isUser ? '/tableauUtilisateur' : isPro ? '/tableauProfessionnel' : '/tableauAdmin';
   const espaceLabel = isUser ? 'Espace Utilisateur'  : isPro ? 'Espace Professionnel'  : 'Espace Admin';
@@ -74,7 +87,18 @@ const Header = () => {
 
   const isActive = (path) => location.pathname === path;
 
-  // ─── Liens communs (mobile sidebar + bottom nav) ──────────────────────────
+  // Redirige vers connexion si non connecté, sinon exécute l'action normale
+  const guardedNavigate = (to, onClick) => (e) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      onClick?.();
+      navigate('/connexion');
+      return;
+    }
+    onClick?.();
+  };
+
+  // ─── Liens communs (mobile sidebar + bottom nav) — visibles pour TOUS ─────
   const commonLinks = (onClick, cls, activeCls) => (
     <>
       <Link to="/"           className={`${cls} ${isActive('/') ? activeCls : ''}`} onClick={onClick}><Home          className="w-4 h-4 shrink-0" /><span>Accueil</span></Link>
@@ -82,12 +106,18 @@ const Header = () => {
       <Link to="/ressources" className={`${cls} ${isActive('/ressources') ? activeCls : ''}`} onClick={onClick}><BookOpen      className="w-4 h-4 shrink-0" /><span>Ressources</span></Link>
       <Link to="/forum"      className={`${cls} ${isActive('/forum') ? activeCls : ''}`} onClick={onClick}><MessageCircle className="w-4 h-4 shrink-0" /><span>Forum</span></Link>
       <Link to="/chatbot"    className={`${cls} ${isActive('/chatbot') ? activeCls : ''}`} onClick={onClick}><Bot           className="w-4 h-4 shrink-0" /><span>PsyBotAI</span></Link>
-      {isUser && (
-        <Link to="/reservation" className={`${cls} ${isActive('/reservation') ? activeCls : ''}`} onClick={onClick}><CalendarCheck className="w-4 h-4 shrink-0" /><span>Nos Professionnels</span></Link>
-      )}
+      {/* Visible pour tout le monde — redirige vers connexion si non connecté */}
+      <Link
+        to={isAuthenticated ? "/reservation" : "/connexion"}
+        className={`${cls} ${isActive('/reservation') ? activeCls : ''}`}
+        onClick={guardedNavigate('/reservation', onClick)}
+      >
+        <CalendarCheck className="w-4 h-4 shrink-0" /><span>Nos Professionnels</span>
+      </Link>
     </>
   );
 
+  // ─── Liens d'authentification — uniquement si connecté ────────────────────
   const authLinks = (onClick, linkCls, redCls, yellowCls) => (
     <>
       {showMenu && (
@@ -114,10 +144,14 @@ const Header = () => {
   );
 
   // Lien desktop avec soulignement animé au survol
-  const NavLink = ({ to, icon: Icon, children }) => {
+  const NavLink = ({ to, icon: Icon, children, guarded }) => {
     const active = isActive(to);
+    const target = guarded && !isAuthenticated ? '/connexion' : to;
     return (
-      <Link to={to} className="relative group flex items-center gap-1.5 text-sm font-medium py-2">
+      <Link
+        to={target}
+        className="relative group flex items-center gap-1.5 text-sm font-medium py-2"
+      >
         <Icon className={`w-4 h-4 transition-colors ${active ? 'text-blue-600' : 'text-slate-500 group-hover:text-blue-600'}`} />
         <span className={`transition-colors ${active ? 'text-blue-600' : 'text-slate-600 group-hover:text-blue-600'}`}>
           {children}
@@ -151,10 +185,7 @@ const Header = () => {
             <NavLink to="/ressources" icon={BookOpen}>Ressources</NavLink>
             <NavLink to="/forum" icon={MessageCircle}>Forum</NavLink>
             <NavLink to="/chatbot" icon={Bot}>PsyBotAI</NavLink>
-
-            {isUser && (
-              <NavLink to="/reservation" icon={CalendarCheck}>Nos Professionnels</NavLink>
-            )}
+            <NavLink to="/reservation" icon={CalendarCheck} guarded>Nos Professionnels</NavLink>
 
             {/* Séparateur visuel */}
             <div className="h-6 w-px bg-slate-200" />
@@ -164,13 +195,13 @@ const Header = () => {
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setUserMenuOpen(v => !v)}
-                  className="flex items-center gap-1.5 text-sm font-semibold text-white hover:text-blue-50 transition"
+                  className="flex items-center gap-1.5 text-sm font-semibold text-slate-700 hover:text-blue-600 transition"
                 >
-                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-white/20">
-                    <User className="w-3.5 h-3.5 text-white" />
+                  <div className="flex items-center justify-center w-7 h-7 rounded-full bg-blue-50">
+                    <User className="w-3.5 h-3.5 text-blue-600" />
                   </div>
                   Mon Espace
-                  <ChevronDown className={`w-3.5 h-3.5 text-white transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 <AnimatePresence>
@@ -271,17 +302,20 @@ const Header = () => {
       {/* ════════════════════════════════════════
           TABLETTE (md–lg)
       ════════════════════════════════════════ */}
-      <header className="hidden md:flex lg:hidden bg-white/90 backdrop-blur-md fixed top-0 w-full z-50 shadow-sm border-b border-slate-100">
-        <div className="w-full px-4 flex justify-between items-center h-[64px]">
-          <Link to="/" className="flex items-center gap-2.5">
-            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 shadow-md shadow-blue-600/20">
+      <header
+        className="hidden md:flex lg:hidden bg-white/90 backdrop-blur-md fixed top-0 left-0 right-0 w-full z-50 shadow-sm border-b border-slate-100"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="w-full px-4 flex justify-between items-center h-[64px] min-w-0">
+          <Link to="/" className="flex items-center gap-2.5 min-w-0">
+            <div className="flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-blue-400 shadow-md shadow-blue-600/20 shrink-0">
               <HeartPulse className="w-4 h-4 text-white" />
             </div>
-            <span className="text-base font-bold text-slate-800">PsyConnect</span>
+            <span className="text-base font-bold text-slate-800 truncate">PsyConnect</span>
           </Link>
           <button
             onClick={() => setSidebarOpen(v => !v)}
-            className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-blue-50 transition text-blue-600"
+            className="flex items-center justify-center w-10 h-10 rounded-xl hover:bg-blue-50 transition text-blue-600 shrink-0"
             aria-label="Menu"
           >
             {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -303,7 +337,8 @@ const Header = () => {
 
       <aside
         ref={sidebarRef}
-        className={`hidden md:flex lg:hidden flex-col fixed top-[64px] left-0 h-[calc(100vh-64px)] w-64
+        style={{ top: 'calc(64px + env(safe-area-inset-top))', height: 'calc(100vh - 64px - env(safe-area-inset-top))' }}
+        className={`hidden md:flex lg:hidden flex-col fixed left-0 w-64
           bg-white border-r border-slate-100 shadow-2xl z-50
           transition-transform duration-300 ease-in-out
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
@@ -338,29 +373,36 @@ const Header = () => {
         </nav>
         <button
           onClick={() => setSidebarOpen(false)}
-          className="flex items-center justify-center gap-2 mx-3 mb-4 py-2 rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 text-xs transition"
+          className="flex items-center justify-center gap-2 mx-3 mb-4 py-2 rounded-xl border border-slate-200 text-slate-400 hover:bg-slate-50 text-xs transition shrink-0"
         >
           <ChevronRight className="w-3.5 h-3.5" /> Réduire
         </button>
       </aside>
-      <div className="hidden md:block lg:hidden h-[64px]" />
+      <div className="hidden md:block lg:hidden" style={{ height: 'calc(64px + env(safe-area-inset-top))' }} />
 
       {/* ════════════════════════════════════════
           MOBILE (< md)
       ════════════════════════════════════════ */}
-      <header className="flex md:hidden bg-white/90 backdrop-blur-md fixed top-0 w-full z-50 shadow-sm border-b border-slate-100">
-        <div className="w-full px-4 flex justify-center items-center h-[56px]">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 shadow-sm">
+      <header
+        className="flex md:hidden bg-white/95 backdrop-blur-md fixed top-0 left-0 right-0 w-full z-50 shadow-sm border-b border-slate-100"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="w-full px-3 flex justify-center items-center h-[52px] min-w-0">
+          <Link to="/" className="flex items-center gap-2 min-w-0 max-w-full">
+            <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-gradient-to-br from-blue-600 to-blue-400 shadow-sm shrink-0">
               <HeartPulse className="w-4 h-4 text-white" />
             </div>
-            <span className="text-base font-bold text-slate-800">PsyConnect</span>
+            <span className="text-[15px] font-bold text-slate-800 truncate">PsyConnect</span>
           </Link>
         </div>
       </header>
-      <div className="flex md:hidden h-[56px]" />
+      {/* Spacer qui compense exactement la hauteur réelle du header (safe-area incluse) */}
+      <div className="flex md:hidden" style={{ height: 'calc(52px + env(safe-area-inset-top))' }} />
 
-      <nav className="flex md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-100 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+      <nav
+        className="flex md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-100 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <div className="flex w-full">
           {[
             { to: '/', icon: Home, label: 'Accueil' },
@@ -374,51 +416,51 @@ const Header = () => {
               <Link
                 key={to}
                 to={to}
-                className={`flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition
+                className={`flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 gap-0.5 transition
                   ${active ? 'text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}
               >
-                <div className={`flex items-center justify-center rounded-lg px-2.5 py-0.5 ${active ? 'bg-blue-50' : ''}`}>
-                  <Icon className="w-5 h-5" />
+                <div className={`flex items-center justify-center rounded-lg px-2 py-0.5 ${active ? 'bg-blue-50' : ''}`}>
+                  <Icon className="w-5 h-5 shrink-0" />
                 </div>
-                <span className="text-[10px] font-medium">{label}</span>
+                <span className="text-[9px] leading-tight font-medium truncate max-w-full px-0.5">{label}</span>
               </Link>
             );
           })}
-          {isUser && (
-            <Link
-              to="/reservation"
-              className={`flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition
-                ${isActive('/reservation') ? 'text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}
-            >
-              <div className={`flex items-center justify-center rounded-lg px-2.5 py-0.5 ${isActive('/reservation') ? 'bg-blue-50' : ''}`}>
-                <CalendarCheck className="w-5 h-5" />
-              </div>
-              <span className="text-[10px] font-medium">Pros</span>
-            </Link>
-          )}
+          <Link
+            to={isAuthenticated ? "/reservation" : "/connexion"}
+            onClick={guardedNavigate('/reservation')}
+            className={`flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 gap-0.5 transition
+              ${isActive('/reservation') ? 'text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}
+          >
+            <div className={`flex items-center justify-center rounded-lg px-2 py-0.5 ${isActive('/reservation') ? 'bg-blue-50' : ''}`}>
+              <CalendarCheck className="w-5 h-5 shrink-0" />
+            </div>
+            <span className="text-[9px] leading-tight font-medium truncate max-w-full px-0.5">Pros</span>
+          </Link>
           {showMenu ? (
             <Link
               to={espaceLink}
-              className={`flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition
+              className={`flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 gap-0.5 transition
                 ${isActive(espaceLink) ? 'text-blue-600' : 'text-slate-400 hover:text-blue-500'}`}
             >
-              <div className={`flex items-center justify-center rounded-lg px-2.5 py-0.5 ${isActive(espaceLink) ? 'bg-blue-50' : ''}`}>
-                <User className="w-5 h-5" />
+              <div className={`flex items-center justify-center rounded-lg px-2 py-0.5 ${isActive(espaceLink) ? 'bg-blue-50' : ''}`}>
+                <User className="w-5 h-5 shrink-0" />
               </div>
-              <span className="text-[10px] font-medium">Espace</span>
+              <span className="text-[9px] leading-tight font-medium truncate max-w-full px-0.5">Espace</span>
             </Link>
-          ) : currentRole ? (
-            <button onClick={handleDeconnexion} className="flex flex-col items-center justify-center flex-1 py-2 text-red-500 gap-0.5">
-              <LogOut className="w-5 h-5" /><span className="text-[10px] font-medium">Déco.</span>
-            </button>
           ) : (
-            <Link to="/connexion" className="flex flex-col items-center justify-center flex-1 py-2 text-slate-400 hover:text-blue-500 gap-0.5 transition">
-              <User className="w-5 h-5" /><span className="text-[10px] font-medium">Connexion</span>
+            <Link
+              to="/connexion"
+              className="flex flex-col items-center justify-center flex-1 min-w-0 py-1.5 text-slate-400 hover:text-blue-500 gap-0.5 transition"
+            >
+              <User className="w-5 h-5 shrink-0" />
+              <span className="text-[9px] leading-tight font-medium truncate max-w-full px-0.5">Connexion</span>
             </Link>
           )}
         </div>
       </nav>
-      <div className="flex md:hidden pb-[60px]" />
+      {/* Spacer bottom nav — compense hauteur réelle + safe area */}
+      <div className="flex md:hidden" style={{ height: 'calc(56px + env(safe-area-inset-bottom))' }} />
     </>
   );
 };

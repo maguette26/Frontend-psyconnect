@@ -79,24 +79,24 @@ const TableauProfessionnel = () => {
     switch (activeTab) {
       case 'informations':
         return (
-          <div className="space-y-6 max-w-3xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md flex items-center gap-4">
-              <Smile className="w-10 h-10 text-green-500 shrink-0" />
-              <div>
-                <h2 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+          <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md flex items-center gap-4 min-w-0">
+              <Smile className="w-9 h-9 sm:w-10 sm:h-10 text-green-500 shrink-0" />
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100 break-words">
                   Bonjour, <span className="text-indigo-700">{currentUser?.prenom} {currentUser?.nom}</span>
                 </h2>
-                <p className="text-gray-600 dark:text-gray-300">Bienvenue dans votre espace professionnel PsyConnect.</p>
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">Bienvenue dans votre espace professionnel PsyConnect.</p>
               </div>
             </div>
-            <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md">
-              <h3 className="text-xl font-semibold text-gray-800 dark:text-white mb-4">Présentation</h3>
-              <ul className="space-y-3 text-gray-700 dark:text-gray-300">
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white mb-4">Présentation</h3>
+              <ul className="space-y-3 text-sm sm:text-base text-gray-700 dark:text-gray-300">
                 <li className="flex items-center gap-2"><CalendarDays className="w-5 h-5 text-teal-500 shrink-0" /> Gérer vos disponibilités</li>
                 <li className="flex items-center gap-2"><UserCheck className="w-5 h-5 text-pink-500 shrink-0" /> Valider ou refuser les réservations</li>
                 <li className="flex items-center gap-2"><Info className="w-5 h-5 text-blue-500 shrink-0" /> Accéder à vos consultations et profils patients</li>
               </ul>
-              <p className="mt-4 text-gray-700 dark:text-gray-300">Utilisez le menu pour naviguer entre les sections.</p>
+              <p className="mt-4 text-sm sm:text-base text-gray-700 dark:text-gray-300">Utilisez le menu pour naviguer entre les sections.</p>
             </div>
           </div>
         );
@@ -108,11 +108,11 @@ const TableauProfessionnel = () => {
   };
 
   if (loading) return <Layout><div className="text-center p-8 text-blue-600">Chargement...</div></Layout>;
-  if (globalError && !currentUser) return <Layout><div className="p-6 text-red-600">{globalError}</div></Layout>;
+  if (globalError && !currentUser) return <Layout><div className="p-6 text-red-600 break-words">{globalError}</div></Layout>;
 
   return (
     <Layout>
-      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 overflow-x-hidden">
 
         {/* ══════════════════════════════════════
             SIDEBAR — desktop uniquement (md+)
@@ -123,17 +123,17 @@ const TableauProfessionnel = () => {
             ${sidebarReduced ? 'w-20' : 'w-64'}`}
         >
           {/* Avatar */}
-          <div className="flex flex-col items-center p-4 border-b border-blue-500 space-y-1">
+          <div className="flex flex-col items-center p-4 border-b border-blue-500 space-y-1 min-w-0">
             {currentUser?.photoUrl ? (
-              <img src={currentUser.photoUrl} alt="pro" className="w-14 h-14 rounded-full object-cover" />
+              <img src={currentUser.photoUrl} alt="pro" className="w-14 h-14 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center text-xl font-bold">
+              <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center text-xl font-bold shrink-0">
                 {currentUser?.prenom?.[0] || 'P'}
               </div>
             )}
             {!sidebarReduced && (
               <>
-                <p className="font-semibold text-base leading-tight text-center">
+                <p className="font-semibold text-base leading-tight text-center truncate max-w-full px-2">
                   {currentUser?.prenom} {currentUser?.nom}
                 </p>
                 <span className="text-blue-300 text-xs">Professionnel</span>
@@ -142,7 +142,7 @@ const TableauProfessionnel = () => {
           </div>
 
           {/* Navigation */}
-          <div className="flex-grow mt-2 space-y-1 px-2">
+          <div className="flex-grow mt-2 space-y-1 px-2 overflow-y-auto">
             {TABS.map(({ key, label, icon }) => (
               <NavItem
                 key={key}
@@ -203,11 +203,11 @@ const TableauProfessionnel = () => {
         {/* ══════════════════════════════════════
             CONTENU PRINCIPAL
         ══════════════════════════════════════ */}
-        <main className="flex-grow overflow-x-hidden overflow-y-auto p-4 md:p-6
+        <main className="flex-grow min-w-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6
           text-gray-900 dark:text-gray-100 transition-colors duration-300 pb-24 md:pb-6">
           {globalError && (
-            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-4 py-2 rounded flex items-center gap-2 mb-4">
-              <XCircle size={20} />
+            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-4 py-2 rounded flex items-center gap-2 mb-4 break-words">
+              <XCircle size={20} className="shrink-0" />
               <span>{globalError}</span>
             </div>
           )}
@@ -218,28 +218,31 @@ const TableauProfessionnel = () => {
       {/* ══════════════════════════════════════
           BOTTOM NAV — mobile uniquement (< md)
       ══════════════════════════════════════ */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900
-        border-t border-gray-200 dark:border-gray-700 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]">
-        <div className="flex w-full overflow-x-auto">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900
+        border-t border-gray-200 dark:border-gray-700 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        <div className="flex w-full">
           {TABS.map(({ key, label, icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex flex-col items-center justify-center flex-1 min-w-[60px] py-2 gap-0.5 transition-colors
+              className={`flex flex-col items-center justify-center flex-1 min-w-0 py-2 gap-0.5 transition-colors
                 ${activeTab === key
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-400 dark:text-gray-500 hover:text-blue-500'}`}
             >
-              {React.cloneElement(icon, { size: 20 })}
-              <span className="text-[9px] font-medium leading-tight">{label}</span>
+              {React.cloneElement(icon, { size: 19, className: 'shrink-0' })}
+              <span className="text-[8px] sm:text-[9px] leading-tight font-medium truncate max-w-full px-0.5">{label}</span>
             </button>
           ))}
           <button
             onClick={handleLogout}
-            className="flex flex-col items-center justify-center flex-1 min-w-[60px] py-2 gap-0.5 text-red-400 hover:text-red-600 transition-colors"
+            className="flex flex-col items-center justify-center flex-1 min-w-0 py-2 gap-0.5 text-red-400 hover:text-red-600 transition-colors"
           >
-            <LogOut size={20} />
-            <span className="text-[9px] font-medium leading-tight">Déco.</span>
+            <LogOut size={19} className="shrink-0" />
+            <span className="text-[8px] sm:text-[9px] leading-tight font-medium truncate max-w-full px-0.5">Déco.</span>
           </button>
         </div>
       </nav>

@@ -79,9 +79,9 @@ const TableauUtilisateur = () => {
       case 'humeur':        return <SuiviHumeur currentUser={currentUser} />;
       case 'profil':
         return (
-          <div className="p-4 max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold mb-4 text-blue-700 dark:text-blue-400 flex items-center gap-2">
-              <User size={24} /> Mes infos personnelles
+          <div className="p-2 sm:p-4 max-w-2xl mx-auto">
+            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              <User size={22} className="shrink-0" /> Mes infos personnelles
             </h2>
             <FormulaireProfil />
           </div>
@@ -91,11 +91,11 @@ const TableauUtilisateur = () => {
   };
 
   if (loading) return <Layout><div className="text-center p-8 text-blue-600">Chargement...</div></Layout>;
-  if (globalError && !currentUser) return <Layout><div className="p-6 text-red-600">{globalError}</div></Layout>;
+  if (globalError && !currentUser) return <Layout><div className="p-6 text-red-600 break-words">{globalError}</div></Layout>;
 
   return (
     <Layout>
-      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+      <div className="flex min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300 overflow-x-hidden">
 
         {/* ══════════════════════════════════════
             SIDEBAR — desktop uniquement (md+)
@@ -106,17 +106,17 @@ const TableauUtilisateur = () => {
             ${sidebarReduced ? 'w-20' : 'w-64'}`}
         >
           {/* Avatar + nom */}
-          <div className="flex flex-col items-center p-4 border-b border-blue-500 space-y-1">
+          <div className="flex flex-col items-center p-4 border-b border-blue-500 space-y-1 min-w-0">
             {currentUser?.photoUrl ? (
-              <img src={currentUser.photoUrl} alt="user" className="w-14 h-14 rounded-full object-cover" />
+              <img src={currentUser.photoUrl} alt="user" className="w-14 h-14 rounded-full object-cover shrink-0" />
             ) : (
-              <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center text-xl font-bold">
+              <div className="w-14 h-14 bg-blue-500 rounded-full flex items-center justify-center text-xl font-bold shrink-0">
                 {currentUser?.prenom?.[0] || 'U'}
               </div>
             )}
             {!sidebarReduced && (
               <>
-                <p className="font-semibold text-base leading-tight text-center">
+                <p className="font-semibold text-base leading-tight text-center truncate max-w-full px-2">
                   {currentUser?.prenom} {currentUser?.nom}
                 </p>
                 <span className="text-blue-300 text-xs">Utilisateur</span>
@@ -125,7 +125,7 @@ const TableauUtilisateur = () => {
           </div>
 
           {/* Navigation */}
-          <div className="flex-grow mt-2 space-y-1 px-2">
+          <div className="flex-grow mt-2 space-y-1 px-2 overflow-y-auto">
             {TABS.map(({ key, label, icon }) => (
               <NavItem
                 key={key}
@@ -187,12 +187,12 @@ const TableauUtilisateur = () => {
         {/* ══════════════════════════════════════
             CONTENU PRINCIPAL
         ══════════════════════════════════════ */}
-        <main className="flex-grow overflow-x-hidden overflow-y-auto p-4 md:p-6
+        <main className="flex-grow min-w-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6
           text-gray-900 dark:text-gray-100 transition-colors duration-300
-          pb-24 md:pb-6 {/* espace pour bottom nav mobile */}">
+          pb-24 md:pb-6">
           {globalError && (
-            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-4 py-2 rounded flex items-center gap-2 mb-4">
-              <XCircle size={20} />
+            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-4 py-2 rounded flex items-center gap-2 mb-4 break-words">
+              <XCircle size={20} className="shrink-0" />
               <span>{globalError}</span>
             </div>
           )}
@@ -203,29 +203,32 @@ const TableauUtilisateur = () => {
       {/* ══════════════════════════════════════
           BOTTOM NAV — mobile uniquement (< md)
       ══════════════════════════════════════ */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900
-        border-t border-gray-200 dark:border-gray-700 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]">
+      <nav
+        className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white dark:bg-gray-900
+        border-t border-gray-200 dark:border-gray-700 shadow-[0_-2px_12px_rgba(0,0,0,0.08)]"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
         <div className="flex w-full">
           {TABS.map(({ key, label, icon }) => (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
-              className={`flex flex-col items-center justify-center flex-1 py-2 gap-0.5 transition-colors
+              className={`flex flex-col items-center justify-center flex-1 min-w-0 py-2 gap-0.5 transition-colors
                 ${activeTab === key
                   ? 'text-blue-600 dark:text-blue-400'
                   : 'text-gray-400 dark:text-gray-500 hover:text-blue-500'}`}
             >
-              {React.cloneElement(icon, { size: 20 })}
-              <span className="text-[10px] font-medium">{label}</span>
+              {React.cloneElement(icon, { size: 20, className: 'shrink-0' })}
+              <span className="text-[9px] leading-tight font-medium truncate max-w-full px-0.5">{label}</span>
             </button>
           ))}
           {/* Déconnexion dans bottom nav */}
           <button
             onClick={handleLogout}
-            className="flex flex-col items-center justify-center flex-1 py-2 gap-0.5 text-red-400 hover:text-red-600 transition-colors"
+            className="flex flex-col items-center justify-center flex-1 min-w-0 py-2 gap-0.5 text-red-400 hover:text-red-600 transition-colors"
           >
-            <LogOut size={20} />
-            <span className="text-[10px] font-medium">Déco.</span>
+            <LogOut size={20} className="shrink-0" />
+            <span className="text-[9px] leading-tight font-medium truncate max-w-full px-0.5">Déco.</span>
           </button>
         </div>
       </nav>

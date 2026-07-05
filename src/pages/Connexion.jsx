@@ -75,18 +75,18 @@ const Connexion = () => {
         />
 
         {/* RIGHT SIDE */}
-        <div className="flex w-full md:w-1/2 items-center justify-center px-6 py-16">
-          <div className="pc-card w-full max-w-[420px] bg-white rounded-[28px] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.18)] p-10">
+        <div className="flex w-full md:w-1/2 items-center justify-center px-4 sm:px-6 py-10 sm:py-16">
+          <div className="pc-card w-full max-w-[420px] bg-white rounded-[24px] sm:rounded-[28px] shadow-[0_20px_60px_-15px_rgba(37,99,235,0.18)] p-6 sm:p-10">
 
-            <div className="flex items-center gap-2 mb-8">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+            <div className="flex items-center gap-2 mb-6 sm:mb-8">
+              <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center shrink-0">
                 <HeartPulse className="w-5 h-5 text-white" />
               </div>
               <span className="pc-display text-lg font-bold text-slate-900">PsyConnect</span>
             </div>
 
-            <h2 className="pc-display text-[1.75rem] font-bold text-slate-900 mb-1">Connexion</h2>
-            <p className="text-slate-500 text-sm mb-8">Heureux de vous revoir.</p>
+            <h2 className="pc-display text-2xl sm:text-[1.75rem] font-bold text-slate-900 mb-1">Connexion</h2>
+            <p className="text-slate-500 text-sm mb-6 sm:mb-8">Heureux de vous revoir.</p>
 
             <form onSubmit={handleConnexion} className="space-y-5">
 
@@ -96,13 +96,15 @@ const Connexion = () => {
                   Adresse e-mail
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                  <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none shrink-0" />
                   <input
                     type="email"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="exemple@domaine.com"
+                    autoComplete="email"
+                    inputMode="email"
                     className="pc-input w-full pl-10 pr-4 py-3 rounded-2xl bg-slate-50 border border-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition"
                   />
                 </div>
@@ -110,29 +112,33 @@ const Connexion = () => {
 
               {/* PASSWORD */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-semibold text-slate-700">Mot de passe</label>
+                <div className="flex items-center justify-between mb-1.5 gap-2">
+                  <label className="block text-xs font-semibold text-slate-700 shrink-0">Mot de passe</label>
                   <Link
                     to="/mot-de-passe-oublie"
-                    className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline"
+                    className="text-xs font-medium text-blue-600 hover:text-blue-700 hover:underline text-right truncate"
                   >
                     Mot de passe oublié ?
                   </Link>
                 </div>
-                <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+                {/* relative + w-full : le bouton oeil est positionné en absolute
+                    à l'intérieur de CE conteneur, donc il ne peut plus déborder
+                    de la carte, quelle que soit la largeur de l'écran. */}
+                <div className="relative w-full">
+                  <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none shrink-0 z-10" />
                   <input
                     type={showPassword ? 'text' : 'password'}
                     required
                     value={motDePasse}
                     onChange={(e) => setMotDePasse(e.target.value)}
                     placeholder="Votre mot de passe"
-                    className="pc-input w-full pl-10 pr-10 py-3 rounded-2xl bg-slate-50 border border-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition"
+                    autoComplete="current-password"
+                    className="pc-input w-full pl-10 pr-11 py-3 rounded-2xl bg-slate-50 border border-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition shrink-0 z-10"
                     tabIndex={-1}
                     aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
                   >
@@ -159,7 +165,7 @@ const Connexion = () => {
               {/* MESSAGE */}
               {message && (
                 <p
-                  className={`text-center text-sm rounded-xl py-2 px-3 ${
+                  className={`text-center text-sm rounded-xl py-2 px-3 break-words ${
                     message.includes('réussie')
                       ? 'bg-emerald-50 text-emerald-600'
                       : 'bg-red-50 text-red-500'
@@ -208,6 +214,9 @@ const Connexion = () => {
           from { opacity: 0; transform: translateY(16px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        /* Empêche tout débordement horizontal sur mobile, quel que soit le contenu */
+        .pc-body { overflow-x: hidden; }
+        .pc-input { -webkit-appearance: none; appearance: none; }
         @media (prefers-reduced-motion: reduce) {
           .pc-card { animation: none; }
           .pc-btn:hover:not(:disabled) { transform: none; }
