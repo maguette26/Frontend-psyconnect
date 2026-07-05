@@ -80,17 +80,17 @@ const TableauProfessionnel = () => {
       case 'informations':
         return (
           <div className="space-y-4 sm:space-y-6 max-w-3xl mx-auto">
-            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md flex items-center gap-4 min-w-0">
-              <Smile className="w-9 h-9 sm:w-10 sm:h-10 text-green-500 shrink-0" />
+            <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md flex items-center gap-3 sm:gap-4 min-w-0">
+              <Smile className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 text-green-500 shrink-0" />
               <div className="min-w-0">
-                <h2 className="text-lg sm:text-2xl font-bold text-gray-800 dark:text-gray-100 break-words">
+                <h2 className="text-base sm:text-lg md:text-2xl font-bold text-gray-800 dark:text-gray-100 break-words">
                   Bonjour, <span className="text-indigo-700">{currentUser?.prenom} {currentUser?.nom}</span>
                 </h2>
-                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">Bienvenue dans votre espace professionnel PsyConnect.</p>
+                <p className="text-xs sm:text-sm md:text-base text-gray-600 dark:text-gray-300">Bienvenue dans votre espace professionnel PsyConnect.</p>
               </div>
             </div>
             <div className="bg-white dark:bg-gray-800 p-4 sm:p-6 rounded-2xl shadow-md">
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-800 dark:text-white mb-4">Présentation</h3>
+              <h3 className="text-base sm:text-lg md:text-xl font-semibold text-gray-800 dark:text-white mb-4">Présentation</h3>
               <ul className="space-y-3 text-sm sm:text-base text-gray-700 dark:text-gray-300">
                 <li className="flex items-center gap-2"><CalendarDays className="w-5 h-5 text-teal-500 shrink-0" /> Gérer vos disponibilités</li>
                 <li className="flex items-center gap-2"><UserCheck className="w-5 h-5 text-pink-500 shrink-0" /> Valider ou refuser les réservations</li>
@@ -108,7 +108,7 @@ const TableauProfessionnel = () => {
   };
 
   if (loading) return <Layout><div className="text-center p-8 text-blue-600">Chargement...</div></Layout>;
-  if (globalError && !currentUser) return <Layout><div className="p-6 text-red-600 break-words">{globalError}</div></Layout>;
+  if (globalError && !currentUser) return <Layout><div className="p-4 sm:p-6 text-red-600 break-words">{globalError}</div></Layout>;
 
   return (
     <Layout>
@@ -206,8 +206,8 @@ const TableauProfessionnel = () => {
         <main className="flex-grow min-w-0 overflow-x-hidden overflow-y-auto p-3 sm:p-4 md:p-6
           text-gray-900 dark:text-gray-100 transition-colors duration-300 pb-24 md:pb-6">
           {globalError && (
-            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-4 py-2 rounded flex items-center gap-2 mb-4 break-words">
-              <XCircle size={20} className="shrink-0" />
+            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-3 sm:px-4 py-2 rounded flex items-center gap-2 mb-4 break-words text-sm">
+              <XCircle size={18} className="shrink-0" />
               <span>{globalError}</span>
             </div>
           )}

@@ -23,6 +23,30 @@ const FILTER_ACTIVE = {
 };
 
 /* ══════════════════════════════════════════
+   CSS RESPONSIVE (media queries injectées)
+   Ne modifie aucune logique, seulement la présentation
+══════════════════════════════════════════ */
+const ResponsiveStyles = () => (
+  <style>{`
+    .pc-page-wrap { box-sizing: border-box; }
+    @media (max-width: 640px) {
+      .pc-page-wrap { padding: 1.25rem 0.85rem !important; }
+      .pc-title { font-size: 20px !important; }
+      .pc-card { flex-wrap: wrap !important; padding: 12px !important; gap: 10px !important; }
+      .pc-card-avatar { width: 34px !important; height: 34px !important; font-size: 12px !important; }
+      .pc-card-name { font-size: 13px !important; }
+      .pc-card-meta { font-size: 10px !important; gap: 5px !important; }
+      .pc-card-actions { width: 100%; justify-content: space-between !important; margin-top: 4px; }
+      .pc-modal-inner { max-width: 100% !important; border-radius: 18px 18px 0 0 !important; }
+      .pc-modal-overlay { align-items: flex-end !important; padding: 0 !important; }
+      .pc-modal-row-label { width: auto !important; min-width: 90px; }
+      .pc-filters { gap: 5px !important; }
+      .pc-filters button { padding: 4px 10px !important; font-size: 11px !important; }
+    }
+  `}</style>
+);
+
+/* ══════════════════════════════════════════
    HELPERS
 ══════════════════════════════════════════ */
 function initials(prenom, nom) {
@@ -46,7 +70,7 @@ function fmtHeure(h) {
 function Avatar({ prenom, nom, statut, size = 40 }) {
   const cfg = STATUT_CONFIG[statut] ?? STATUT_CONFIG.EN_ATTENTE;
   return (
-    <div style={{
+    <div className="pc-card-avatar" style={{
       width: size, height: size, borderRadius: '50%', flexShrink: 0,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: size * 0.33, fontWeight: 700,
@@ -98,10 +122,10 @@ function IconBtn({ onClick, title, children, onHoverStyle, style: extraStyle }) 
 
 function ModalRow({ icon, label, children }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, flexWrap: 'wrap' }}>
       <span style={{ width: 18, color: '#94A3B8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{icon}</span>
-      <span style={{ width: 165, flexShrink: 0, color: '#64748B' }}>{label}</span>
-      <span style={{ color: '#0F172A', fontWeight: 600 }}>{children}</span>
+      <span className="pc-modal-row-label" style={{ width: 165, flexShrink: 0, color: '#64748B' }}>{label}</span>
+      <span style={{ color: '#0F172A', fontWeight: 600, wordBreak: 'break-word' }}>{children}</span>
     </div>
   );
 }
@@ -180,17 +204,19 @@ const fetchConsultations = async () => {
     s === 'TOUTES' ? consultations.length : consultations.filter(c => c.statut === s).length;
 
   return (
-    <div style={{
+    <div className="pc-page-wrap" style={{
       maxWidth: 760, margin: '0 auto',
       padding: '2rem 1.25rem',
       fontFamily: "'DM Sans', 'Inter', sans-serif",
       boxSizing: 'border-box',
+      width: '100%',
     }}>
+      <ResponsiveStyles />
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* ── TITRE ── */}
       <div style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: '0 0 4px', color: '#0F172A' }}>
+        <h1 className="pc-title" style={{ fontSize: 24, fontWeight: 700, margin: '0 0 4px', color: '#0F172A' }}>
           Consultations
         </h1>
         <p style={{ margin: 0, fontSize: 13, color: '#94A3B8' }}>
@@ -200,7 +226,7 @@ const fetchConsultations = async () => {
 
       {/* ── FILTRES + COMPTEUR ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: 8 }}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <div className="pc-filters" style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {STATUTS.map(s => {
             const active = filtreStatut === s;
             return (
@@ -211,6 +237,7 @@ const fetchConsultations = async () => {
                 background: active ? (FILTER_ACTIVE[s]?.background ?? '#f1f5f9') : '#fff',
                 color: active ? (FILTER_ACTIVE[s]?.color ?? '#1e293b') : '#64748B',
                 boxShadow: active ? 'none' : '0 1px 2px rgba(0,0,0,0.04)',
+                whiteSpace: 'nowrap',
               }}>
                 {s === 'TOUTES' ? 'Toutes' : LABELS[s]}{' '}
                 <span style={{ opacity: 0.65 }}>{countFor(s)}</span>
@@ -221,13 +248,14 @@ const fetchConsultations = async () => {
         <span style={{
           fontFamily: 'monospace', fontSize: 12, color: '#64748B',
           background: '#F1F5F9', padding: '4px 12px', borderRadius: 20,
+          whiteSpace: 'nowrap',
         }}>
           {filtered.length} session{filtered.length !== 1 ? 's' : ''}
         </span>
       </div>
 
       {error && (
-        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 12 }}>
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', color: '#DC2626', borderRadius: 10, padding: '10px 14px', fontSize: 13, marginBottom: 12, wordBreak: 'break-word' }}>
           {error}
         </div>
       )}
@@ -236,7 +264,7 @@ const fetchConsultations = async () => {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {filtered.length === 0 && (
           <div style={{
-            textAlign: 'center', padding: '4rem 1rem',
+            textAlign: 'center', padding: '3rem 1rem',
             background: '#fff', borderRadius: 16, border: '1px solid #F1F5F9',
           }}>
             <div style={{
@@ -254,6 +282,7 @@ const fetchConsultations = async () => {
           {filtered.map(consult => (
             <motion.div
               key={consult.id}
+              className="pc-card"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
@@ -279,13 +308,13 @@ const fetchConsultations = async () => {
 
               {/* Infos */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{
+                <p className="pc-card-name" style={{
                   margin: '0 0 4px', fontWeight: 700, fontSize: 14, color: '#0F172A',
                   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                 }}>
                   {consult.utilisateurPrenom} {consult.utilisateurNom}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', flexWrap: 'wrap' }}>
+                <div className="pc-card-meta" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94A3B8', flexWrap: 'wrap' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
                     <CalIcon />{fmtDate(consult.date)}
                   </span>
@@ -301,7 +330,7 @@ const fetchConsultations = async () => {
               </div>
 
               {/* Actions */}
-              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
+              <div className="pc-card-actions" style={{ display: 'flex', gap: 6, alignItems: 'center', flexShrink: 0 }}>
                 <StatutBadge statut={consult.statut} />
 
 {/* 🔵 CHAT BUTTON (SEULEMENT SI CONFIRMÉE) */}
@@ -349,6 +378,7 @@ const fetchConsultations = async () => {
       <AnimatePresence>
         {selected && (
           <motion.div
+            className="pc-modal-overlay"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setSelected(null)}
             style={{
@@ -359,6 +389,7 @@ const fetchConsultations = async () => {
             }}
           >
             <motion.div
+              className="pc-modal-inner"
               initial={{ opacity: 0, y: 32, scale: 0.97 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 32 }}
@@ -370,6 +401,7 @@ const fetchConsultations = async () => {
                 border: '1px solid #E2E8F0',
                 boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
                 overflow: 'hidden',
+                maxHeight: '92vh', overflowY: 'auto',
               }}
             >
               {/* Header modal */}
@@ -385,7 +417,7 @@ const fetchConsultations = async () => {
                   size={50}
                 />
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#0F172A' }}>
+                  <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: 16, color: '#0F172A', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {selected.utilisateurPrenom} {selected.utilisateurNom}
                   </p>
                   <p style={{ margin: 0, fontSize: 12, color: '#94A3B8', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

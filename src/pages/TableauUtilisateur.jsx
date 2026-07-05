@@ -79,9 +79,9 @@ const TableauUtilisateur = () => {
       case 'humeur':        return <SuiviHumeur currentUser={currentUser} />;
       case 'profil':
         return (
-          <div className="p-2 sm:p-4 max-w-2xl mx-auto">
-            <h2 className="text-xl sm:text-2xl font-bold mb-4 text-blue-700 dark:text-blue-400 flex items-center gap-2">
-              <User size={22} className="shrink-0" /> Mes infos personnelles
+          <div className="p-1 sm:p-2 md:p-4 max-w-2xl mx-auto">
+            <h2 className="text-lg sm:text-xl md:text-2xl font-bold mb-4 text-blue-700 dark:text-blue-400 flex items-center gap-2">
+              <User size={20} className="shrink-0" /> Mes infos personnelles
             </h2>
             <FormulaireProfil />
           </div>
@@ -91,7 +91,7 @@ const TableauUtilisateur = () => {
   };
 
   if (loading) return <Layout><div className="text-center p-8 text-blue-600">Chargement...</div></Layout>;
-  if (globalError && !currentUser) return <Layout><div className="p-6 text-red-600 break-words">{globalError}</div></Layout>;
+  if (globalError && !currentUser) return <Layout><div className="p-4 sm:p-6 text-red-600 break-words">{globalError}</div></Layout>;
 
   return (
     <Layout>
@@ -191,8 +191,8 @@ const TableauUtilisateur = () => {
           text-gray-900 dark:text-gray-100 transition-colors duration-300
           pb-24 md:pb-6">
           {globalError && (
-            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-4 py-2 rounded flex items-center gap-2 mb-4 break-words">
-              <XCircle size={20} className="shrink-0" />
+            <div className="bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-400 px-3 sm:px-4 py-2 rounded flex items-center gap-2 mb-4 break-words text-sm">
+              <XCircle size={18} className="shrink-0" />
               <span>{globalError}</span>
             </div>
           )}

@@ -36,8 +36,8 @@ const STATUT_CONFIG = {
 function StatutBadge({ statut }) {
   const cfg = STATUT_CONFIG[statut] || { label: statut, bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-400' };
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+    <span className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
       {cfg.label}
     </span>
   );
@@ -45,9 +45,9 @@ function StatutBadge({ statut }) {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-      <span className="text-sm text-slate-400">{label}</span>
-      <span className="text-sm font-semibold text-slate-700">{value}</span>
+    <div className="flex items-center justify-between gap-3 py-2.5 sm:py-3 border-b border-slate-100 last:border-0">
+      <span className="text-xs sm:text-sm text-slate-400 shrink-0">{label}</span>
+      <span className="text-xs sm:text-sm font-semibold text-slate-700 text-right break-words">{value}</span>
     </div>
   );
 }
@@ -65,11 +65,11 @@ function Modal({ open, onClose, children }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm px-0 sm:px-4"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden"
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full max-w-md overflow-hidden max-h-[92vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}
       >
         {children}
@@ -142,7 +142,7 @@ const MesReservations = () => {
   );
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-8 box-border" style={{ fontFamily: "'DM Sans', sans-serif" }}>
 
       {/* ToastContainer isolé via portail natif de react-toastify */}
       <ToastContainer
@@ -155,19 +155,19 @@ const MesReservations = () => {
       />
 
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Mes Réservations</h1>
-          <p className="text-sm text-slate-400 mt-0.5">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Mes Réservations</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">
             {filtered.length} réservation{filtered.length > 1 ? 's' : ''}
           </p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-          <SlidersHorizontal size={15} className="text-slate-400" />
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm w-full sm:w-auto">
+          <SlidersHorizontal size={15} className="text-slate-400 shrink-0" />
           <select
             value={statut}
             onChange={e => setStatut(e.target.value)}
-            className="bg-transparent text-sm text-slate-700 font-medium focus:outline-none cursor-pointer"
+            className="bg-transparent text-sm text-slate-700 font-medium focus:outline-none cursor-pointer w-full sm:w-auto min-w-0"
           >
             <option value="">Actives</option>
             <option value="EN_ATTENTE">En attente</option>
@@ -180,36 +180,36 @@ const MesReservations = () => {
       </div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6">{error}</div>
+        <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6 break-words">{error}</div>
       )}
 
       {/* LISTE */}
       {filtered.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <CalendarCheck className="text-slate-300" size={28} />
+        <div className="text-center py-14 sm:py-20 bg-white rounded-2xl border border-slate-100 px-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <CalendarCheck className="text-slate-300" size={26} />
           </div>
-          <p className="text-slate-500 font-medium">Aucune réservation trouvée.</p>
+          <p className="text-slate-500 font-medium text-sm sm:text-base">Aucune réservation trouvée.</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map(res => (
             <div
               key={res.id}
-              className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group"
+              className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group overflow-hidden"
               onClick={() => setSelected(res)}
             >
-              <div className="flex items-center gap-4 p-4">
-                <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
-                  <Stethoscope size={20} />
+              <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
+                <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                  <Stethoscope size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-slate-800 truncate">Dr {res.professionnelNom}</p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="font-semibold text-slate-800 truncate text-sm sm:text-base">Dr {res.professionnelNom}</p>
+                  <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">
                     Réservé le {formatDate(res.dateReservation)} · {formatHeure(res.heureReservation)}
                   </p>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
                   <StatutBadge statut={res.statut} />
                   {res.prix != null && (
                     <span className="text-sm font-semibold text-slate-600 hidden sm:block">{res.prix}€</span>
@@ -221,13 +221,13 @@ const MesReservations = () => {
                         setSelected(null);
                         setConfirmDelete(res);
                       }}
-                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100"
+                      className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition sm:opacity-0 sm:group-hover:opacity-100"
                       title="Supprimer"
                     >
                       <Trash2 size={15} />
                     </button>
                   )}
-                  <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition" />
+                  <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition hidden sm:block" />
                 </div>
               </div>
             </div>
@@ -239,22 +239,22 @@ const MesReservations = () => {
       <Modal open={!!selected} onClose={() => setSelected(null)}>
         {selected && (
           <>
-            <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+            <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
                   <Stethoscope size={18} className="text-indigo-500" />
                 </div>
-                <div>
-                  <p className="font-bold text-slate-800">Dr {selected.professionnelNom}</p>
+                <div className="min-w-0">
+                  <p className="font-bold text-slate-800 truncate text-sm sm:text-base">Dr {selected.professionnelNom}</p>
                   <StatutBadge statut={selected.statut} />
                 </div>
               </div>
-              <button onClick={() => setSelected(null)} className="text-slate-300 hover:text-slate-600 transition">
+              <button onClick={() => setSelected(null)} className="text-slate-300 hover:text-slate-600 transition shrink-0">
                 <XCircle size={22} />
               </button>
             </div>
 
-            <div className="px-6 py-4">
+            <div className="px-5 sm:px-6 py-4">
               <InfoRow label="Date réservation"   value={formatDate(selected.dateReservation)} />
               <InfoRow label="Heure réservation"  value={formatHeure(selected.heureReservation)} />
               <InfoRow label="Date consultation"  value={formatDate(selected.jourConsultation)} />
@@ -262,7 +262,7 @@ const MesReservations = () => {
               {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} €`} />}
             </div>
 
-            <div className="px-6 pb-6 flex flex-col gap-2">
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-col gap-2">
               {selected.statut === 'PAYEE' && (
                 <button
                   onClick={() => handleDownloadTicket(selected.id)}
@@ -302,30 +302,30 @@ const MesReservations = () => {
       <Modal open={!!confirmDelete} onClose={() => !deleting && setConfirmDelete(null)}>
         {confirmDelete && (
           <>
-            <div className="bg-red-50 px-6 pt-6 pb-5 flex flex-col items-center border-b border-red-100">
+            <div className="bg-red-50 px-5 sm:px-6 pt-5 sm:pt-6 pb-5 flex flex-col items-center border-b border-red-100">
               <div className="w-14 h-14 rounded-2xl bg-red-100 flex items-center justify-center mb-3">
                 <AlertTriangle className="text-red-500" size={26} />
               </div>
-              <h3 className="text-lg font-bold text-slate-800 text-center">Supprimer cette réservation ?</h3>
-              <p className="text-sm text-slate-500 text-center mt-1">Cette action est irréversible.</p>
+              <h3 className="text-base sm:text-lg font-bold text-slate-800 text-center">Supprimer cette réservation ?</h3>
+              <p className="text-xs sm:text-sm text-slate-500 text-center mt-1">Cette action est irréversible.</p>
             </div>
 
-            <div className="px-6 py-4 space-y-2">
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-xs text-slate-400 font-medium">Médecin</span>
-                <span className="text-sm font-semibold text-slate-700">Dr {confirmDelete.professionnelNom}</span>
+            <div className="px-5 sm:px-6 py-4 space-y-2">
+              <div className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-3 sm:px-4 py-3">
+                <span className="text-xs text-slate-400 font-medium shrink-0">Médecin</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700 text-right break-words">Dr {confirmDelete.professionnelNom}</span>
               </div>
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-xs text-slate-400 font-medium">Consultation</span>
-                <span className="text-sm font-semibold text-slate-700">{formatDate(confirmDelete.jourConsultation)}</span>
+              <div className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-3 sm:px-4 py-3">
+                <span className="text-xs text-slate-400 font-medium shrink-0">Consultation</span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-700 text-right">{formatDate(confirmDelete.jourConsultation)}</span>
               </div>
-              <div className="flex items-center justify-between bg-slate-50 rounded-xl px-4 py-3">
-                <span className="text-xs text-slate-400 font-medium">Statut</span>
+              <div className="flex items-center justify-between gap-3 bg-slate-50 rounded-xl px-3 sm:px-4 py-3">
+                <span className="text-xs text-slate-400 font-medium shrink-0">Statut</span>
                 <StatutBadge statut={confirmDelete.statut} />
               </div>
             </div>
 
-            <div className="px-6 pb-6 flex gap-3">
+            <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex gap-3">
               <button
                 onClick={() => setConfirmDelete(null)}
                 disabled={deleting}

@@ -82,7 +82,7 @@ function WakeUpBanner({ visible }) {
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
           exit={{ opacity: 0, height: 0 }}
-          className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3"
+          className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs sm:text-sm rounded-xl px-3 sm:px-4 py-2.5 sm:py-3"
         >
           <Zap size={14} className="animate-pulse shrink-0" />
           <span>Le serveur se réveille, un instant…</span>
@@ -105,20 +105,20 @@ function ConfirmModal({ open, onCancel, onConfirm, deleting }) {
 
   return createPortal(
     <div
-      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 px-4"
+      className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-end sm:items-center justify-center z-50 px-0 sm:px-4"
       onClick={() => !deleting && onCancel()}
     >
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         exit={{ opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl overflow-hidden max-w-sm w-full"
+        className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden max-w-sm w-full"
         onClick={e => e.stopPropagation()}
       >
         {/* Barre de progression pendant suppression */}
         <ProgressBar active={deleting} />
 
-        <div className="p-6">
+        <div className="p-5 sm:p-6">
           <div className="text-center mb-5">
             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
               {deleting
@@ -126,8 +126,8 @@ function ConfirmModal({ open, onCancel, onConfirm, deleting }) {
                 : <Trash2 className="text-red-500" size={22} />
               }
             </div>
-            <h3 className="font-bold text-slate-800 text-base mb-1">Supprimer cette disponibilité ?</h3>
-            <p className="text-slate-400 text-sm">
+            <h3 className="font-bold text-slate-800 text-sm sm:text-base mb-1">Supprimer cette disponibilité ?</h3>
+            <p className="text-slate-400 text-xs sm:text-sm">
               {deleting ? 'Suppression en cours…' : 'Cette action est irréversible.'}
             </p>
           </div>
@@ -163,7 +163,7 @@ function DispoCard({ dispo, onEdit, onDelete, passee, saving }) {
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
-      className={`relative flex items-center justify-between bg-white border rounded-xl px-4 py-3 transition-all overflow-hidden ${
+      className={`relative flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-0 bg-white border rounded-xl px-3 sm:px-4 py-3 transition-all overflow-hidden ${
         passee ? 'border-slate-100' : 'border-slate-200 hover:shadow-sm'
       }`}
     >
@@ -179,11 +179,11 @@ function DispoCard({ dispo, onEdit, onDelete, passee, saving }) {
         </div>
       )}
 
-      <div>
-        <p className="font-semibold text-slate-700 text-sm capitalize">
+      <div className="min-w-0">
+        <p className="font-semibold text-slate-700 text-sm capitalize truncate">
           {formatDate(dispo.date)}
         </p>
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
           <p className="text-xs text-slate-400">
             🕒 {formatHeure(dispo.heureDebut)} → {formatHeure(dispo.heureFin)}
           </p>
@@ -197,7 +197,7 @@ function DispoCard({ dispo, onEdit, onDelete, passee, saving }) {
       </div>
 
       {!passee && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 self-end sm:self-auto">
           <button
             onClick={() => onEdit(dispo)}
             disabled={saving}
@@ -344,19 +344,19 @@ const Disponibilite = ({ proId }) => {
   const passees = disponibilites.filter(d =>  isPassee(d));
 
   return (
-    <div className="space-y-5 max-w-2xl" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="space-y-4 sm:space-y-5 w-full max-w-2xl mx-auto px-0" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
       {/* HEADER */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarClock className="text-indigo-600" size={24} />
-          <h2 className="text-xl font-bold text-slate-800">Mes disponibilités</h2>
+      <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div className="flex items-center gap-2 min-w-0">
+          <CalendarClock className="text-indigo-600 shrink-0" size={22} />
+          <h2 className="text-lg sm:text-xl font-bold text-slate-800 truncate">Mes disponibilités</h2>
         </div>
         {!showForm && (
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95"
+            className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs sm:text-sm font-semibold transition shadow-sm active:scale-95 shrink-0"
           >
             <Plus size={15} />
             Ajouter
@@ -372,13 +372,13 @@ const Disponibilite = ({ proId }) => {
         {message.text && (
           <motion.div
             initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm border ${
+            className={`flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 rounded-xl text-xs sm:text-sm border break-words ${
               message.type === 'success'
                 ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                 : 'bg-red-50 text-red-600 border-red-200'
             }`}
           >
-            {message.type === 'success' ? <CheckCircle size={16} /> : <XCircle size={16} />}
+            {message.type === 'success' ? <CheckCircle size={16} className="shrink-0" /> : <XCircle size={16} className="shrink-0" />}
             {message.text}
           </motion.div>
         )}
@@ -394,9 +394,9 @@ const Disponibilite = ({ proId }) => {
             {/* Barre de progression pendant submit */}
             <ProgressBar active={formSubmitting} />
 
-            <div className="p-5">
+            <div className="p-4 sm:p-5">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-semibold text-slate-700 text-base">
+                <h3 className="font-semibold text-slate-700 text-sm sm:text-base">
                   {editingId ? 'Modifier la disponibilité' : 'Nouvelle disponibilité'}
                 </h3>
                 <button
@@ -409,7 +409,7 @@ const Disponibilite = ({ proId }) => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                   {[
                     { label: 'Date',        name: 'date',      type: 'date', min: new Date().toISOString().split('T')[0] },
                     { label: 'Heure début', name: 'heureDebut',type: 'time' },
@@ -425,25 +425,25 @@ const Disponibilite = ({ proId }) => {
                         required
                         min={min}
                         disabled={formSubmitting}
-                        className="border border-slate-200 bg-slate-50 px-3 py-2.5 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition disabled:opacity-50"
+                        className="border border-slate-200 bg-slate-50 px-3 py-2.5 rounded-xl text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition disabled:opacity-50 w-full"
                       />
                     </div>
                   ))}
                 </div>
 
-                <div className="flex justify-end gap-3 pt-1">
+                <div className="flex flex-col sm:flex-row justify-end gap-3 pt-1">
                   <button
                     type="button"
                     onClick={resetForm}
                     disabled={formSubmitting}
-                    className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition disabled:opacity-40"
+                    className="px-4 py-2.5 sm:py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl text-sm font-medium transition disabled:opacity-40 order-2 sm:order-1"
                   >
                     Annuler
                   </button>
                   <button
                     type="submit"
                     disabled={formSubmitting}
-                    className="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95 disabled:opacity-60 flex items-center gap-2"
+                    className="px-5 py-2.5 sm:py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold transition shadow-sm active:scale-95 disabled:opacity-60 flex items-center justify-center gap-2 order-1 sm:order-2"
                   >
                     {formSubmitting
                       ? <><Loader2 size={13} className="animate-spin" /> En cours…</>
@@ -463,8 +463,8 @@ const Disponibilite = ({ proId }) => {
           <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
         </div>
       ) : disponibilites.length === 0 ? (
-        <div className="text-center py-16 bg-white rounded-2xl border border-slate-200 border-dashed">
-          <CalendarClock className="text-slate-200 mx-auto mb-3" size={36} />
+        <div className="text-center py-12 sm:py-16 bg-white rounded-2xl border border-slate-200 border-dashed px-4">
+          <CalendarClock className="text-slate-200 mx-auto mb-3" size={34} />
           <p className="text-slate-500 font-medium text-sm">Aucune disponibilité enregistrée.</p>
           <p className="text-slate-400 text-xs mt-1">Cliquez sur « Ajouter » pour commencer.</p>
         </div>

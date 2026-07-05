@@ -26,8 +26,8 @@ const STATUT_CONFIG = {
 function StatutBadge({ statut }) {
   const cfg = STATUT_CONFIG[statut] || { label: statut, bg: 'bg-slate-50', text: 'text-slate-500', border: 'border-slate-200', dot: 'bg-slate-300' };
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${cfg.bg} ${cfg.text} ${cfg.border}`}>
-      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+    <span className={`inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-semibold border whitespace-nowrap ${cfg.bg} ${cfg.text} ${cfg.border}`}>
+      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${cfg.dot}`} />
       {cfg.label}
     </span>
   );
@@ -35,9 +35,9 @@ function StatutBadge({ statut }) {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex items-center justify-between py-3 border-b border-slate-100 last:border-0">
-      <span className="text-sm text-slate-400">{label}</span>
-      <span className="text-sm font-semibold text-slate-700">{value}</span>
+    <div className="flex items-center justify-between gap-3 py-2.5 sm:py-3 border-b border-slate-100 last:border-0">
+      <span className="text-xs sm:text-sm text-slate-400 shrink-0">{label}</span>
+      <span className="text-xs sm:text-sm font-semibold text-slate-700 text-right break-words">{value}</span>
     </div>
   );
 }
@@ -91,19 +91,19 @@ const MesConsultations = () => {
   const filtered = consultations.filter(c => statut ? c.statut === statut : true);
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+    <div className="w-full max-w-3xl mx-auto px-3 sm:px-4 py-4 sm:py-8 box-border" style={{ fontFamily: "'DM Sans', sans-serif" }}>
       <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
       <ToastContainer position="top-right" />
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Mes Consultations</h1>
-          <p className="text-sm text-slate-400 mt-0.5">{filtered.length} consultation{filtered.length > 1 ? 's' : ''}</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-5 sm:mb-8">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-800">Mes Consultations</h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-0.5">{filtered.length} consultation{filtered.length > 1 ? 's' : ''}</p>
         </div>
-        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm">
-          <SlidersHorizontal size={15} className="text-slate-400" />
+        <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 shadow-sm w-full sm:w-auto">
+          <SlidersHorizontal size={15} className="text-slate-400 shrink-0" />
           <select value={statut} onChange={e => setStatut(e.target.value)}
-            className="bg-transparent text-sm text-slate-700 font-medium focus:outline-none cursor-pointer">
+            className="bg-transparent text-sm text-slate-700 font-medium focus:outline-none cursor-pointer w-full sm:w-auto min-w-0">
             <option value="">Tous les statuts</option>
             <option value="EN_ATTENTE">En attente</option>
             <option value="CONFIRMEE">Confirmée</option>
@@ -113,14 +113,14 @@ const MesConsultations = () => {
         </div>
       </div>
 
-      {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6">{error}</div>}
+      {error && <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm mb-6 break-words">{error}</div>}
 
       {filtered.length === 0 ? (
-        <div className="text-center py-20 bg-white rounded-2xl border border-slate-100">
-          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Stethoscope className="text-slate-300" size={28} />
+        <div className="text-center py-14 sm:py-20 bg-white rounded-2xl border border-slate-100 px-4">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 bg-slate-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+            <Stethoscope className="text-slate-300" size={26} />
           </div>
-          <p className="text-slate-500 font-medium">Aucune consultation trouvée.</p>
+          <p className="text-slate-500 font-medium text-sm sm:text-base">Aucune consultation trouvée.</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -128,20 +128,20 @@ const MesConsultations = () => {
             {filtered.map(c => (
               <motion.div key={c.id}
                 initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group"
+                className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-all cursor-pointer group overflow-hidden"
                 onClick={() => setSelected(c)}>
-                <div className="flex items-center gap-4 p-4">
-                  <div className="w-11 h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
-                    <Stethoscope size={20} />
+                <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
+                  <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
+                    <Stethoscope size={18} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-slate-800 truncate">
+                    <p className="font-semibold text-slate-800 truncate text-sm sm:text-base">
                       Dr {c.professionnelPrenom ?? c.praticienPrenom ?? c.medecinPrenom ?? ''}{' '}
                          {c.professionnelNom    ?? c.praticienNom    ?? c.medecinNom    ?? ''}
                     </p>
-                    <p className="text-xs text-slate-400 mt-0.5">{formatDate(c.date)} · {formatHeure(c.heure)}</p>
+                    <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5 truncate">{formatDate(c.date)} · {formatHeure(c.heure)}</p>
                   </div>
-                  <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0">
                     <StatutBadge statut={c.statut} />
                     {c.statut === 'CONFIRMEE' && (
                       <button
@@ -152,11 +152,11 @@ const MesConsultations = () => {
                     )}
                     {(isPassee(c.date) || c.statut === 'ANNULEE' || c.statut === 'TERMINEE') && (
                       <button onClick={e => { e.stopPropagation(); setConfirmDelete(c); }}
-                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition opacity-0 group-hover:opacity-100">
+                        className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition sm:opacity-0 sm:group-hover:opacity-100">
                         <Trash2 size={15} />
                       </button>
                     )}
-                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition" />
+                    <ChevronRight size={16} className="text-slate-300 group-hover:text-slate-500 transition hidden sm:block" />
                   </div>
                 </div>
               </motion.div>
@@ -168,36 +168,36 @@ const MesConsultations = () => {
       {/* MODAL DETAIL */}
       <AnimatePresence>
         {selected && (
-          <motion.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-4 pb-4 sm:pb-0"
+          <motion.div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 backdrop-blur-sm px-0 sm:px-4 pb-0 sm:pb-0"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={() => setSelected(null)}>
             <motion.div
               initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
-              className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden"
+              className="bg-white rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[92vh] overflow-y-auto"
               onClick={e => e.stopPropagation()}>
-              <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center">
+              <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
                     <Stethoscope size={18} className="text-indigo-500" />
                   </div>
-                  <div>
-                    <p className="font-bold text-slate-800">
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-800 truncate text-sm sm:text-base">
                       Dr {selected.professionnelPrenom ?? selected.praticienPrenom ?? selected.medecinPrenom ?? ''}{' '}
                          {selected.professionnelNom    ?? selected.praticienNom    ?? selected.medecinNom    ?? ''}
                     </p>
                     <StatutBadge statut={selected.statut} />
                   </div>
                 </div>
-                <button onClick={() => setSelected(null)} className="text-slate-300 hover:text-slate-600 transition">
+                <button onClick={() => setSelected(null)} className="text-slate-300 hover:text-slate-600 transition shrink-0">
                   <XCircle size={22} />
                 </button>
               </div>
-              <div className="px-6 py-4">
+              <div className="px-5 sm:px-6 py-4">
                 <InfoRow label="Date" value={formatDate(selected.date)} />
                 <InfoRow label="Heure" value={formatHeure(selected.heure)} />
                 {selected.prix != null && <InfoRow label="Prix" value={`${selected.prix} €`} />}
               </div>
-              <div className="px-6 pb-6 flex flex-col gap-2">
+              <div className="px-5 sm:px-6 pb-5 sm:pb-6 flex flex-col gap-2">
                 {selected.statut === 'CONFIRMEE' && (
                   <button
                     onClick={() => { setSelected(null); ouvrirChat(selected); }}
@@ -229,13 +229,13 @@ const MesConsultations = () => {
             onClick={() => setConfirmDelete(null)}>
             <motion.div
               initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 text-center"
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 sm:p-6 text-center"
               onClick={e => e.stopPropagation()}>
               <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <Trash2 className="text-red-500" size={20} />
               </div>
-              <h3 className="font-bold text-slate-800 mb-1">Supprimer cette consultation ?</h3>
-              <p className="text-sm text-slate-400 mb-5">
+              <h3 className="font-bold text-slate-800 mb-1 text-sm sm:text-base">Supprimer cette consultation ?</h3>
+              <p className="text-xs sm:text-sm text-slate-400 mb-5 break-words">
                 Dr {confirmDelete.professionnelPrenom ?? confirmDelete.praticienPrenom ?? ''}{' '}
                    {confirmDelete.professionnelNom    ?? confirmDelete.praticienNom    ?? ''}{' '}
                 · {formatDate(confirmDelete.date)}
