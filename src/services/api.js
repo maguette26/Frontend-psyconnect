@@ -9,6 +9,16 @@ const api = axios.create({
   },
 });
 
+// Démarre après 5s pour ne pas bloquer le rendu initial
+setTimeout(() => {
+  const keepAlive = () => {
+    fetch('https://backend-psyconnect.up.railway.app/api/ping')
+      .catch(() => {});
+  };
+  keepAlive();
+  setInterval(keepAlive, 5 * 60 * 1000);
+}, 5000);
+
 const PUBLIC_ROUTES = ['/professionnels/inscription', '/auth/login', '/auth/register'];
 
 // ─── Intercepteur de requête (UNIQUE — attache le token si dispo) ─────────────
