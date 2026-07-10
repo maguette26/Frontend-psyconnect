@@ -108,16 +108,17 @@ const MesReservations = () => {
     }
   };
 
-  const handleAnnuler = async (res) => {
-    try {
-      await api.delete(`/reservations/annuler/${res.id}`);
-      setSelected(null);
-      setReservations(prev => prev.filter(r => r.id !== res.id));
-      toast.success('Réservation annulée.');
-    } catch {
-      toast.error("Erreur lors de l'annulation.");
-    }
-  };
+ const handleAnnuler = async (res) => {
+  try {
+    await api.delete(`/reservations/annuler/${res.id}`);
+    setSelected(null);
+    setReservations(prev => prev.filter(r => r.id !== res.id));
+    toast.success('Réservation annulée.');
+  } catch (err) {
+    console.error('Annulation échouée:', err.response?.status, err.response?.data);
+    toast.error("Erreur lors de l'annulation.");
+  }
+};
 
   const handleDelete = async (res) => {
     setDeleting(true);
