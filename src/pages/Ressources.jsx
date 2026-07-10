@@ -17,9 +17,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Layout from '../components/commun/Layout';
 import { useRessource } from './RessourceContext.jsx';
-
-// Petite table de correspondance type -> icône / label / couleur du badge.
-// Purement visuel : n'affecte ni les données ni la logique.
+ 
 const TYPE_META = {
   video: { label: 'Vidéo', icon: PlayCircle, badgeClass: 'bg-rose-50 text-rose-600' },
   podcast: { label: 'Podcast', icon: Headphones, badgeClass: 'bg-orange-50 text-orange-600' },
@@ -38,7 +36,7 @@ const getTypeMeta = (type) =>
 const Ressources = () => {
   const navigate = useNavigate();
   const { selectedCategory, setSelectedCategory, categoriesOrder } = useRessource();
-const [userReady, setUserReady] = useState(false);
+  const [userReady, setUserReady] = useState(false);
   const [fonctionnalites, setFonctionnalites] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -51,77 +49,81 @@ const [userReady, setUserReady] = useState(false);
   const [toast, setToast] = useState('');
 
   const fetchFonctionnalites = useCallback(async () => {
-  setLoading(true);
-  setError(null);
-  try {
-    const res = await api.get('/fonctionnalites');
-    if (Array.isArray(res.data)) {
-      const ressourcesFiltrees = res.data
-        .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)
-        .map(f => ({
-          ...f,
-          premium: f.type === 'podcast' ? true : f.premium
-        }));
-      setFonctionnalites(ressourcesFiltrees);
-    } else {
-      throw new Error("Format de données invalide.");
-    }
-  } catch (err) {
-    console.error('Erreur fetch:', err);
-    setError("Erreur de chargement des fonctionnalités.");
-  } finally {
-    setLoading(false);
-  }
-}, []);
- 
- // 1. Sync role depuis localStorage (refresh instant UI)
-useEffect(() => {
-  const syncUser = () => {
-    const role = localStorage.getItem("role");
-
-    setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
-    setUserReady(true);
-  };
-
-  syncUser();
-
-  window.addEventListener("roleChange", syncUser);
-
-  return () => window.removeEventListener("roleChange", syncUser);
-}, []);
-
-// 2. Load user + data
-useEffect(() => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    setNotConnectedMessage("⚠️ Vous devez être connecté");
-    navigate("/connexion");
-    return;
-  }
-
-  const fetchUserInfo = async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const res = await api.get("/auth/me");
-
-      const role = res.data.role;
-
-      setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
-
-      localStorage.setItem("role", role);
-
-      // 🔥 IMPORTANT: notify UI partout
-      window.dispatchEvent(new Event("user-updated"));
-
-    } catch {
-      setIsUserPremium(false);
+      const res = await api.get('/fonctionnalites');
+      if (Array.isArray(res.data)) {
+        const ressourcesFiltrees = res.data
+          .filter(f => f.statut === true || f.statut === 'true' || f.statut === 1)
+          .map(f => ({
+            ...f,
+            premium: f.type === 'podcast' ? true : f.premium
+          }));
+        setFonctionnalites(ressourcesFiltrees);
+      } else {
+        throw new Error("Format de données invalide.");
+      }
+    } catch (err) {
+      console.error('Erreur fetch:', err);
+      setError("Erreur de chargement des fonctionnalités.");
     } finally {
-      fetchFonctionnalites();
+      setLoading(false);
     }
-  };
+  }, []);
 
-  fetchUserInfo();
-}, [navigate, fetchFonctionnalites]);
+  // 1. Sync role depuis localStorage (refresh instant UI)
+  useEffect(() => {
+    const syncUser = () => {
+      const role = localStorage.getItem("role");
+      setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+      setUserReady(true);
+    };
+
+    syncUser();
+
+    window.addEventListener("roleChange", syncUser);
+    
+    window.addEventListener("user-updated", syncUser);
+
+    return () => {
+      window.removeEventListener("roleChange", syncUser);
+      window.removeEventListener("user-updated", syncUser);
+    };
+  }, []);
+
+  // 2. Load user + data
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      setNotConnectedMessage("⚠️ Vous devez être connecté");
+      navigate("/connexion");
+      return;
+    }
+
+    const fetchUserInfo = async () => {
+      try {
+        const res = await api.get("/auth/me");
+
+        const role = res.data.role;
+
+        setIsUserPremium(role === "PREMIUM" || role === "ADMIN");
+
+        localStorage.setItem("role", role);
+
+        // 🔥 IMPORTANT: notify UI partout
+        window.dispatchEvent(new Event("user-updated"));
+
+      } catch {
+        setIsUserPremium(false);
+      } finally {
+        fetchFonctionnalites();
+      }
+    };
+
+    fetchUserInfo();
+  }, [navigate, fetchFonctionnalites]);
 
   const filteredFonctionnalites = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
@@ -200,6 +202,9 @@ useEffect(() => {
             if (premium && !isUserPremium) {
               e.preventDefault();
               navigate('/devenir-premium');
+            } else {
+            
+              e.stopPropagation();
             }
           }}
         >
@@ -232,12 +237,22 @@ useEffect(() => {
         }
         return (
           lienFichier
-            ? <a
-                href={lienFichier}
+            ? 
+               <a href={lienFichier}
                 className="inline-flex items-center gap-1 mt-3 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
                 target="_blank"
                 rel="noopener noreferrer"
-                onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
+                // 🔧 CORRECTION : condition complète "premium && !isUserPremium".
+                // Avant : "premium" seul → un utilisateur Premium était quand même
+                // redirigé vers /devenir-premium au lieu d'accéder à la vidéo.
+                onClick={(e) => {
+                  if (premium && !isUserPremium) {
+                    e.preventDefault();
+                    navigate('/devenir-premium');
+                  } else {
+                    e.stopPropagation();
+                  }
+                }}
               >
                 <PlayCircle className="w-4 h-4 shrink-0" /> Voir la vidéo
               </a>
@@ -250,12 +265,22 @@ useEffect(() => {
             <audio controls className="w-full rounded-md shadow-sm">
               <source src={lienFichier} type="audio/mpeg" />
             </audio>
-            <a
-              href={lienFichier}
+            
+             <a href={lienFichier}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-              onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
+              // 🔧 CORRECTION : même bug que pour "video" — tous les podcasts sont
+              // forcés premium=true plus haut, donc AUCUN abonné Premium ne pouvait
+              // jamais cliquer ce lien sans être redirigé vers /devenir-premium.
+              onClick={(e) => {
+                if (premium && !isUserPremium) {
+                  e.preventDefault();
+                  navigate('/devenir-premium');
+                } else {
+                  e.stopPropagation();
+                }
+              }}
             >
               <Headphones className="w-4 h-4 shrink-0" /> Écouter le podcast
             </a>
@@ -267,12 +292,20 @@ useEffect(() => {
           <div className="mt-3 text-gray-800">
             <p className="break-words">{description}</p>
             {lienFichier && (
-              <a
-                href={lienFichier}
+              
+               <a href={lienFichier}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-                onClick={premium ? (e) => { e.preventDefault(); navigate('/devenir-premium'); } : undefined}
+                // 🔧 CORRECTION : même bug — condition complétée avec !isUserPremium
+                onClick={(e) => {
+                  if (premium && !isUserPremium) {
+                    e.preventDefault();
+                    navigate('/devenir-premium');
+                  } else {
+                    e.stopPropagation();
+                  }
+                }}
               >
                 <Download className="w-4 h-4 shrink-0" /> Consulter
               </a>
