@@ -7,28 +7,13 @@ import api from '../../services/api';
 
 const stripePromise = loadStripe("pk_test_51RXnftAc9vHWOsmYRgXSBdNEne7MxfObedkDBDRtA7l5G2zZM0sfMPfhHmCtWqeNIM81YSEyREpIPVDg76hE201t002UNapsv0");
 
-/* ─── POLLING STATUT ─────────────────────────────────────────────── */
-async function pollReservationStatus(reservationId, targetStatut, timeoutMs = 30000) {
-  const interval = 2000;
-  const deadline = Date.now() + timeoutMs;
-  while (Date.now() < deadline) {
-    try {
-      const { data } = await api.get(`/reservations/${reservationId}`);
-      if (data?.statut === targetStatut) return data;
-    } catch (_) {}
-    await new Promise(r => setTimeout(r, interval));
-  }
-  return null;
-}
-
 /* ─── PHASES UI ──────────────────────────────────────────────────── */
-// idle | processing | polling | success | error
+// idle | processing | success | error
 function PhaseIndicator({ phase, errorMsg }) {
   if (phase === 'idle') return null;
 
   const configs = {
     processing: { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Paiement en cours de traitement…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
-    polling:    { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Synchronisation avec le serveur…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
     success:    { icon: <CheckCircle2 size={15} />,                        text: 'Paiement confirmé avec succès !',     cls: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
     error:      { icon: <AlertCircle size={15} />,                         text: errorMsg || 'Une erreur est survenue.', cls: 'bg-red-50 border-red-200 text-red-600' },
   };
@@ -46,7 +31,7 @@ function PhaseIndicator({ phase, errorMsg }) {
 
 /* ─── BARRE DE PROGRESSION ───────────────────────────────────────── */
 function ProgressBar({ phase }) {
-  const widths = { idle: '0%', processing: '65%', polling: '85%', success: '100%', error: '100%' };
+  const widths = { idle: '0%', processing: '75%', success: '100%', error: '100%' };
   const colors = { success: 'bg-emerald-400', error: 'bg-red-400' };
   const color  = colors[phase] || 'bg-indigo-500';
   const width  = widths[phase] || '0%';
@@ -85,10 +70,6 @@ const CheckoutForm = ({ clientSecret, reservationId, onPhaseChange, onPaid }) =>
       }
 
       if (result.paymentIntent?.status === 'succeeded') {
-        onPhaseChange('polling');
-
-        const updated = await pollReservationStatus(reservationId, 'PAYEE', 30000);
-
         onPhaseChange('success');
         // Petit délai pour que l'utilisateur voit le succès avant fermeture
         setTimeout(() => onPaid?.(), 1500);
@@ -133,7 +114,7 @@ const CheckoutForm = ({ clientSecret, reservationId, onPhaseChange, onPaid }) =>
 const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [clientSecret, setClientSecret]   = useState(null);
-  const [phase, setPhase]                 = useState('idle'); // idle | processing | polling | success | error
+  const [phase, setPhase]                 = useState('idle'); // idle | processing | success | error
   const [errorMsg, setErrorMsg]           = useState('');
 
   const handlePhaseChange = useCallback((p, msg = '') => {
@@ -195,7 +176,7 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
     }
   };
 
-  const isLocked = ['processing', 'polling'].includes(phase);
+  const isLocked = phase === 'processing';
   const isDone   = phase === 'success';
 
   return (
