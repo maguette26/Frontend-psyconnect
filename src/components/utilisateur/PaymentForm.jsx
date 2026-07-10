@@ -2,30 +2,10 @@ import React, { useState, useEffect, useCallback } from 'react';
 import PropTypes from 'prop-types';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardElement, useStripe, useElements } from '@stripe/react-stripe-js';
-import { Loader2, CheckCircle2, AlertCircle, CreditCard, Zap } from 'lucide-react';
+import { Loader2, CheckCircle2, AlertCircle, CreditCard } from 'lucide-react';
 import api from '../../services/api';
 
 const stripePromise = loadStripe("pk_test_51RXnftAc9vHWOsmYRgXSBdNEne7MxfObedkDBDRtA7l5G2zZM0sfMPfhHmCtWqeNIM81YSEyREpIPVDg76hE201t002UNapsv0");
-
-/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
-const RETRY_DELAYS = [2000, 3000, 5000, 8000, 10000];
-
-async function wakeUpAndRetry(fn) {
-  for (let i = 0; i <= RETRY_DELAYS.length; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const is5xx = [502, 503].includes(err?.response?.status);
-      const isNet = !err?.response;
-      if ((is5xx || isNet) && i < RETRY_DELAYS.length) {
-        try { await api.get('/reservations/ping', { timeout: 3000 }); } catch (_) {}
-        await new Promise(r => setTimeout(r, RETRY_DELAYS[i]));
-      } else {
-        throw err;
-      }
-    }
-  }
-}
 
 /* ─── POLLING STATUT ─────────────────────────────────────────────── */
 async function pollReservationStatus(reservationId, targetStatut, timeoutMs = 30000) {
@@ -42,12 +22,11 @@ async function pollReservationStatus(reservationId, targetStatut, timeoutMs = 30
 }
 
 /* ─── PHASES UI ──────────────────────────────────────────────────── */
-// idle | waking | processing | polling | success | error
+// idle | processing | polling | success | error
 function PhaseIndicator({ phase, errorMsg }) {
   if (phase === 'idle') return null;
 
   const configs = {
-    waking:     { icon: <Zap size={15} className="animate-pulse" />,      text: 'Réveil du serveur en cours…',         cls: 'bg-amber-50 border-amber-200 text-amber-700' },
     processing: { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Paiement en cours de traitement…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
     polling:    { icon: <Loader2 size={15} className="animate-spin" />,   text: 'Synchronisation avec le serveur…',    cls: 'bg-indigo-50 border-indigo-200 text-indigo-700' },
     success:    { icon: <CheckCircle2 size={15} />,                        text: 'Paiement confirmé avec succès !',     cls: 'bg-emerald-50 border-emerald-200 text-emerald-700' },
@@ -67,7 +46,7 @@ function PhaseIndicator({ phase, errorMsg }) {
 
 /* ─── BARRE DE PROGRESSION ───────────────────────────────────────── */
 function ProgressBar({ phase }) {
-  const widths = { idle: '0%', waking: '35%', processing: '65%', polling: '85%', success: '100%', error: '100%' };
+  const widths = { idle: '0%', processing: '65%', polling: '85%', success: '100%', error: '100%' };
   const colors = { success: 'bg-emerald-400', error: 'bg-red-400' };
   const color  = colors[phase] || 'bg-indigo-500';
   const width  = widths[phase] || '0%';
@@ -154,7 +133,7 @@ const CheckoutForm = ({ clientSecret, reservationId, onPhaseChange, onPaid }) =>
 const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
   const [paymentMethod, setPaymentMethod] = useState('stripe');
   const [clientSecret, setClientSecret]   = useState(null);
-  const [phase, setPhase]                 = useState('idle'); // idle | waking | processing | polling | success | error
+  const [phase, setPhase]                 = useState('idle'); // idle | processing | polling | success | error
   const [errorMsg, setErrorMsg]           = useState('');
 
   const handlePhaseChange = useCallback((p, msg = '') => {
@@ -172,7 +151,7 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
     }, { timeout: 55000 }).then(r => r.data)
   , [reservationId, paymentMethod]);
 
-  /* ── Init Stripe avec wake-up ── */
+  /* ── Init Stripe ── */
   useEffect(() => {
     if (paymentMethod !== 'stripe') return;
     let cancelled = false;
@@ -180,15 +159,9 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
     setClientSecret(null);
     setErrorMsg('');
 
-    // Délai avant d'afficher "réveil serveur" — si Railway répond vite, on ne le montre pas
-    const wakeTimer = setTimeout(() => {
-      if (!cancelled) setPhase('waking');
-    }, 1200);
-
-    wakeUpAndRetry(createPayment)
+    createPayment()
       .then(data => {
         if (cancelled) return;
-        clearTimeout(wakeTimer);
         if (data?.clientSecret) {
           setClientSecret(data.clientSecret);
           setPhase('idle');
@@ -198,22 +171,19 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
       })
       .catch(err => {
         if (cancelled) return;
-        clearTimeout(wakeTimer);
         const msg = err?.response?.data?.message || 'Serveur indisponible. Réessayez dans quelques secondes.';
         handlePhaseChange('error', msg);
       });
 
-    return () => { cancelled = true; clearTimeout(wakeTimer); };
+    return () => { cancelled = true; };
   }, [paymentMethod, createPayment, handlePhaseChange]);
 
-  /* ── PayPal avec wake-up ── */
+  /* ── PayPal ── */
   const handlePayPalPayment = async () => {
     setErrorMsg('');
-    const wakeTimer = setTimeout(() => setPhase('waking'), 1200);
 
     try {
-      const data = await wakeUpAndRetry(createPayment);
-      clearTimeout(wakeTimer);
+      const data = await createPayment();
       if (data?.approvalUrl) {
         setPhase('processing');
         window.location.href = data.approvalUrl;
@@ -221,12 +191,11 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
         handlePhaseChange('error', 'Erreur PayPal, veuillez réessayer.');
       }
     } catch {
-      clearTimeout(wakeTimer);
       handlePhaseChange('error', 'Erreur PayPal, veuillez réessayer.');
     }
   };
 
-  const isLocked = ['waking', 'processing', 'polling'].includes(phase);
+  const isLocked = ['processing', 'polling'].includes(phase);
   const isDone   = phase === 'success';
 
   return (

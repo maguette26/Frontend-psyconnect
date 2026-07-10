@@ -8,30 +8,9 @@ import {
 } from '../../services/servicePsy';
 import {
   CheckCircle, XCircle, Trash2, Pencil, CalendarClock,
-  Plus, X, Loader2, Zap, WifiOff
+  Plus, X, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import api from '../../services/api';
-
-/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
-const RETRY_DELAYS = [2000, 3000, 5000, 8000];
-
-async function wakeUpAndRetry(fn) {
-  for (let i = 0; i <= RETRY_DELAYS.length; i++) {
-    try {
-      return await fn();
-    } catch (err) {
-      const is5xx = [502, 503].includes(err?.response?.status);
-      const isNet = !err?.response;
-      if ((is5xx || isNet) && i < RETRY_DELAYS.length) {
-        try { await api.get('/reservations/ping', { timeout: 3000 }); } catch (_) {}
-        await new Promise(r => setTimeout(r, RETRY_DELAYS[i]));
-      } else {
-        throw err;
-      }
-    }
-  }
-}
 
 /* ─── HELPERS ────────────────────────────────────────────────────── */
 const formatHeure = (h) => {
@@ -70,25 +49,6 @@ function ProgressBar({ active }) {
         transition={{ duration: 12, ease: 'easeOut' }}
       />
     </div>
-  );
-}
-
-/* ─── BANNER WAKE-UP ─────────────────────────────────────────────── */
-function WakeUpBanner({ visible }) {
-  return (
-    <AnimatePresence>
-      {visible && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          className="flex items-center gap-2.5 bg-amber-50 border border-amber-200 text-amber-700 text-xs sm:text-sm rounded-xl px-3 sm:px-4 py-2.5 sm:py-3"
-        >
-          <Zap size={14} className="animate-pulse shrink-0" />
-          <span>Le serveur se réveille, un instant…</span>
-        </motion.div>
-      )}
-    </AnimatePresence>
   );
 }
 
@@ -233,7 +193,6 @@ const Disponibilite = ({ proId }) => {
   // États de chargement spécifiques
   const [formSubmitting, setFormSubmitting] = useState(false);   // submit formulaire
   const [deletingId, setDeletingId]         = useState(null);    // suppression en cours
-  const [waking, setWaking]                 = useState(false);   // Railway en veille
 
   useEffect(() => { if (proId) chargerDisponibilites(); }, [proId]);
 
@@ -281,24 +240,17 @@ const Disponibilite = ({ proId }) => {
 
     setFormSubmitting(true);
 
-    // Délai avant d'afficher le banner wake-up
-    const wakeTimer = setTimeout(() => setWaking(true), 1200);
-
     try {
-      const fn = editingId
-        ? () => modifierDisponibilite(editingId, formData)
-        : () => ajouterDisponibilite(formData);
+      if (editingId) {
+        await modifierDisponibilite(editingId, formData);
+      } else {
+        await ajouterDisponibilite(formData);
+      }
 
-      await wakeUpAndRetry(fn);
-
-      clearTimeout(wakeTimer);
-      setWaking(false);
       setMessage({ type: 'success', text: editingId ? 'Disponibilité modifiée.' : 'Disponibilité ajoutée.' });
       resetForm();
       chargerDisponibilites();
     } catch (err) {
-      clearTimeout(wakeTimer);
-      setWaking(false);
       const msg = err?.response?.data?.message || 'Erreur lors de la sauvegarde.';
       setMessage({ type: 'error', text: msg });
     } finally {
@@ -319,20 +271,13 @@ const Disponibilite = ({ proId }) => {
 
     setDeletingId(id);
 
-    // Wake-up silencieux pendant la suppression
-    const wakeTimer = setTimeout(() => setWaking(true), 1200);
-
     try {
-      await wakeUpAndRetry(() => supprimerDisponibilite(id));
-      clearTimeout(wakeTimer);
-      setWaking(false);
+      await supprimerDisponibilite(id);
       setMessage({ type: 'success', text: 'Disponibilité supprimée.' });
       setConfirmDeleteId(null);
       await new Promise(r => setTimeout(r, 0)); // flush avant mutation liste
       chargerDisponibilites();
     } catch (err) {
-      clearTimeout(wakeTimer);
-      setWaking(false);
       const msg = err?.response?.data?.message || 'Erreur lors de la suppression.';
       setMessage({ type: 'error', text: msg });
     } finally {
@@ -363,9 +308,6 @@ const Disponibilite = ({ proId }) => {
           </button>
         )}
       </div>
-
-      {/* BANNER WAKE-UP */}
-      <WakeUpBanner visible={waking} />
 
       {/* MESSAGE */}
       <AnimatePresence>

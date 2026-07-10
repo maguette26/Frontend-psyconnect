@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
   CheckCircle, XCircle, Clock, ScanEye,
-  CalendarCheck, Filter, RefreshCw, User, Wifi, WifiOff, CreditCard,
+  CalendarCheck, Filter, RefreshCw, User, CreditCard,
   CalendarDays, CalendarClock, ThumbsUp, ThumbsDown, Loader2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -43,21 +43,6 @@ const fmtHeure = (h) => {
   if (typeof h === 'string') { const p = h.split(':'); return `${p[0]}h${p[1] || '00'}`; }
   if (typeof h === 'object' && 'hour' in h) return `${String(h.hour).padStart(2,'0')}h${String(h.minute).padStart(2,'0')}`;
   return '—';
-};
-
-/* ─── WAKE-UP RAILWAY ────────────────────────────────────────────── */
-// Ping silencieux — on tente jusqu'à réponse ou timeout 20s
-const wakeUpBackend = async (timeout = 20000) => {
-  const start = Date.now();
-  while (Date.now() - start < timeout) {
-    try {
-      await api.get('/reservations/ping', { timeout: 4000 });
-      return true; // réveillé
-    } catch {
-      await new Promise(r => setTimeout(r, 2000));
-    }
-  }
-  return false; // toujours mort après timeout
 };
 
 /* ─── MISE À JOUR STATUT (avec retry réseau) ─────────────────────── */
@@ -238,45 +223,22 @@ function ConfirmPopover({ action, onConfirm, onCancel }) {
   );
 }
 
-/* ─── BANNER WAKE-UP ─────────────────────────────────────────────── */
-function WakeUpBanner({ visible, label }) {
-  if (!visible) return null;
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: -8 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      className="flex items-center gap-2 bg-violet-50 border border-violet-200 text-violet-700 text-sm rounded-xl px-4 py-3"
-    >
-      <Loader2 size={15} className="animate-spin shrink-0" />
-      <span>{label}</span>
-    </motion.div>
-  );
-}
-
 /* ─── CARD RÉSERVATION ───────────────────────────────────────────── */
 function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
   const [confirming, setConfirming] = useState(null); // 'accept' | 'refuse' | null
-  // 'idle' | 'waking' | 'updating' | 'done'
+  // 'idle' | 'updating' | 'done'
   const [actionState, setActionState] = useState('idle');
 
   const cfg = STATUT_CONFIG[res.statut];
   const bar = cfg?.bar || 'from-slate-300 to-slate-300';
   const initials = `${res.utilisateur?.prenom?.[0] || ''}${res.utilisateur?.nom?.[0] || ''}`.toUpperCase();
 
-  const isPending = actionState === 'waking' || actionState === 'updating';
+  const isPending = actionState === 'updating';
 
   const handleConfirm = async () => {
     const action = confirming;
     setConfirming(null);
 
-    // Phase 1 : on indique qu'on réveille Railway
-    setActionState('waking');
-
-    // Ping silencieux pour réveiller Railway (max 20s)
-    await wakeUpBackend(20000);
-
-    // Phase 2 : appel réel
     setActionState('updating');
     try {
       if (action === 'accept') await onAccept(res.id);
@@ -287,11 +249,7 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
     }
   };
 
-  const pendingLabel = actionState === 'waking'
-    ? 'Réveil du serveur…'
-    : actionState === 'updating'
-    ? 'Mise à jour…'
-    : '';
+  const pendingLabel = actionState === 'updating' ? 'Mise à jour…' : '';
 
   return (
     <motion.div
@@ -360,8 +318,8 @@ function ReservationCard({ res, onAccept, onRefuse, onDetails }) {
               <motion.div
                 className="h-full bg-violet-400 rounded-full"
                 initial={{ width: '0%' }}
-                animate={{ width: actionState === 'waking' ? '60%' : '90%' }}
-                transition={{ duration: actionState === 'waking' ? 18 : 4, ease: 'easeOut' }}
+                animate={{ width: '90%' }}
+                transition={{ duration: 4, ease: 'easeOut' }}
               />
             </div>
           )}
@@ -411,7 +369,6 @@ export default function ListeReservations({ proId }) {
   const [selected, setSelected]         = useState(null);
   const [toast, setToast]               = useState(null);
   const [refreshing, setRefreshing]     = useState(false);
-  const [serverOnline, setServerOnline] = useState(true);
   const [lastSync, setLastSync]         = useState(null);
   const reservationsRef                 = useRef(reservations);
 
@@ -422,12 +379,9 @@ export default function ListeReservations({ proId }) {
       if (!silent) setRefreshing(true);
       const data = await getReservations(proId);
       setReservations(data);
-      setServerOnline(true);
       setLastSync(new Date());
     } catch (err) {
-      const is5xx = [502, 503].includes(err?.response?.status);
-      if (is5xx || !err?.response) setServerOnline(false);
-      else setToast({ msg: 'Erreur de chargement', type: 'error' });
+      setToast({ msg: 'Erreur de chargement', type: 'error' });
     } finally {
       if (!silent) setRefreshing(false);
     }
@@ -479,19 +433,11 @@ export default function ListeReservations({ proId }) {
         <div>
           <h2 className="text-xl font-bold text-slate-800">Réservations</h2>
           <div className="flex items-center gap-1.5 mt-0.5">
-            {serverOnline ? (
-              <span className="flex items-center gap-1 text-xs text-slate-400">
-                <Wifi size={10} className="text-emerald-400" />
-                {lastSync
-                  ? `Synchro à ${lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
-                  : 'En ligne'}
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-xs text-amber-600 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
-                <WifiOff size={10} />
-                Serveur en veille
-              </span>
-            )}
+            <span className="flex items-center gap-1 text-xs text-slate-400">
+              {lastSync
+                ? `Synchro à ${lastSync.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`
+                : 'En ligne'}
+            </span>
           </div>
         </div>
         <button
@@ -503,24 +449,6 @@ export default function ListeReservations({ proId }) {
           Actualiser
         </button>
       </div>
-
-      {/* ALERTE OFFLINE */}
-      <AnimatePresence>
-        {!serverOnline && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="flex items-start gap-2 bg-amber-50 border border-amber-200 text-amber-700 text-sm rounded-xl px-4 py-3"
-          >
-            <WifiOff size={15} className="mt-0.5 shrink-0" />
-            <span>
-              <strong>Serveur en veille.</strong>{' '}
-              Lors d'une validation, le serveur sera réveillé automatiquement. Rafraîchissement toutes les {POLL_INTERVAL / 1000}s.
-            </span>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* FILTRES */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
