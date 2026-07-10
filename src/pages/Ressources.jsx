@@ -17,7 +17,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import Layout from '../components/commun/Layout';
 import { useRessource } from './RessourceContext.jsx';
- 
+
 const TYPE_META = {
   video: { label: 'Vidéo', icon: PlayCircle, badgeClass: 'bg-rose-50 text-rose-600' },
   podcast: { label: 'Podcast', icon: Headphones, badgeClass: 'bg-orange-50 text-orange-600' },
@@ -83,7 +83,6 @@ const Ressources = () => {
     syncUser();
 
     window.addEventListener("roleChange", syncUser);
-    
     window.addEventListener("user-updated", syncUser);
 
     return () => {
@@ -118,6 +117,7 @@ const Ressources = () => {
       } catch {
         setIsUserPremium(false);
       } finally {
+        setUserReady(true);
         fetchFonctionnalites();
       }
     };
@@ -158,7 +158,6 @@ const Ressources = () => {
 
   const gratuits = filteredFonctionnalites.filter(f => !f.premium);
   const premiums = filteredFonctionnalites.filter(f => f.premium);
-  const totalCount = filteredFonctionnalites.length;
 
   const resourceLinks = {
     "mini defi gratuite": "/mini-defi-gratuite",
@@ -167,6 +166,14 @@ const Ressources = () => {
     "guide fixer des limites saines": "/guide-fixateur-limites",
     "auto evaluation basique": "/auto-evaluation-basique",
   };
+
+  // Détecte si un lien pointe vers un PDF, pour l'ouvrir "dans l'appli" (nouvel onglet interne au domaine).
+  const isPdfLink = (url) => !!url && url.toLowerCase().split('?')[0].endsWith('.pdf');
+
+  // Utilisateur autorisé à voir une ressource premium : PREMIUM ou ADMIN.
+  // userReady évite d'afficher le cadenas pendant la fraction de seconde où
+  // isUserPremium est encore à sa valeur initiale (false) avant résolution de /auth/me.
+  const canAccessPremium = (f) => !f.premium || !userReady || isUserPremium;
 
   const renderResourceContent = (f) => {
     const { type, description, lienFichier, premium, nom } = f;
@@ -179,6 +186,13 @@ const Ressources = () => {
       .replace(/\s+/g, " ")
       .trim();
 
+    // Tant qu'on ne sait pas encore qui est l'utilisateur, on n'affiche rien
+    // de définitif pour éviter un flash "réservé aux membres Premium".
+    if (!userReady) {
+      return null;
+    }
+
+    // Seul cas où on bloque réellement : ressource premium ET utilisateur non premium.
     if (premium && !isUserPremium) {
       return (
         <div className="mt-3 text-gray-600 text-sm flex flex-wrap items-center gap-2">
@@ -193,20 +207,16 @@ const Ressources = () => {
       );
     }
 
+    // À partir d'ici : soit la ressource est gratuite, soit l'utilisateur a bien
+    // le droit d'y accéder (Premium/Admin). Plus aucun lien ci-dessous ne doit
+    // renvoyer vers /devenir-premium.
+
     if (resourceLinks[normalizedNom]) {
       return (
         <Link
           to={resourceLinks[normalizedNom]}
           className="inline-flex items-center gap-2 mt-3 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-          onClick={(e) => {
-            if (premium && !isUserPremium) {
-              e.preventDefault();
-              navigate('/devenir-premium');
-            } else {
-            
-              e.stopPropagation();
-            }
-          }}
+          onClick={(e) => e.stopPropagation()}
         >
           <Eye className="w-4 h-4 shrink-0" /> Accéder à la ressource
         </Link>
@@ -221,7 +231,7 @@ const Ressources = () => {
           </blockquote>
         );
 
-      case 'video':
+      case 'video': {
         if (lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'))) {
           const youtubeId = lienFichier.split('v=')[1]?.split('&')[0] || lienFichier.split('/').pop();
           return (
@@ -235,29 +245,29 @@ const Ressources = () => {
             </div>
           );
         }
-        return (
-          lienFichier
-            ? 
-               <a href={lienFichier}
-                className="inline-flex items-center gap-1 mt-3 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
+        // Vidéo non-YouTube avec un lien : on tente une lecture directe en <video>,
+        // et on ne quitte le site que si c'est vraiment nécessaire (fallback).
+        if (lienFichier) {
+          return (
+            <div className="mt-3 flex flex-col gap-2">
+              <video controls className="w-full rounded-md shadow-sm">
+                <source src={lienFichier} />
+                Votre navigateur ne supporte pas la lecture vidéo intégrée.
+              </video>
+              <a
+                href={lienFichier}
+                className="inline-flex items-center gap-1 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
                 target="_blank"
                 rel="noopener noreferrer"
-                // 🔧 CORRECTION : condition complète "premium && !isUserPremium".
-                // Avant : "premium" seul → un utilisateur Premium était quand même
-                // redirigé vers /devenir-premium au lieu d'accéder à la vidéo.
-                onClick={(e) => {
-                  if (premium && !isUserPremium) {
-                    e.preventDefault();
-                    navigate('/devenir-premium');
-                  } else {
-                    e.stopPropagation();
-                  }
-                }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <PlayCircle className="w-4 h-4 shrink-0" /> Voir la vidéo
               </a>
-            : <p className="mt-3 text-gray-800 break-words">{description}</p>
-        );
+            </div>
+          );
+        }
+        return <p className="mt-3 text-gray-800 break-words">{description}</p>;
+      }
 
       case 'podcast':
         return (
@@ -265,25 +275,43 @@ const Ressources = () => {
             <audio controls className="w-full rounded-md shadow-sm">
               <source src={lienFichier} type="audio/mpeg" />
             </audio>
-            
-             <a href={lienFichier}
+            <a
+              href={lienFichier}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-              // 🔧 CORRECTION : même bug que pour "video" — tous les podcasts sont
-              // forcés premium=true plus haut, donc AUCUN abonné Premium ne pouvait
-              // jamais cliquer ce lien sans être redirigé vers /devenir-premium.
-              onClick={(e) => {
-                if (premium && !isUserPremium) {
-                  e.preventDefault();
-                  navigate('/devenir-premium');
-                } else {
-                  e.stopPropagation();
-                }
-              }}
+              onClick={(e) => e.stopPropagation()}
             >
               <Headphones className="w-4 h-4 shrink-0" /> Écouter le podcast
             </a>
+          </div>
+        );
+
+      case 'guide':
+        // PDF/Guide : on privilégie l'ouverture "dans l'appli" (nouvel onglet
+        // interne au domaine), sans jamais renvoyer vers /devenir-premium.
+        return (
+          <div className="mt-3 text-gray-800">
+            <p className="break-words">{description}</p>
+            {lienFichier && (
+              <a
+                href={lienFichier}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {isPdfLink(lienFichier) ? (
+                  <>
+                    <FileText className="w-4 h-4 shrink-0" /> Ouvrir le guide (PDF)
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4 shrink-0" /> Consulter le guide
+                  </>
+                )}
+              </a>
+            )}
           </div>
         );
 
@@ -292,20 +320,12 @@ const Ressources = () => {
           <div className="mt-3 text-gray-800">
             <p className="break-words">{description}</p>
             {lienFichier && (
-              
-               <a href={lienFichier}
+              <a
+                href={lienFichier}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-                // 🔧 CORRECTION : même bug — condition complétée avec !isUserPremium
-                onClick={(e) => {
-                  if (premium && !isUserPremium) {
-                    e.preventDefault();
-                    navigate('/devenir-premium');
-                  } else {
-                    e.stopPropagation();
-                  }
-                }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <Download className="w-4 h-4 shrink-0" /> Consulter
               </a>
@@ -374,6 +394,23 @@ const Ressources = () => {
       }
     } catch {
       // partage annulé par l'utilisateur : rien à faire
+    }
+  };
+
+  // Clic sur une carte Premium : accès direct pour Premium/Admin, redirection sinon.
+  const handlePremiumCardClick = (f) => {
+    if (!userReady) return;
+    if (!isUserPremium) {
+      navigate('/devenir-premium');
+      return;
+    }
+    const url = getRessourceUrl(f);
+    if (url) {
+      if (url.startsWith('/')) {
+        navigate(url);
+      } else {
+        window.open(url, '_blank', 'noopener noreferrer');
+      }
     }
   };
 
@@ -500,23 +537,28 @@ const Ressources = () => {
                       {premiums.map(f => {
                         const meta = getTypeMeta(f.type);
                         const TypeIcon = meta.icon;
+                        const unlocked = canAccessPremium(f);
                         return (
                           <motion.div
                             key={f.id}
-                            className="relative overflow-hidden bg-yellow-50 rounded-xl shadow-md border border-yellow-300 p-5 sm:p-6 cursor-pointer flex flex-col justify-between transition-shadow duration-300"
+                            className={`relative overflow-hidden rounded-xl shadow-md border p-5 sm:p-6 cursor-pointer flex flex-col justify-between transition-shadow duration-300 ${
+                              unlocked
+                                ? 'bg-white border-gray-200'
+                                : 'bg-yellow-50 border-yellow-300'
+                            }`}
                             variants={cardVariants}
                             initial="hidden"
                             animate="visible"
                             whileHover="hover"
                             whileTap={{ scale: 0.99 }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            onClick={() => navigate('/devenir-premium')}
-                            title="Cette ressource nécessite un abonnement Premium"
+                            onClick={() => handlePremiumCardClick(f)}
+                            title={unlocked ? undefined : "Cette ressource nécessite un abonnement Premium"}
                           >
                             <div className="pointer-events-none absolute -top-10 -right-10 w-24 h-24 rounded-full bg-white/40 blur-2xl" />
 
                             <div className="flex justify-between items-start gap-2 mb-3 relative flex-wrap">
-                              <h3 className="font-semibold text-base sm:text-lg text-yellow-900 leading-snug break-words flex-1 min-w-0">{f.nom}</h3>
+                              <h3 className={`font-semibold text-base sm:text-lg leading-snug break-words flex-1 min-w-0 ${unlocked ? 'text-gray-900' : 'text-yellow-900'}`}>{f.nom}</h3>
                               <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
                                 <button
                                   type="button"
@@ -535,7 +577,7 @@ const Ressources = () => {
                                   <Share2 className="w-4 h-4 text-yellow-700/60" />
                                 </button>
                                 <span className="inline-block bg-yellow-400 text-yellow-900 text-xs font-semibold px-3 py-1 rounded-full select-none whitespace-nowrap">
-                                  🔒 Premium
+                                  {unlocked ? '⭐ Premium' : '🔒 Premium'}
                                 </span>
                               </div>
                             </div>
