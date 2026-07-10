@@ -23,6 +23,7 @@ const TYPE_META = {
   podcast: { label: 'Podcast', icon: Headphones, badgeClass: 'bg-orange-50 text-orange-600' },
   citation: { label: 'Citation', icon: Quote, badgeClass: 'bg-violet-50 text-violet-600' },
   guide: { label: 'Guide', icon: BookOpen, badgeClass: 'bg-emerald-50 text-emerald-600' },
+  guide_pratique: { label: 'Guide pratique', icon: BookOpen, badgeClass: 'bg-emerald-50 text-emerald-600' },
   article: { label: 'Article', icon: FileText, badgeClass: 'bg-blue-50 text-blue-600' },
 };
 
@@ -269,7 +270,23 @@ const Ressources = () => {
         return <p className="mt-3 text-gray-800 break-words">{description}</p>;
       }
 
-      case 'podcast':
+      case 'podcast': {
+        const isYoutubePodcast = lienFichier && (lienFichier.includes('youtube.com') || lienFichier.includes('youtu.be'));
+        if (isYoutubePodcast) {
+          const youtubeId = lienFichier.split('v=')[1]?.split('&')[0] || lienFichier.split('/').pop();
+          return (
+            <div className="mt-3 flex flex-col gap-2">
+              <div className="aspect-w-16 aspect-h-9 rounded overflow-hidden shadow-sm">
+                <iframe
+                  className="w-full h-full"
+                  src={`https://www.youtube.com/embed/${youtubeId}`}
+                  allowFullScreen
+                  title={nom}
+                />
+              </div>
+            </div>
+          );
+        }
         return (
           <div className="mt-3 flex flex-col gap-2">
             <audio controls className="w-full rounded-md shadow-sm">
@@ -286,31 +303,35 @@ const Ressources = () => {
             </a>
           </div>
         );
+      }
 
       case 'guide':
-        // PDF/Guide : on privilégie l'ouverture "dans l'appli" (nouvel onglet
-        // interne au domaine), sans jamais renvoyer vers /devenir-premium.
+      case 'guide_pratique':
+        // PDF/Guide : lecture intégrée dans la page (iframe), on ne quitte le site
+        // que si le navigateur ne peut vraiment pas l'afficher en interne.
         return (
           <div className="mt-3 text-gray-800">
             <p className="break-words">{description}</p>
             {lienFichier && (
-              <a
-                href={lienFichier}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-                onClick={(e) => e.stopPropagation()}
-              >
-                {isPdfLink(lienFichier) ? (
-                  <>
-                    <FileText className="w-4 h-4 shrink-0" /> Ouvrir le guide (PDF)
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-4 h-4 shrink-0" /> Consulter le guide
-                  </>
-                )}
-              </a>
+              isPdfLink(lienFichier) ? (
+                <div className="mt-2 rounded overflow-hidden shadow-sm border border-gray-200">
+                  <iframe
+                    src={lienFichier}
+                    className="w-full h-[500px]"
+                    title={nom}
+                  />
+                </div>
+              ) : (
+                <a
+                  href={lienFichier}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="w-4 h-4 shrink-0" /> Consulter le guide
+                </a>
+              )
             )}
           </div>
         );
@@ -320,15 +341,25 @@ const Ressources = () => {
           <div className="mt-3 text-gray-800">
             <p className="break-words">{description}</p>
             {lienFichier && (
-              <a
-                href={lienFichier}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <Download className="w-4 h-4 shrink-0" /> Consulter
-              </a>
+              isPdfLink(lienFichier) ? (
+                <div className="mt-2 rounded overflow-hidden shadow-sm border border-gray-200">
+                  <iframe
+                    src={lienFichier}
+                    className="w-full h-[500px]"
+                    title={nom}
+                  />
+                </div>
+              ) : (
+                <a
+                  href={lienFichier}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 mt-2 text-indigo-600 font-semibold no-underline hover:text-indigo-800 hover:no-underline transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 rounded"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <Download className="w-4 h-4 shrink-0" /> Consulter
+                </a>
+              )
             )}
           </div>
         );
@@ -348,6 +379,8 @@ const Ressources = () => {
     podcast: '🎧',
     article: '📝',
     livre: '📖',
+    guide: '📘',
+    guide_pratique: '📘',
     autres: '🔖',
   };
 

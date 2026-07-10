@@ -130,6 +130,14 @@ const MesReservations = () => {
   };
 
   const handleAnnuler = async (res) => {
+    // Garde-fou côté front : on ne tente même pas l'appel si le statut affiché
+    // ne permet déjà plus l'annulation (évite un aller-retour serveur inutile
+    // et donne tout de suite un message clair à l'utilisateur).
+    if (res.statut !== 'EN_ATTENTE' && res.statut !== 'EN_ATTENTE_PAIEMENT') {
+      toast.error(`Cette réservation ne peut plus être annulée (statut actuel : ${STATUT_CONFIG[res.statut]?.label || res.statut}).`);
+      return;
+    }
+
     setAnnulation(true);
     try {
       await api.delete(`/reservations/annuler/${res.id}`);
@@ -138,18 +146,27 @@ const MesReservations = () => {
       toast.success('Réservation annulée.');
     } catch (err) {
       console.error('Annulation échouée:', err.response?.status, err.response?.data);
-      const msg = err.response?.data?.error || "Erreur lors de l'annulation.";
-      toast.error(msg);
 
-      // Le statut affiché était probablement périmé (ex: réservation payée
-      // entre-temps). On resynchronise la liste et le détail affiché.
+      // On resynchronise d'abord pour connaître le VRAI statut actuel côté
+      // serveur, afin de donner un message précis plutôt qu'un message générique.
       const fresh = await fetchReservations();
-      if (fresh) {
-        const updated = fresh.find(r => r.id === res.id);
-        setSelected(updated || null);
+      const updated = fresh ? fresh.find(r => r.id === res.id) : null;
+
+      if (updated && updated.statut !== 'EN_ATTENTE' && updated.statut !== 'EN_ATTENTE_PAIEMENT') {
+        toast.error(`Impossible d'annuler : cette réservation est maintenant "${STATUT_CONFIG[updated.statut]?.label || updated.statut}".`);
+      } else if (err.response?.status === 404) {
+        toast.error("Cette réservation n'existe plus.");
+      } else if (err.response?.status === 403) {
+        // Le backend renvoie 403 à la fois pour "non autorisé" et pour
+        // "statut invalide pour annulation" (ex: déjà payée) — on affiche
+        // son message précis plutôt qu'un texte générique qui masquerait la vraie raison.
+        toast.error(err.response?.data?.error || "Cette réservation ne peut pas être annulée.");
       } else {
-        setSelected(null);
+        const msg = err.response?.data?.error || "Erreur lors de l'annulation. Veuillez réessayer.";
+        toast.error(msg);
       }
+
+      setSelected(updated || null);
     } finally {
       setAnnulation(false);
     }
@@ -166,8 +183,18 @@ const MesReservations = () => {
       await new Promise(r => setTimeout(r, 0));
       setReservations(prev => prev.filter(r => r.id !== res.id));
       toast.success('Réservation supprimée.');
-    } catch {
-      toast.error('Erreur lors de la suppression.');
+    } catch (err) {
+      console.error('Suppression échouée:', err.response?.status, err.response?.data);
+      if (err.response?.status === 404) {
+        toast.error("Cette réservation n'existe plus.");
+      } else if (err.response?.status === 403) {
+        toast.error("Vous n'êtes pas autorisé à supprimer cette réservation.");
+      } else if (err.response?.status === 400) {
+        toast.error("Cette réservation ne peut pas être supprimée dans son état actuel.");
+      } else {
+        const msg = err.response?.data?.error || "Erreur lors de la suppression. Veuillez réessayer.";
+        toast.error(msg);
+      }
     } finally {
       setDeleting(false);
     }
@@ -325,6 +352,12 @@ const MesReservations = () => {
                     <><XCircle size={16} /> Annuler la réservation</>
                   )}
                 </button>
+              )}
+              {/* Statut ne permettant plus l'annulation : message explicite au lieu de ne rien afficher */}
+              {selected.statut !== 'EN_ATTENTE' && selected.statut !== 'EN_ATTENTE_PAIEMENT' && selected.statut !== 'ANNULEE' && selected.statut !== 'REFUSE' && (
+                <p className="text-xs text-slate-400 text-center px-2">
+                  Cette réservation ne peut plus être annulée (statut : {STATUT_CONFIG[selected.statut]?.label || selected.statut}).
+                </p>
               )}
               {canDelete(selected) && (
                 <button
