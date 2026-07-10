@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertTriangle,
+  Search,
   PlayCircle,
   Headphones,
   Quote,
@@ -41,17 +42,12 @@ const Ressources = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUserPremium, setIsUserPremium] = useState(false);
+  const [notConnectedMessage, setNotConnectedMessage] = useState('');
   // Recherche discrète — n'affecte que l'affichage, aucune logique métier.
   const [searchQuery, setSearchQuery] = useState('');
   // Favoris + partage — état purement local/visuel, n'affecte aucune logique métier.
   const [favorites, setFavorites] = useState(() => new Set());
   const [toast, setToast] = useState('');
-
-  // Toast réutilisé partout (auth requise, partage de lien, etc.)
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2500);
-  };
 
   const fetchFonctionnalites = useCallback(async () => {
     setLoading(true);
@@ -101,17 +97,9 @@ const Ressources = () => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      // Toast moderne au lieu d'une redirection immédiate,
-      // puis redirection différée vers la connexion.
-      showToast("🔒 Vous devez être connecté pour accéder aux ressources.\nRedirection vers la page de connexion...");
-      setUserReady(true);
-      fetchFonctionnalites();
-
-      const redirectTimer = setTimeout(() => {
-        navigate("/connexion");
-      }, 2500);
-
-      return () => clearTimeout(redirectTimer);
+      setNotConnectedMessage("⚠️ Vous devez être connecté");
+      navigate("/connexion");
+      return;
     }
 
     const fetchUserInfo = async () => {
@@ -149,6 +137,25 @@ const Ressources = () => {
       return matchesCategory && matchesSearch;
     });
   }, [fonctionnalites, selectedCategory, categoriesOrder, searchQuery]);
+
+  if (notConnectedMessage) {
+    return (
+      <Layout>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          className="max-w-md mx-auto mt-16 sm:mt-20 p-6 sm:p-8 bg-red-50 border border-red-300 rounded-lg shadow-lg flex flex-col items-center gap-4 select-none mx-4"
+        >
+          <AlertTriangle className="w-12 h-12 text-red-500 shrink-0" />
+          <h2 className="text-lg sm:text-xl font-semibold text-red-700 text-center">
+            ⚠️ Vous devez être connecté pour accéder aux ressources.
+          </h2>
+          <p className="text-red-600 text-center text-sm sm:text-base">Vous allez être redirigé vers la page de connexion...</p>
+        </motion.div>
+      </Layout>
+    );
+  }
 
   const gratuits = filteredFonctionnalites.filter(f => !f.premium);
   const premiums = filteredFonctionnalites.filter(f => f.premium);
@@ -392,6 +399,11 @@ const Ressources = () => {
     return f.lienFichier || null;
   };
 
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2000);
+  };
+
   const toggleFavorite = (e, id) => {
     e.stopPropagation();
     setFavorites(prev => {
@@ -626,15 +638,9 @@ const Ressources = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4"
+            className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 max-w-[90vw] text-center"
           >
-            <div
-              className="flex items-start gap-2 text-white text-sm px-4 py-3 rounded-2xl shadow-lg"
-              style={{ backgroundColor: '#EF4444' }}
-            >
-              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span className="whitespace-pre-line text-left">{toast}</span>
-            </div>
+            {toast}
           </motion.div>
         )}
       </AnimatePresence>
