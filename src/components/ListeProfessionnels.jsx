@@ -65,18 +65,20 @@ const ListeProfessionnels = () => {
   }, []);
 
   useEffect(() => {
-    const fetchProfessionnels = async () => {
-      try {
-        const res = await api.get('/professionnels/tous');
-        setProfessionnels(res.data);
-        setError('');
-        const specs = Array.from(new Set(res.data.map(p => p.specialite))).sort();
-        setSpecialites(specs);
-      } catch (err) {
-        console.error(err);
-        setError("❌ Impossible de charger les professionnels.");
-      }
-    };
+const fetchProfessionnels = async () => {
+  try {
+    const res = await api.get('/professionnels/tous');
+    // Ne garder que les professionnels validés par l'admin
+    const proValides = res.data.filter(p => p.statutValidation === 'VALIDE');
+    setProfessionnels(proValides);
+    setError('');
+    const specs = Array.from(new Set(proValides.map(p => p.specialite))).sort();
+    setSpecialites(specs);
+  } catch (err) {
+    console.error(err);
+    setError("❌ Impossible de charger les professionnels.");
+  }
+};
     fetchProfessionnels();
   }, []);
 

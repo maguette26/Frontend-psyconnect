@@ -4,7 +4,7 @@ import { getChatHistory } from "../services/api";
 import { useWebSocket } from "../hooks/useWebSocket";
 import {
   Send, Video, ArrowLeft, Clock, CheckCircle,
-  MessageCircle, Shield, Lock, Calendar, Stethoscope,
+  MessageCircle, Shield, Lock, Calendar, Stethoscope, X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -182,7 +182,7 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
           display: "flex", alignItems: "center", gap: 12,
         }}
       >
-        <BackButton onClick={onBack} />
+        <CloseButton onClick={onBack} />
         <span style={{ fontWeight: 700, color: T.slate900, fontSize: 15, letterSpacing: -0.3 }}>
           Consultation
         </span>
@@ -256,6 +256,39 @@ function BackButton({ onClick }) {
       }}
     >
       <ArrowLeft size={18} />
+    </motion.button>
+  );
+}
+
+/* ─── CloseButton ─── */
+// Remplace le carré "flèche retour" par une croix cliquable pour quitter
+// la consultation. Alignée avec le titre, taille 20px, couleur discrète
+// avec un survol un peu plus expressif (teinte rouge + légère rotation)
+// pour bien signaler une action de fermeture plutôt qu'un simple retour.
+function CloseButton({ onClick, label = "Fermer la consultation" }) {
+  return (
+    <motion.button
+      onClick={onClick}
+      aria-label={label}
+      title={label}
+      whileHover={{
+        scale: 1.08,
+        rotate: 90,
+        backgroundColor: T.redLight,
+        color: T.red,
+      }}
+      whileTap={{ scale: 0.9 }}
+      transition={{ type: "spring", stiffness: 320, damping: 20 }}
+      style={{
+        background: T.slate100,
+        border: "none", cursor: "pointer",
+        width: 38, height: 38, borderRadius: 12,
+        color: T.slate500,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      <X size={20} strokeWidth={2.25} />
     </motion.button>
   );
 }
