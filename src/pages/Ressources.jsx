@@ -47,10 +47,12 @@ const Ressources = () => {
   // Favoris + partage — état purement local/visuel, n'affecte aucune logique métier.
   const [favorites, setFavorites] = useState(() => new Set());
   const [toast, setToast] = useState('');
-  // Modale "connexion requise" — affichée au clic si l'utilisateur n'est pas connecté.
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  const isLoggedIn = () => !!localStorage.getItem("token");
+  // Toast réutilisé partout (auth requise, partage de lien, etc.)
+  const showToast = (msg) => {
+    setToast(msg);
+    setTimeout(() => setToast(''), 2500);
+  };
 
   const fetchFonctionnalites = useCallback(async () => {
     setLoading(true);
@@ -100,11 +102,17 @@ const Ressources = () => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      // Utilisateur non connecté : on laisse la page accessible,
-      // le message de connexion s'affichera uniquement au clic.
+      // Toast moderne au lieu d'une redirection immédiate,
+      // puis redirection différée vers la connexion.
+      showToast("🔒 Vous devez être connecté pour accéder aux ressources.\nRedirection vers la page de connexion...");
       setUserReady(true);
       fetchFonctionnalites();
-      return;
+
+      const redirectTimer = setTimeout(() => {
+        navigate("/connexion");
+      }, 2500);
+
+      return () => clearTimeout(redirectTimer);
     }
 
     const fetchUserInfo = async () => {
@@ -385,11 +393,6 @@ const Ressources = () => {
     return f.lienFichier || null;
   };
 
-  const showToast = (msg) => {
-    setToast(msg);
-    setTimeout(() => setToast(''), 2000);
-  };
-
   const toggleFavorite = (e, id) => {
     e.stopPropagation();
     setFavorites(prev => {
@@ -416,27 +419,8 @@ const Ressources = () => {
     }
   };
 
-  // Clic sur une carte Gratuite : nécessite d'être connecté.
-  const handleFreeCardClick = (url) => {
-    if (!isLoggedIn()) {
-      setShowAuthModal(true);
-      return;
-    }
-    if (url) {
-      if (url.startsWith('/')) {
-        navigate(url);
-      } else {
-        window.open(url, '_blank', 'noopener noreferrer');
-      }
-    }
-  };
-
   // Clic sur une carte Premium : accès direct pour Premium/Admin, redirection sinon.
   const handlePremiumCardClick = (f) => {
-    if (!isLoggedIn()) {
-      setShowAuthModal(true);
-      return;
-    }
     if (!userReady) return;
     if (!isUserPremium) {
       navigate('/devenir-premium');
@@ -517,7 +501,15 @@ const Ressources = () => {
                             whileHover="hover"
                             whileTap={{ scale: 0.99 }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            onClick={() => handleFreeCardClick(url)}
+                            onClick={() => {
+                              if (url) {
+                                if (url.startsWith('/')) {
+                                  navigate(url);
+                                } else {
+                                  window.open(url, '_blank', 'noopener noreferrer');
+                                }
+                              }
+                            }}
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
@@ -635,51 +627,15 @@ const Ressources = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 max-w-[90vw] text-center"
+            className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4"
           >
-            {toast}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {showAuthModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
-            onClick={() => setShowAuthModal(false)}
-          >
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 20 }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center"
+            <div
+              className="flex items-start gap-2 text-white text-sm px-4 py-3 rounded-2xl shadow-lg"
+              style={{ backgroundColor: '#EF4444' }}
             >
-              <AlertTriangle className="w-10 h-10 text-indigo-500 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                Connexion requise
-              </h3>
-              <p className="text-gray-600 text-sm mb-5">
-                Vous devez être connecté ou créer un compte pour accéder à cette ressource.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-2 justify-center">
-                <button
-                  onClick={() => navigate('/connexion')}
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors"
-                >
-                  Se connecter
-                </button>
-                <button
-                  onClick={() => navigate('/inscription/utilisateur')}
-                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors"
-                >
-                  Créer un compte
-                </button>
-              </div>
-            </motion.div>
+              <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" />
+              <span className="whitespace-pre-line text-left">{toast}</span>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
