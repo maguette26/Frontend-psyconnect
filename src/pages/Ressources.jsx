@@ -42,12 +42,15 @@ const Ressources = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUserPremium, setIsUserPremium] = useState(false);
-  const [notConnectedMessage, setNotConnectedMessage] = useState('');
   // Recherche discrète — n'affecte que l'affichage, aucune logique métier.
   const [searchQuery, setSearchQuery] = useState('');
   // Favoris + partage — état purement local/visuel, n'affecte aucune logique métier.
   const [favorites, setFavorites] = useState(() => new Set());
   const [toast, setToast] = useState('');
+  // Modale "connexion requise" — affichée au clic si l'utilisateur n'est pas connecté.
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  const isLoggedIn = () => !!localStorage.getItem("token");
 
   const fetchFonctionnalites = useCallback(async () => {
     setLoading(true);
@@ -97,8 +100,10 @@ const Ressources = () => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      setNotConnectedMessage("⚠️ Vous devez être connecté");
-      navigate("/connexion");
+      // Utilisateur non connecté : on laisse la page accessible,
+      // le message de connexion s'affichera uniquement au clic.
+      setUserReady(true);
+      fetchFonctionnalites();
       return;
     }
 
@@ -137,25 +142,6 @@ const Ressources = () => {
       return matchesCategory && matchesSearch;
     });
   }, [fonctionnalites, selectedCategory, categoriesOrder, searchQuery]);
-
-  if (notConnectedMessage) {
-    return (
-      <Layout>
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="max-w-md mx-auto mt-16 sm:mt-20 p-6 sm:p-8 bg-red-50 border border-red-300 rounded-lg shadow-lg flex flex-col items-center gap-4 select-none mx-4"
-        >
-          <AlertTriangle className="w-12 h-12 text-red-500 shrink-0" />
-          <h2 className="text-lg sm:text-xl font-semibold text-red-700 text-center">
-            ⚠️ Vous devez être connecté pour accéder aux ressources.
-          </h2>
-          <p className="text-red-600 text-center text-sm sm:text-base">Vous allez être redirigé vers la page de connexion...</p>
-        </motion.div>
-      </Layout>
-    );
-  }
 
   const gratuits = filteredFonctionnalites.filter(f => !f.premium);
   const premiums = filteredFonctionnalites.filter(f => f.premium);
@@ -430,8 +416,27 @@ const Ressources = () => {
     }
   };
 
+  // Clic sur une carte Gratuite : nécessite d'être connecté.
+  const handleFreeCardClick = (url) => {
+    if (!isLoggedIn()) {
+      setShowAuthModal(true);
+      return;
+    }
+    if (url) {
+      if (url.startsWith('/')) {
+        navigate(url);
+      } else {
+        window.open(url, '_blank', 'noopener noreferrer');
+      }
+    }
+  };
+
   // Clic sur une carte Premium : accès direct pour Premium/Admin, redirection sinon.
   const handlePremiumCardClick = (f) => {
+    if (!isLoggedIn()) {
+      setShowAuthModal(true);
+      return;
+    }
     if (!userReady) return;
     if (!isUserPremium) {
       navigate('/devenir-premium');
@@ -512,15 +517,7 @@ const Ressources = () => {
                             whileHover="hover"
                             whileTap={{ scale: 0.99 }}
                             transition={{ duration: 0.3, ease: 'easeOut' }}
-                            onClick={() => {
-                              if (url) {
-                                if (url.startsWith('/')) {
-                                  navigate(url);
-                                } else {
-                                  window.open(url, '_blank', 'noopener noreferrer');
-                                }
-                              }
-                            }}
+                            onClick={() => handleFreeCardClick(url)}
                           >
                             <div>
                               <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
@@ -641,6 +638,48 @@ const Ressources = () => {
             className="fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50 max-w-[90vw] text-center"
           >
             {toast}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showAuthModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+            onClick={() => setShowAuthModal(false)}
+          >
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-2xl shadow-xl p-6 max-w-sm w-full text-center"
+            >
+              <AlertTriangle className="w-10 h-10 text-indigo-500 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Connexion requise
+              </h3>
+              <p className="text-gray-600 text-sm mb-5">
+                Vous devez être connecté ou créer un compte pour accéder à cette ressource.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-2 justify-center">
+                <button
+                  onClick={() => navigate('/connexion')}
+                  className="px-4 py-2 bg-indigo-600 text-white rounded-lg font-medium text-sm hover:bg-indigo-700 transition-colors"
+                >
+                  Se connecter
+                </button>
+                <button
+                  onClick={() => navigate('/inscription/utilisateur')}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg font-medium text-sm hover:bg-gray-200 transition-colors"
+                >
+                  Créer un compte
+                </button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
