@@ -1,37 +1,62 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 const PremiumSuccess = () => {
   const navigate = useNavigate();
+  // Évite un double-appel en StrictMode / re-render
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     let isMounted = true;
 
-   const refreshUser = async () => {
-  try {
-    const res = await api.get("/auth/me");
+    const refreshUser = async () => {
+      try {
+        // 1. Récupérer un nouveau token JWT contenant le rôle à jour (PREMIUM).
+        //    Nécessaire si un autre endroit du code décode le JWT directement
+        //    plutôt que d'appeler /auth/me.
+        try {
+          const tokenRes = await api.post("/auth/refresh-token");
+          if (tokenRes.data?.token) {
+            localStorage.setItem("token", tokenRes.data.token);
+          }
+        } catch (tokenErr) {
+          // Non bloquant : si l'endpoint refresh-token n'existe pas encore
+          // côté backend, on continue avec /auth/me quand même.
+          console.warn("refresh-token indisponible :", tokenErr);
+        }
 
-    // Vérifier ce que retourne /auth/me APRÈS le paiement
-    console.log("User après paiement:", res.data);
+        // 2. Relire les infos utilisateur à jour (rôle, id, etc.)
+        const res = await api.get("/auth/me");
+        console.log("User après paiement:", res.data);
 
-    // Si votre backend retourne un nouveau token ici, le stocker
-    if (res.data.token) {
-      localStorage.setItem("token", res.data.token);
-    }
+        if (!isMounted) return;
 
-    localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
-    localStorage.setItem("role", res.data.role);
-window.dispatchEvent(new Event("roleChange"));
-    
+        localStorage.setItem("currentUserInfo", JSON.stringify(res.data));
+        localStorage.setItem("role", res.data.role);
 
-    if (isMounted) {
-      setTimeout(() => navigate("/ressources", { replace: true }), 300);
-    }
-  } catch (err) {
-    console.error(err);
-  }
-};
+        // 3. Prévenir tous les composants (dont Header) que le rôle a changé
+        window.dispatchEvent(new Event("roleChange"));
+        window.dispatchEvent(new Event("user-updated"));
+
+        setTimeout(() => {
+          if (isMounted) navigate("/ressources", { replace: true });
+        }, 300);
+      } catch (err) {
+        console.error("Erreur lors du rafraîchissement du profil :", err);
+        if (isMounted) {
+          // En cas d'échec, on redirige quand même pour ne pas bloquer
+          // l'utilisateur sur cette page ; le rôle se rafraîchira au
+          // prochain /auth/me appelé ailleurs dans l'app.
+          setTimeout(() => {
+            if (isMounted) navigate("/ressources", { replace: true });
+          }, 1000);
+        }
+      }
+    };
 
     refreshUser();
 

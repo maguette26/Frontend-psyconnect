@@ -9,8 +9,8 @@ import {
 } from 'lucide-react';
 
 // ─── Clés localStorage utilisées à la connexion ───────────────────────────────
-// Stocke : role = "ROLE_USER" | "ROLE_PSYCHIATRE" | "ROLE_PSYCHOLOGUE" | "ROLE_ADMIN"
-// OU      role = "UTILISATEUR" | "PSYCHIATRE" | "PSYCHOLOGUE" | "ADMIN"
+// Stocke : role = "ROLE_USER" | "ROLE_PSYCHIATRE" | "ROLE_PSYCHOLOGUE" | "ROLE_ADMIN" | "ROLE_PREMIUM"
+// OU      role = "UTILISATEUR" | "PSYCHIATRE" | "PSYCHOLOGUE" | "ADMIN" | "PREMIUM"
 // On normalise ici pour les deux formats.
 const normalizeRole = (raw) => {
   if (!raw) return null;
@@ -63,15 +63,35 @@ const Header = () => {
     return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
 
-  const isUser  = currentRole === 'UTILISATEUR';
+  // 🔧 CORRECTION : un utilisateur PREMIUM est un USER avec des droits en plus.
+  // Avant : isUser ne testait que 'UTILISATEUR', donc un PREMIUM tombait dans
+  // aucune des 3 catégories => showMenu = false => "Mon Espace" disparaissait
+  // du header (desktop, tablette ET bottom nav mobile), et le PREMIUM se
+  // retrouvait traité comme un visiteur non connecté dans la nav mobile.
+  const isUser  = ['UTILISATEUR', 'PREMIUM'].includes(currentRole);
   const isPro   = ['PSYCHIATRE', 'PSYCHOLOGUE'].includes(currentRole);
   const isAdmin = currentRole === 'ADMIN';
   const showMenu = isUser || isPro || isAdmin;
   const isPremium = ['PREMIUM', 'ADMIN'].includes(currentRole);
   const isAuthenticated = !!currentRole;
 
-  const espaceLink  = isUser ? '/tableauUtilisateur' : isPro ? '/tableauProfessionnel' : '/tableauAdmin';
-  const espaceLabel = isUser ? 'Espace Utilisateur'  : isPro ? 'Espace Professionnel'  : 'Espace Admin';
+  // 🔧 CORRECTION : ternaires rendus explicites (plus de "else" implicite
+  // qui redirigeait tout rôle non catégorisé vers /tableauAdmin).
+  const espaceLink = isAdmin
+    ? '/tableauAdmin'
+    : isPro
+      ? '/tableauProfessionnel'
+      : isUser
+        ? '/tableauUtilisateur'
+        : '/';
+
+  const espaceLabel = isAdmin
+    ? 'Espace Admin'
+    : isPro
+      ? 'Espace Professionnel'
+      : isUser
+        ? 'Espace Utilisateur'
+        : '';
 
   const handleDeconnexion = async () => {
     await logout();
