@@ -33,6 +33,12 @@ const TABS = [
   { key: 'profil',        label: 'Profil',          icon: <User       size={20} /> },
 ];
 
+// 🔧 Rôles autorisés à accéder au tableau de bord "utilisateur".
+// PREMIUM ajouté : un utilisateur Premium reste un USER avec des droits en plus,
+// il doit donc conserver l'accès à cet espace (avant, seul 'USER' était accepté,
+// ce qui déclenchait "Accès refusé" pour tout compte passé en PREMIUM).
+const ROLES_AUTORISES = ['USER', 'PREMIUM'];
+
 /* ─────────────────────────────────────────
    Composant principal
 ───────────────────────────────────────── */
@@ -56,7 +62,8 @@ const TableauUtilisateur = () => {
   /* chargement user */
   useEffect(() => {
     const user = getCurrentUserInfo();
-    if (user?.id && user.role === 'USER') {
+    // 🔧 CORRECTION : on accepte USER et PREMIUM (avant : seul 'USER' passait)
+    if (user?.id && ROLES_AUTORISES.includes(user.role)) {
       setCurrentUser(user);
     } else {
       setGlobalError('Accès refusé.');
@@ -119,7 +126,10 @@ const TableauUtilisateur = () => {
                 <p className="font-semibold text-base leading-tight text-center truncate max-w-full px-2">
                   {currentUser?.prenom} {currentUser?.nom}
                 </p>
-                <span className="text-blue-300 text-xs">Utilisateur</span>
+                {/* 🔧 Affiche le vrai rôle (Premium vs Utilisateur) au lieu d'un libellé figé */}
+                <span className="text-blue-300 text-xs">
+                  {currentUser?.role === 'PREMIUM' ? 'Membre Premium' : 'Utilisateur'}
+                </span>
               </>
             )}
           </div>
