@@ -86,12 +86,22 @@ const MesReservations = () => {
   const [selected, setSelected]           = useState(null);
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [deleting, setDeleting]           = useState(false);
+  const [annulation, setAnnulation]       = useState(false);
+
+  const fetchReservations = useCallback(async () => {
+    try {
+      const r = await api.get('/reservations/mes-reservations');
+      setReservations(r.data);
+      return r.data;
+    } catch (e) {
+      setError(e.message);
+      return null;
+    }
+  }, []);
 
   useEffect(() => {
-    api.get('/reservations/mes-reservations')
-      .then(r => setReservations(r.data))
-      .catch(e => setError(e.message));
-  }, []);
+    fetchReservations();
+  }, [fetchReservations]);
 
   const canDelete = useCallback((res) =>
     res.statut === 'ANNULEE' || res.statut === 'REFUSE'
@@ -108,17 +118,42 @@ const MesReservations = () => {
     }
   };
 
- const handleAnnuler = async (res) => {
-  try {
-    await api.delete(`/reservations/annuler/${res.id}`);
-    setSelected(null);
-    setReservations(prev => prev.filter(r => r.id !== res.id));
-    toast.success('Réservation annulée.');
-  } catch (err) {
-    console.error('Annulation échouée:', err.response?.status, err.response?.data);
-    toast.error("Erreur lors de l'annulation.");
-  }
-};
+  // Ouverture du détail : on resynchronise avant d'afficher, pour éviter
+  // de montrer des actions (ex: Annuler) basées sur un statut périmé.
+  const openDetail = async (res) => {
+    setSelected(res);
+    const fresh = await fetchReservations();
+    if (fresh) {
+      const updated = fresh.find(r => r.id === res.id);
+      if (updated) setSelected(updated);
+    }
+  };
+
+  const handleAnnuler = async (res) => {
+    setAnnulation(true);
+    try {
+      await api.delete(`/reservations/annuler/${res.id}`);
+      setSelected(null);
+      setReservations(prev => prev.filter(r => r.id !== res.id));
+      toast.success('Réservation annulée.');
+    } catch (err) {
+      console.error('Annulation échouée:', err.response?.status, err.response?.data);
+      const msg = err.response?.data?.error || "Erreur lors de l'annulation.";
+      toast.error(msg);
+
+      // Le statut affiché était probablement périmé (ex: réservation payée
+      // entre-temps). On resynchronise la liste et le détail affiché.
+      const fresh = await fetchReservations();
+      if (fresh) {
+        const updated = fresh.find(r => r.id === res.id);
+        setSelected(updated || null);
+      } else {
+        setSelected(null);
+      }
+    } finally {
+      setAnnulation(false);
+    }
+  };
 
   const handleDelete = async (res) => {
     setDeleting(true);
@@ -198,7 +233,7 @@ const MesReservations = () => {
             <div
               key={res.id}
               className="bg-white border border-slate-200 rounded-2xl shadow-sm hover:shadow-md transition-shadow cursor-pointer group overflow-hidden"
-              onClick={() => setSelected(res)}
+              onClick={() => openDetail(res)}
             >
               <div className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4">
                 <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl bg-indigo-50 flex items-center justify-center text-indigo-500 flex-shrink-0">
@@ -237,7 +272,7 @@ const MesReservations = () => {
       )}
 
       {/* MODAL DÉTAIL */}
-      <Modal open={!!selected} onClose={() => setSelected(null)}>
+      <Modal open={!!selected} onClose={() => !annulation && setSelected(null)}>
         {selected && (
           <>
             <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 flex items-center justify-between gap-3">
@@ -275,9 +310,20 @@ const MesReservations = () => {
               {(selected.statut === 'EN_ATTENTE' || selected.statut === 'EN_ATTENTE_PAIEMENT') && (
                 <button
                   onClick={() => handleAnnuler(selected)}
-                  className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition"
+                  disabled={annulation}
+                  className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 text-white font-semibold text-sm flex items-center justify-center gap-2 transition disabled:opacity-60"
                 >
-                  <XCircle size={16} /> Annuler la réservation
+                  {annulation ? (
+                    <>
+                      <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                      </svg>
+                      Annulation…
+                    </>
+                  ) : (
+                    <><XCircle size={16} /> Annuler la réservation</>
+                  )}
                 </button>
               )}
               {canDelete(selected) && (
