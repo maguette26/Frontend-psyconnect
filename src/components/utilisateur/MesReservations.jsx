@@ -157,9 +157,7 @@ const MesReservations = () => {
       } else if (err.response?.status === 404) {
         toast.error("Cette réservation n'existe plus.");
       } else if (err.response?.status === 403) {
-        // Le backend renvoie 403 à la fois pour "non autorisé" et pour
-        // "statut invalide pour annulation" (ex: déjà payée) — on affiche
-        // son message précis plutôt qu'un texte générique qui masquerait la vraie raison.
+       
         toast.error(err.response?.data?.error || "Cette réservation ne peut pas être annulée.");
       } else {
         const msg = err.response?.data?.error || "Erreur lors de l'annulation. Veuillez réessayer.";

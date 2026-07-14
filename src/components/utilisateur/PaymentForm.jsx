@@ -152,7 +152,7 @@ const PaymentForm = ({ reservationId, onClose, onPaymentSuccess }) => {
       successUrl: window.location.origin + '/payment-success',
       cancelUrl:  window.location.origin + '/payment-cancel',
       currency: 'EUR',
-    }, { timeout: 55000 }).then(r => r.data)
+    }, { timeout: 15000 }).then(r => r.data)
   , [reservationId, paymentMethod]);
 
   /* ── Init Stripe ── */

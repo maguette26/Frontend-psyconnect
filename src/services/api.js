@@ -3,7 +3,7 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: 'https://backend-psyconnect.up.railway.app/api',
   withCredentials: false,
-  timeout: 30000,
+  timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -43,8 +43,8 @@ api.interceptors.response.use((response) => {
 });
 
 // ─── Intercepteur de réponse : gestion des erreurs 401 + retry réseau ────────
-const MAX_RETRIES = 3;
-const BASE_DELAY = 1500; // ms
+const MAX_RETRIES = 1;
+const BASE_DELAY = 500; // ms
 
 const isRetryable = (error) => {
   if (!error.response) return true; // réseau / timeout
