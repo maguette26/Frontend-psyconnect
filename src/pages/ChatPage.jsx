@@ -154,6 +154,177 @@ const statusScreenVariants = {
   },
 };
 
+/* ─── QuitButton (remplace l'ancien CloseButton) ───
+   Bouton "Quitter" explicite avec icône, tooltip au survol et popover
+   de confirmation avant d'exécuter onClick (= navigate(getBackRoute())).
+   Aucune logique métier modifiée : la fonction passée en onClick est
+   strictement la même qu'avant, simplement appelée après confirmation.
+*/
+function QuitButton({ onClick, label = "Quitter la consultation" }) {
+  const [open, setOpen] = useState(false);
+  const [hovered, setHovered] = useState(false);
+  const popoverRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClickOutside = (e) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const handleEsc = (e) => { if (e.key === "Escape") setOpen(false); };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEsc);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEsc);
+    };
+  }, [open]);
+
+  const confirmQuit = () => {
+    setOpen(false);
+    onClick();
+  };
+
+  return (
+    <div style={{ position: "relative", flexShrink: 0 }} ref={popoverRef}>
+      <motion.button
+        onClick={() => setOpen((v) => !v)}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        aria-label={label}
+        whileHover={{
+          scale: 1.02,
+          backgroundColor: T.redLight,
+          borderColor: "#FCA5A5",
+        }}
+        whileTap={{ scale: 0.96 }}
+        transition={{ type: "spring", stiffness: 340, damping: 22 }}
+        style={{
+          display: "flex", alignItems: "center", gap: 7,
+          background: T.slate100,
+          border: `1.5px solid transparent`,
+          cursor: "pointer",
+          height: 38, padding: "0 14px", borderRadius: 12,
+          color: T.slate500,
+          fontSize: 12.5, fontWeight: 700,
+          letterSpacing: 0.1,
+        }}
+      >
+        <motion.span
+          animate={hovered || open ? { rotate: 90, color: T.red } : { rotate: 0, color: T.slate500 }}
+          transition={{ type: "spring", stiffness: 320, damping: 20 }}
+          style={{ display: "flex", alignItems: "center" }}
+        >
+          <X size={16} strokeWidth={2.4} />
+        </motion.span>
+        <motion.span
+          animate={{ color: hovered || open ? T.red : T.slate500 }}
+          transition={{ duration: 0.18 }}
+        >
+          Quitter
+        </motion.span>
+      </motion.button>
+
+      {/* Tooltip au survol (masqué quand le popover de confirmation est ouvert) */}
+      <AnimatePresence>
+        {hovered && !open && (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            style={{
+              position: "absolute", top: "calc(100% + 8px)", left: 0,
+              background: T.slate900, color: "#fff",
+              fontSize: 11, fontWeight: 600,
+              padding: "6px 10px", borderRadius: 8,
+              whiteSpace: "nowrap",
+              boxShadow: "0 6px 20px rgba(15,23,42,0.25)",
+              zIndex: 30, pointerEvents: "none",
+            }}
+          >
+            Quitter la consultation
+            <div style={{
+              position: "absolute", top: -4, left: 14,
+              width: 8, height: 8, background: T.slate900,
+              transform: "rotate(45deg)",
+            }} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Popover de confirmation */}
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: -6, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -6, scale: 0.96 }}
+            transition={{ type: "spring", stiffness: 380, damping: 26 }}
+            style={{
+              position: "absolute", top: "calc(100% + 10px)", left: 0,
+              width: 260,
+              background: T.white,
+              borderRadius: 16,
+              border: `1px solid ${T.border}`,
+              boxShadow: "0 16px 40px rgba(15,23,42,0.16)",
+              padding: 16,
+              zIndex: 40,
+            }}
+          >
+            <div style={{ display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 12 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 10, flexShrink: 0,
+                background: T.redLight,
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <X size={16} color={T.red} strokeWidth={2.4} />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: 13.5, fontWeight: 700, color: T.slate900 }}>
+                  Quitter la consultation ?
+                </p>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: T.slate500, lineHeight: 1.5 }}>
+                  Vous pourrez y revenir à tout moment depuis vos consultations.
+                </p>
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 8 }}>
+              <motion.button
+                whileHover={{ backgroundColor: T.slate100 }}
+                whileTap={{ scale: 0.97 }}
+                onClick={() => setOpen(false)}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 10,
+                  border: `1px solid ${T.slate200}`,
+                  background: T.white, color: T.slate700,
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                Annuler
+              </motion.button>
+              <motion.button
+                whileHover={{ y: -1, boxShadow: "0 6px 18px rgba(239,68,68,0.35)" }}
+                whileTap={{ scale: 0.97 }}
+                onClick={confirmQuit}
+                style={{
+                  flex: 1, padding: "9px 0", borderRadius: 10,
+                  border: "none",
+                  background: T.red, color: "#fff",
+                  fontSize: 12.5, fontWeight: 700, cursor: "pointer",
+                }}
+              >
+                Quitter
+              </motion.button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 /* ─── StatusScreen ─── */
 function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
   return (
@@ -182,7 +353,7 @@ function StatusScreen({ icon: Icon, color, bgColor, title, subtitle, onBack }) {
           display: "flex", alignItems: "center", gap: 12,
         }}
       >
-        <CloseButton onClick={onBack} />
+        <QuitButton onClick={onBack} />
         <span style={{ fontWeight: 700, color: T.slate900, fontSize: 15, letterSpacing: -0.3 }}>
           Consultation
         </span>
@@ -256,39 +427,6 @@ function BackButton({ onClick }) {
       }}
     >
       <ArrowLeft size={18} />
-    </motion.button>
-  );
-}
-
-/* ─── CloseButton ─── */
-// Remplace le carré "flèche retour" par une croix cliquable pour quitter
-// la consultation. Alignée avec le titre, taille 20px, couleur discrète
-// avec un survol un peu plus expressif (teinte rouge + légère rotation)
-// pour bien signaler une action de fermeture plutôt qu'un simple retour.
-function CloseButton({ onClick, label = "Fermer la consultation" }) {
-  return (
-    <motion.button
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      whileHover={{
-        scale: 1.08,
-        rotate: 90,
-        backgroundColor: T.redLight,
-        color: T.red,
-      }}
-      whileTap={{ scale: 0.9 }}
-      transition={{ type: "spring", stiffness: 320, damping: 20 }}
-      style={{
-        background: T.slate100,
-        border: "none", cursor: "pointer",
-        width: 38, height: 38, borderRadius: 12,
-        color: T.slate500,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        flexShrink: 0,
-      }}
-    >
-      <X size={20} strokeWidth={2.25} />
     </motion.button>
   );
 }
@@ -882,7 +1020,6 @@ export default function ChatPage({ currentUser }) {
           zIndex: 10, position: "relative",
         }}
       >
-        <BackButton onClick={() => navigate(getBackRoute())} />
         <Avatar prenom={pro.prenom} nom={pro.nom} size={44} online={connected} />
         <div style={{ flex: 1, minWidth: 0 }}>
           <p style={{
@@ -958,6 +1095,10 @@ export default function ChatPage({ currentUser }) {
               {connected ? "En ligne" : "Hors ligne"}
             </motion.div>
           )}
+
+          <div style={{ width: 1, height: 22, background: T.slate200, margin: "0 2px", flexShrink: 0 }} />
+
+          <QuitButton onClick={() => navigate(getBackRoute())} />
         </div>
       </motion.div>
 
