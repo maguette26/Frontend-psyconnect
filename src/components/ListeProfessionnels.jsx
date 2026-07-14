@@ -12,6 +12,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ArrowUpDown,
   BadgeCheck,
   MessagesSquare,
@@ -37,6 +38,36 @@ const getInitiales = (prenom, nom) => {
   const n = nom?.charAt(0)?.toUpperCase() || '';
   return `${p}${n}` || '?';
 };
+
+/* ─────────────────── SCROLL INDICATOR (nouveau) ───────────────────
+   Bloc discret invitant à découvrir la suite de la page.
+   - Fade-in au montage
+   - Rebond infini de la flèche (Framer Motion)
+   - Clic → scrollIntoView sur le ref de la section cible (jamais window.scrollTo)
+*/
+const ScrollIndicator = ({ onClick }) => (
+  <motion.button
+    type="button"
+    onClick={onClick}
+    initial={{ opacity: 0 }}
+    animate={{ opacity: 1 }}
+    transition={{ duration: 0.8, delay: 0.3, ease: 'easeOut' }}
+    whileHover={{ opacity: 0.75 }}
+    className="group flex flex-col items-center justify-center gap-2 mx-auto bg-transparent border-none cursor-pointer select-none"
+    aria-label="Découvrir nos professionnels"
+  >
+    <span className="text-xs sm:text-sm font-medium text-slate-400 group-hover:text-blue-600 tracking-wide transition-colors">
+      Découvrez nos professionnels
+    </span>
+    <motion.span
+      animate={{ y: [0, 6, 0] }}
+      transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+      className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors"
+    >
+      <ChevronDown className="w-4 h-4" />
+    </motion.span>
+  </motion.button>
+);
 
 const ListeProfessionnels = () => {
   const [step, setStep] = useState(1);
@@ -319,6 +350,11 @@ const fetchProfessionnels = async () => {
                     className="w-full h-auto rounded-3xl shadow-lg object-cover"
                   />
                 </motion.div>
+              </div>
+
+              {/* ------------------- INDICATEUR DE SCROLL (nouveau) ------------------- */}
+              <div className="flex justify-center -mt-6 sm:-mt-10">
+                <ScrollIndicator onClick={scrollVersComparatif} />
               </div>
 
               {/* ------------------- COMPARATIF PSYCHOLOGUE / PSYCHIATRE ------------------- */}

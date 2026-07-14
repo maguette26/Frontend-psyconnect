@@ -136,12 +136,10 @@ const Connexion = () => {
                     className="pc-input w-full pl-10 pr-11 py-3 rounded-2xl bg-slate-50 border border-transparent text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100 transition"
                   />
                   <button
-                    type="button"
-                    onClick={() => setShowPassword((s) => !s)}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 flex items-center justify-center w-8 h-8 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition shrink-0 z-10"
-                    tabIndex={-1}
-                    aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                  >
+  type="button"
+  onClick={() => setShowPassword((s) => !s)}
+  className="absolute right-2 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center w-9 h-9 rounded-lg bg-white text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition"
+>
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>

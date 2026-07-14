@@ -12,6 +12,9 @@ import {
   Download,
   Heart,
   Share2,
+  Lock,
+  LogIn,
+  UserPlus,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
@@ -34,6 +37,57 @@ const getTypeMeta = (type) =>
     badgeClass: 'bg-gray-100 text-gray-600',
   };
 
+/* ─────────────────── ÉCRAN "CONNEXION REQUISE" (nouveau) ───────────────────
+   Remplace l'ancienne redirection immédiate vers /connexion.
+   - Fade + léger slide à l'apparition (Framer Motion)
+   - Countdown de 5s affiché et décrémenté chaque seconde
+   - navigate("/connexion") n'est appelé QUE au clic "Se connecter"
+     ou quand le countdown atteint 0 (géré par le composant parent)
+*/
+const AuthRequiredScreen = ({ countdown, onLogin, onRegister }) => (
+  <motion.div
+    initial={{ opacity: 0, y: -16 }}
+    animate={{ opacity: 1, y: 0 }}
+    exit={{ opacity: 0, y: -16 }}
+    transition={{ duration: 0.5, ease: 'easeOut' }}
+    className="max-w-md mx-auto mt-16 sm:mt-24 p-6 sm:p-8 bg-white border border-indigo-100 rounded-2xl shadow-lg flex flex-col items-center gap-4 text-center mx-4"
+  >
+    <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-indigo-50 flex items-center justify-center shrink-0">
+      <Lock className="w-7 h-7 sm:w-8 sm:h-8 text-indigo-600" />
+    </div>
+
+    <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+      Connexion requise
+    </h2>
+
+    <p className="text-gray-500 text-sm sm:text-base leading-relaxed">
+      Pour accéder à votre bibliothèque de ressources (guides, vidéos, podcasts et exercices),
+      vous devez être connecté à votre compte.
+    </p>
+
+    <div className="flex flex-col xs:flex-row gap-3 w-full mt-2">
+      <button
+        onClick={onLogin}
+        className="flex-1 inline-flex items-center justify-center gap-2 bg-indigo-600 text-white font-semibold rounded-xl px-5 py-2.5 sm:py-3 hover:bg-indigo-700 active:scale-[0.98] transition-all duration-200 text-sm sm:text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1"
+      >
+        <LogIn className="w-4 h-4 shrink-0" />
+        Se connecter
+      </button>
+      <button
+        onClick={onRegister}
+        className="flex-1 inline-flex items-center justify-center gap-2 bg-gray-100 text-gray-700 font-semibold rounded-xl px-5 py-2.5 sm:py-3 hover:bg-gray-200 active:scale-[0.98] transition-all duration-200 text-sm sm:text-base focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1"
+      >
+        <UserPlus className="w-4 h-4 shrink-0" />
+        Créer un compte
+      </button>
+    </div>
+
+    <p className="text-gray-400 text-xs sm:text-sm mt-1">
+      Redirection dans {countdown} seconde{countdown > 1 ? 's' : ''}...
+    </p>
+  </motion.div>
+);
+
 const Ressources = () => {
   const navigate = useNavigate();
   const { selectedCategory, setSelectedCategory, categoriesOrder } = useRessource();
@@ -42,7 +96,10 @@ const Ressources = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isUserPremium, setIsUserPremium] = useState(false);
-  const [notConnectedMessage, setNotConnectedMessage] = useState('');
+  // Remplace l'ancien notConnectedMessage : ne déclenche plus de redirection immédiate,
+  // affiche à la place l'écran "Connexion requise" avec countdown.
+  const [authRequired, setAuthRequired] = useState(false);
+  const [countdown, setCountdown] = useState(5);
   // Recherche discrète — n'affecte que l'affichage, aucune logique métier.
   const [searchQuery, setSearchQuery] = useState('');
   // Favoris + partage — état purement local/visuel, n'affecte aucune logique métier.
@@ -97,8 +154,11 @@ const Ressources = () => {
     const token = localStorage.getItem("token");
 
     if (!token) {
-      setNotConnectedMessage("⚠️ Vous devez être connecté");
-      navigate("/connexion");
+      // ⚠️ Plus de navigate() immédiat ici : on affiche l'écran d'information,
+      // la redirection réelle est gérée par le useEffect de countdown ci-dessous
+      // ou par le clic sur "Se connecter".
+      setAuthRequired(true);
+      setUserReady(true);
       return;
     }
 
@@ -126,6 +186,28 @@ const Ressources = () => {
     fetchUserInfo();
   }, [navigate, fetchFonctionnalites]);
 
+  // 3. Countdown de redirection (5s) — ne se déclenche que si authRequired === true.
+  // setInterval (affichage) + setTimeout (redirection réelle) sont tous les deux
+  // nettoyés proprement au démontage ou si authRequired repasse à false.
+  useEffect(() => {
+    if (!authRequired) return;
+
+    setCountdown(5);
+
+    const interval = setInterval(() => {
+      setCountdown(prev => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    const timeout = setTimeout(() => {
+      navigate("/connexion");
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+    };
+  }, [authRequired, navigate]);
+
   const filteredFonctionnalites = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return fonctionnalites.filter(f => {
@@ -138,21 +220,17 @@ const Ressources = () => {
     });
   }, [fonctionnalites, selectedCategory, categoriesOrder, searchQuery]);
 
-  if (notConnectedMessage) {
+  if (authRequired) {
     return (
       <Layout>
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
-          className="max-w-md mx-auto mt-16 sm:mt-20 p-6 sm:p-8 bg-red-50 border border-red-300 rounded-lg shadow-lg flex flex-col items-center gap-4 select-none mx-4"
-        >
-          <AlertTriangle className="w-12 h-12 text-red-500 shrink-0" />
-          <h2 className="text-lg sm:text-xl font-semibold text-red-700 text-center">
-            ⚠️ Vous devez être connecté pour accéder aux ressources.
-          </h2>
-          <p className="text-red-600 text-center text-sm sm:text-base">Vous allez être redirigé vers la page de connexion...</p>
-        </motion.div>
+        <AnimatePresence mode="wait">
+          <AuthRequiredScreen
+            key="auth-required"
+            countdown={countdown}
+            onLogin={() => navigate("/connexion")}
+            onRegister={() => navigate("/inscription")}
+          />
+        </AnimatePresence>
       </Layout>
     );
   }

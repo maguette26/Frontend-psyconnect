@@ -165,7 +165,9 @@ export default function Chatbot() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
-  const bottomRef = useRef(null);
+
+  // Ref sur le conteneur scrollable des messages (remplace l'ancien bottomRef + scrollIntoView)
+  const messagesContainerRef = useRef(null);
   const textareaRef = useRef(null);
 
   const { isRecording, supported: micSupported, start: startMic, stop: stopMic } =
@@ -234,6 +236,8 @@ export default function Chatbot() {
 
   // ── Scroll : ne défile automatiquement qu'après le premier rendu
   // (nouveaux messages / indicateur de frappe), jamais au chargement initial.
+  // Le scroll est appliqué UNIQUEMENT sur le conteneur des messages
+  // (messagesContainerRef), jamais sur window/document → la page ne bouge plus.
   const isFirstScrollableRender = useRef(true);
   useEffect(() => {
     if (!historyLoaded) return;
@@ -241,7 +245,10 @@ export default function Chatbot() {
       isFirstScrollableRender.current = false;
       return;
     }
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+    }
   }, [messages, isTyping, historyLoaded]);
 
   const autoResize = () => {
@@ -354,7 +361,7 @@ export default function Chatbot() {
       </div>
 
       {/* ── MESSAGES ── */}
-      <div style={{ flex: 1, overflowY: "auto", padding: "24px 16px 12px", maxWidth: 740, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
+      <div ref={messagesContainerRef} style={{ flex: 1, overflowY: "auto", padding: "24px 16px 12px", maxWidth: 740, width: "100%", margin: "0 auto", boxSizing: "border-box" }}>
         {messages.length <= 1 && (
           <div style={{ marginBottom: 28, display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
             {suggestions.map((s, i) => (
@@ -382,7 +389,6 @@ export default function Chatbot() {
             </div>
           </div>
         )}
-        <div ref={bottomRef} />
       </div>
 
       {/* ── INPUT ZONE ── */}
