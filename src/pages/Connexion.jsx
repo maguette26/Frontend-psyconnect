@@ -148,6 +148,7 @@ const Connexion = () => {
     <Eye size={20} />
   )}
 </button>
+</div>
               </div>
 
               {/* BUTTON */}
