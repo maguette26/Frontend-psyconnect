@@ -30,16 +30,20 @@ const InputField = ({ id, label, type = 'text', autoComplete, value, onChange, e
             ${error ? 'border-red-300 focus:ring-red-100' : 'border-transparent focus:border-blue-500 focus:ring-blue-100'}`}
         />
         {isPassword && (
-          <button
-            type="button"
-            onClick={onToggleVisible}
-            tabIndex={-1}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-            aria-label={visible ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-          >
-            {visible ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
-        )}
+  <button
+    type="button"
+    onClick={onToggleVisible}
+    tabIndex={-1}
+    aria-label={visible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+    className="absolute right-4 top-1/2 -translate-y-1/2 z-20 !bg-transparent !border-0 !shadow-none p-0 m-0 text-slate-400 hover:text-slate-600 transition-colors"
+  >
+    {visible ? (
+      <EyeOff className="w-5 h-5" />
+    ) : (
+      <Eye className="w-5 h-5" />
+    )}
+  </button>
+)}
       </div>
       {error && <p className="text-red-500 text-xs mt-1.5">{error}</p>}
     </div>
