@@ -140,15 +140,14 @@ const Connexion = () => {
  <button
   type="button"
   onClick={() => setShowPassword((s) => !s)}
-  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+  className="absolute right-4 top-1/2 -translate-y-1/2 z-20 !bg-transparent !border-0 !shadow-none p-0 m-0 text-slate-400 hover:text-slate-600"
 >
   {showPassword ? (
-    <EyeOff className="w-5 h-5" />
+    <EyeOff size={20} />
   ) : (
-    <Eye className="w-5 h-5" />
+    <Eye size={20} />
   )}
 </button>
-</div>
               </div>
 
               {/* BUTTON */}
